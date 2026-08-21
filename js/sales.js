@@ -53,15 +53,15 @@ const SalesModule = (() => {
       <div class="card" id="sl-list-card" style="margin-top:16px">
         <div class="card-title">매출 내역</div>
       </div>
-      <div class="card" style="margin-top:16px">
-        <div class="card-title">📄 거래명세서 발행</div>
-        <div class="form-grid">
+      <details class="card" style="margin-top:16px">
+        <summary class="card-title" style="cursor:pointer">📄 거래처·기간별 거래명세서 발행 (세금계산서 발행용 자료)</summary>
+        <div class="form-grid" style="margin-top:10px">
           <div class="fg"><label>거래처</label><select id="sl-inv-buyer"><option value="">— 선택 —</option></select></div>
           <div class="fg"><label>시작일</label><input id="sl-inv-from" type="date"></div>
           <div class="fg"><label>종료일</label><input id="sl-inv-to" type="date"></div>
         </div>
         <button class="ls-btn-primary" id="sl-inv-btn" style="width:auto;margin-top:8px">PDF 생성</button>
-      </div>
+      </details>
     `;
 
     document.getElementById('sl-date').value = new Date().toISOString().slice(0, 10);
@@ -96,6 +96,7 @@ const SalesModule = (() => {
       dateField: 'date',
       searchFields: ['buyer', 'item'],
       rowActions: (row) => `
+        <button data-act="invoice" data-id="${row.id}">명세서</button>
         <button data-act="edit" data-id="${row.id}">수정</button>
         <button data-act="del" data-id="${row.id}">삭제</button>`
     });
@@ -106,6 +107,7 @@ const SalesModule = (() => {
       const id = btn.getAttribute('data-id');
       if (btn.getAttribute('data-act') === 'edit') startEdit(id);
       if (btn.getAttribute('data-act') === 'del') remove(id);
+      if (btn.getAttribute('data-act') === 'invoice') printSingleInvoice(id);
     });
   }
 
@@ -226,6 +228,15 @@ const SalesModule = (() => {
 
   /** 매출 데이터가 바뀔 때마다 호출될 콜백을 등록합니다. */
   function onUpdate(cb) { updateListeners.push(cb); }
+
+  /** 매출 내역 표의 "명세서" 버튼 — 그 건 하나(같은 거래처·같은 날짜 전체)만
+   * 바로 거래명세서로 발행한다. 거래처·기간별 통합 발행(아래 접이식 카드)과
+   * 달리, 등록 직후 그 자리에서 바로 뽑고 싶을 때 쓰는 단축 기능이다. */
+  function printSingleInvoice(id) {
+    const row = cache.find((r) => r.id === id);
+    if (!row) return;
+    InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
+  }
 
   return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist };
 })();
