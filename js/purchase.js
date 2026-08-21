@@ -351,10 +351,11 @@ const PurchaseModule = (() => {
           ${escapeHtml(group[0].date)} · ${escapeHtml(group[0].vendor)}
         </div>
         <table class="inv-table" style="width:100%;font-size:12px">
-          <thead><tr><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
+          <thead><tr><th>No.</th><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
           <tbody>
-            ${group.map((r) => `
+            ${group.map((r, idx) => `
               <tr>
+                <td style="text-align:center">${idx + 1}</td>
                 <td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.spec || '')}</td>
                 <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
                 <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
