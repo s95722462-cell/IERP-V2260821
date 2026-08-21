@@ -85,8 +85,8 @@ const SettingsModule = (() => {
   /** 회사 상세 정보(거래명세서 공급자란에 그대로 쓰이는 값들) 수정 폼. */
   function buildCompanyEditForm(c) {
     const idx = companies.indexOf(c);
-    const f = (key, label, id) =>
-      `<div class="fg"><label>${label}</label><input id="${id}" value="${escapeHtml(c[key] || '')}"></div>`;
+    const f = (key, label, id, wide) =>
+      `<div class="fg"${wide ? ' style="grid-column:1/-1"' : ''}><label>${label}</label><input id="${id}" value="${escapeHtml(c[key] || '')}"></div>`;
     return `
       <div class="st-co-edit-form form-grid" style="margin:8px 0 16px">
         ${f('company', '회사명', 'stc-company')}
@@ -94,7 +94,7 @@ const SettingsModule = (() => {
         ${f('ceo', '대표자', 'stc-ceo')}
         ${f('biztype', '업태', 'stc-biztype')}
         ${f('bizitem', '종목', 'stc-bizitem')}
-        ${f('addr', '주소', 'stc-addr')}
+        ${f('addr', '주소', 'stc-addr', true)}
         ${f('tel', '연락처', 'stc-tel')}
         ${f('fax', '팩스', 'stc-fax')}
         ${f('email', '이메일', 'stc-email')}
