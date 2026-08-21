@@ -41,7 +41,7 @@ const SettingsModule = (() => {
     `;
 
     const { currentUser } = getAuthState();
-    document.getElementById('st-uid').value = currentUser.id;
+       if (currentUser) document.getElementById('st-uid').value = currentUser.id;
 
     document.getElementById('st-pw-save').addEventListener('click', changePassword);
     document.getElementById('st-add-co').addEventListener('click', addCompany);
