@@ -149,7 +149,7 @@ const TableEngine = (() => {
       const alignStyle = c.align === 'right' ? 'text-align:right;' : '';
       headHtml += `<th style="${widthStyle}${alignStyle}" data-key="${c.key}">${escapeHtml(c.label)}<div class="te-resizer"></div></th>`;
     });
-    if (state.opts.rowActions) headHtml += `<th class="te-no-resize">관리</th>`;
+    if (state.opts.rowActions) headHtml += `<th class="te-no-resize te-actions-col">관리</th>`;
     theadRow.innerHTML = headHtml;
 
     // 본문
@@ -164,7 +164,7 @@ const TableEngine = (() => {
           const alignStyle = c.align === 'right' ? 'text-align:right;' : '';
           rowHtml += `<td style="${alignStyle}">${cell}</td>`;
         });
-        if (state.opts.rowActions) rowHtml += `<td>${state.opts.rowActions(row)}</td>`;
+        if (state.opts.rowActions) rowHtml += `<td class="te-actions-col">${state.opts.rowActions(row)}</td>`;
         rowHtml += '</tr>';
         return rowHtml;
       }).join('');
