@@ -39,11 +39,28 @@ const InvoiceModule = (() => {
       total: acc.total + it.total
     }), { subtotal: 0, vat: 0, total: 0 });
 
-    renderPrintArea(buildHtml(company, buyer, items, totals));
+    // A4 한 장에 공급자 보관용 / 공급받는자 보관용을 위아래로 나눠 찍고
+    // 가운데 절취선을 넣는다 (품목이 많아 한 칸(半)에 다 안 들어가면
+    // 넘치는 행은 그 칸 안에서 잘려 보일 수 있음 — 품목 수가 많은
+    // 거래명세서는 절취선 없는 일반 방식을 권장).
+    const bodyHtml = buildBodyHtml(company, buyer, items, totals);
+    renderPrintArea(`
+      <div class="inv-page">
+        <div class="inv-copy">
+          <div class="inv-copy-label">공급자 보관용</div>
+          ${bodyHtml}
+        </div>
+        <div class="inv-cutline"><span>✂ 절 취 선 ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑</span></div>
+        <div class="inv-copy">
+          <div class="inv-copy-label">공급받는자 보관용</div>
+          ${bodyHtml}
+        </div>
+      </div>
+    `);
     window.print();
   }
 
-  function buildHtml(company, buyer, items, totals) {
+  function buildBodyHtml(company, buyer, items, totals) {
     return `
       <div class="inv-doc">
         <h1 class="inv-title">거 래 명 세 서</h1>

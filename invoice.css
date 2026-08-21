@@ -13,6 +13,9 @@
 @media print {
   @page { size: A4; margin: 15mm; }
 
+  /* ls-app은 height:100vh라서 visibility:hidden만으로는 레이아웃 공간이
+     그대로 남아 빈 페이지가 하나 더 생긴다. display:none으로 아예
+     레이아웃에서 빼야 한다. */
   #ls-boot, #ls-login, #ls-app { display: none !important; }
 
   body * { visibility: hidden; }
@@ -22,6 +25,30 @@
     position: absolute; left: 0; top: 0; width: 100%;
   }
 }
+
+/* A4 한 장을 위/아래로 절반씩 나눠 같은 내용을 두 번(공급자 보관용 /
+   공급받는자 보관용) 찍고, 가운데에 절취선을 넣는 레이아웃.
+   품목 수가 많아 한 칸에 다 안 들어가면 넘치는 행은 그 칸 안에서
+   잘려 보일 수 있다 (품목이 아주 많을 땐 절취선 없는 일반 방식 권장). */
+@media print {
+  .inv-page { display: flex; flex-direction: column; height: 267mm; }
+  .inv-copy { flex: 1 1 0; overflow: hidden; position: relative; padding-top: 5mm; box-sizing: border-box; }
+  .inv-copy-label {
+    position: absolute; top: 0; right: 0;
+    font-size: 9px; border: 1px solid #333; border-radius: 3px;
+    padding: 1px 8px; background: #fff;
+  }
+  .inv-cutline {
+    flex: 0 0 auto; position: relative;
+    border-top: 1px dashed #999; margin: 3mm 0; height: 0;
+  }
+  .inv-cutline span {
+    position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+    background: #fff; padding: 0 8px; font-size: 9px; color: #888;
+  }
+}
+
+
 .inv-doc {
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   color: #000; font-size: 11px; line-height: 1.5;
