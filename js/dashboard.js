@@ -21,7 +21,7 @@ const DashboardModule = (() => {
         <div class="card-title">🕒 최근 거래 내역</div>
         <div class="te-scroll">
           <table class="te-table">
-            <thead><tr><th>날짜</th><th>구분</th><th>거래처</th><th>품목</th><th style="text-align:right">금액</th></tr></thead>
+            <thead><tr><th>No.</th><th>날짜</th><th>구분</th><th>거래처</th><th>품목</th><th style="text-align:right">금액</th></tr></thead>
             <tbody id="dash-recent-tbody"></tbody>
           </table>
         </div>
@@ -60,15 +60,16 @@ const DashboardModule = (() => {
     ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
 
     document.getElementById('dash-recent-tbody').innerHTML = recent.length
-      ? recent.map((r) => `
+      ? recent.map((r, idx) => `
         <tr>
+          <td style="text-align:center">${idx + 1}</td>
           <td>${escapeHtml(r.date || '')}</td>
           <td>${r._type === '매출' ? '<span class="badge badge-red">매출</span>' : '<span class="badge badge-blue">매입</span>'}</td>
           <td>${escapeHtml(r._party || '')}</td>
           <td>${escapeHtml(r.item || '')}</td>
           <td style="text-align:right">₩${(r.total || 0).toLocaleString()}</td>
         </tr>`).join('')
-      : '<tr><td colspan="5" style="text-align:center;color:var(--text2)">거래 내역이 없습니다</td></tr>';
+      : '<tr><td colspan="6" style="text-align:center;color:var(--text2)">거래 내역이 없습니다</td></tr>';
   }
 
   function startListening() {
