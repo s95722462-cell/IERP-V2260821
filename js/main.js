@@ -83,6 +83,18 @@ function initApp() {
   // 각 화면의 DOM/이벤트를 먼저 전부 그려 넣는다 (아직 데이터 연결 전)
   ALL_MODULES.forEach((m) => m.init());
 
+  // 거래처/품목이 추가·수정될 때, 매출/매입 화면의 드롭다운·자동완성을
+  // 자동으로 다시 그리도록 연결 (이 연결이 없으면 새로고침하기 전까지
+  // 방금 등록한 거래처/품목이 매출·매입 등록 화면에 안 보이는 문제가 생김)
+  CustomersModule.onUpdate(() => {
+    SalesModule.refreshBuyerOptions();
+    PurchaseModule.refreshVendorOptions();
+  });
+  ProductsModule.onUpdate(() => {
+    SalesModule.refreshItemDatalist();
+    PurchaseModule.refreshItemDatalist();
+  });
+
   // 로그인 상태 확인이 끝난 뒤, 이미 로그인되어 있었다면(새로고침 복원) 바로 이어서 시작
   onAuthReady(() => {
     const { currentUser } = getAuthState();
