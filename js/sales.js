@@ -416,7 +416,7 @@ const SalesModule = (() => {
     else InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
   }
 
-  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist };
+  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, openDetailModal };
 })();
 
 window.SalesModule = SalesModule;

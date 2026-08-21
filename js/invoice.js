@@ -96,13 +96,14 @@ const InvoiceModule = (() => {
         <table class="inv-table">
           <thead>
             <tr>
-              <th>날짜</th><th>품목명</th><th>규격</th><th>수량</th>
+              <th>No.</th><th>날짜</th><th>품목명</th><th>규격</th><th>수량</th>
               <th>단가</th><th>공급가액</th><th>부가세</th><th>합계</th>
             </tr>
           </thead>
           <tbody>
-            ${items.map((it) => `
+            ${items.map((it, idx) => `
               <tr>
+                <td style="text-align:center">${idx + 1}</td>
                 <td>${escapeHtml(it.date)}</td>
                 <td>${escapeHtml(it.item)}</td>
                 <td>${escapeHtml(it.spec || '')}</td>
