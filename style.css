@@ -69,3 +69,30 @@ button:hover { background: var(--border); }
 /* ── 설정 화면 회사 목록 ── */
 .st-co-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .st-co-actions { display: flex; gap: 6px; }
+
+/* ── 전표(품목 여러 줄) 입력 UI — sales.js/purchase.js 공용 ────────── */
+.sl-items-head, .sl-item-row {
+  display: grid;
+  grid-template-columns: 2fr 1.3fr 0.7fr 1fr 1fr 28px;
+  gap: 8px;
+  align-items: center;
+}
+.sl-items-head { font-size: 11px; color: var(--text2); font-weight: 700; padding: 0 2px 4px; }
+.sl-item-row { margin-bottom: 6px; }
+.sl-item-row input {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); font-size: 13px; box-sizing: border-box;
+}
+.sl-item-row .ri-subtotal { text-align: right; font-size: 13px; padding-right: 4px; }
+.sl-item-row .ri-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 15px; padding: 4px; }
+.sl-add-row-btn { margin: 4px 0 10px; }
+.sl-doc-totals { text-align: right; font-size: 13px; color: var(--text2); }
+.sl-docno-link { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 700; padding: 0; text-decoration: underline; }
+
+/* 전표 상세보기 모달 안에서만 쓰는 표 스타일 (invoice.css의 .inv-table은
+   평소 화면에서 숨겨져 있으므로 별도로 정의) */
+.te-modal table.inv-table { border-collapse: collapse; }
+.te-modal table.inv-table th, .te-modal table.inv-table td {
+  border: 1px solid var(--border); padding: 5px 6px; font-size: 12px;
+}
+.te-modal table.inv-table th { background: var(--surface2); }

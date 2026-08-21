@@ -3,48 +3,64 @@
 // iERP 2.0 / 화면 모듈
 //
 // 의존성: security.js, db.js, auth.js, layout-shell.js, table-engine.js,
-//         customers.js, products.js
+//         customers.js, products.js, invoice.js
 // 데이터 경로: users/{safeId}/companies/{companyId}/sales/{id}
+//             users/{safeId}/companies/{companyId}/counters/{S+날짜}  (전표번호 채번용)
 //
-// 설계 원칙 (1.0에서 배운 것):
+// 설계 원칙 (1.0에서 배운 것 + 이번 개편):
 //   - 부가세는 모든 매출에 항상 10% 자동 계산 (통화 구분 없음 — 요구사항
-//     정의서 확정 사항). 수정 화면에서도 항상 같은 방식으로 재계산되므로
-//     "수정할 때만 세액이 0으로 초기화되는" 유형의 버그가 구조적으로 없다.
+//     정의서 확정 사항).
 //   - 품목 자동완성으로 선택하면 반드시 productId를 저장해 재고 계산이
 //     정확히 매칭되게 한다 (이름 문자열만 비교하지 않음).
+//   - "전표(docNo) = 품목 여러 줄" 구조: 실제 저장은 여전히 sales 컬렉션에
+//     품목 한 줄 = 문서 한 개(예전 그대로, 대시보드·재고현황·일별현황
+//     코드를 안 건드리기 위함)지만, 같은 전표에 속한 줄은 전부 같은
+//     docNo를 공유한다. docNo는 db.js의 genDocNo()로 트랜잭션 채번해
+//     동시 저장해도 번호가 안 겹친다. 수정/삭제/명세서 발행은 docNo
+//     단위로 그룹째 처리한다. docNo가 없는(개편 이전) 옛 데이터는
+//     낱개 레코드로 계속 정상 동작한다 (하위호환, 마이그레이션 불필요).
 // ══════════════════════════════════════════════════════════════
 
 const SalesModule = (() => {
   let cache = [];
   let tableInstance = null;
-  let editingId = null;
+  let editingDocNo = null;   // 수정 중인 전표번호 (null이면 신규 입력)
+  let editingIds = [];       // 저장 시 지울 기존 문서 id들 (docNo 그룹 전체 또는 옛 낱개 레코드 1개)
   let unsubscribe = null;
   let updateListeners = [];
+  let rowSeq = 0;
 
   function path() {
     const { currentUser } = getAuthState();
     return `users/${currentUser.safeId}/companies/${curCompanyId()}/sales`;
+  }
+  function counterPath() {
+    const { currentUser } = getAuthState();
+    return `users/${currentUser.safeId}/companies/${curCompanyId()}/counters`;
   }
 
   function init() {
     const panel = LayoutShell.registerPanel('sales');
     panel.innerHTML = `
       <div class="card">
-        <div class="card-title">📈 매출 등록 / 수정</div>
+        <div class="card-title">📈 매출 등록 / 수정 <span id="sl-docno-badge" class="badge badge-blue" style="display:none"></span></div>
         <div class="form-grid">
           <div class="fg"><label>날짜 *</label><input id="sl-date" type="date"></div>
           <div class="fg"><label>거래처 *</label>
             <select id="sl-buyer"><option value="">— 선택 —</option></select>
           </div>
-          <div class="fg"><label>품목명 *</label><input id="sl-item" list="sl-item-list"></div>
-          <datalist id="sl-item-list"></datalist>
-          <div class="fg"><label>규격</label><input id="sl-spec"></div>
-          <div class="fg"><label>수량 *</label><input id="sl-qty" type="number" value="1"></div>
-          <div class="fg"><label>단가 *</label><input id="sl-price" type="number" value="0"></div>
           <div class="fg"><label>인보이스No.</label><input id="sl-invno"></div>
           <div class="fg" style="grid-column:1/-1"><label>비고</label><input id="sl-memo"></div>
         </div>
-        <div class="sl-calc" id="sl-calc">공급가액 0 + 부가세(10%) 0 = 합계 0</div>
+
+        <div class="sl-items-head">
+          <div>품목명</div><div>규격</div><div>수량</div><div>단가</div><div>공급가액</div><div></div>
+        </div>
+        <div id="sl-items-container"></div>
+        <datalist id="sl-item-list"></datalist>
+        <button type="button" id="sl-add-row-btn" class="sl-add-row-btn">+ 품목 추가</button>
+
+        <div class="sl-doc-totals" id="sl-doc-totals">공급가액 0 + 부가세(10%) 0 = 합계 0</div>
         <div class="btn-row" style="margin-top:10px">
           <button class="ls-btn-primary" id="sl-save-btn" style="width:auto">저장</button>
           <button id="sl-cancel-btn" style="display:none">취소</button>
@@ -65,10 +81,26 @@ const SalesModule = (() => {
     `;
 
     document.getElementById('sl-date').value = new Date().toISOString().slice(0, 10);
+    addRow(); // 처음엔 빈 줄 1개로 시작
+
     document.getElementById('sl-save-btn').addEventListener('click', save);
-    document.getElementById('sl-cancel-btn').addEventListener('click', () => fillForm(null));
-    document.getElementById('sl-item').addEventListener('change', onItemPick);
-    ['sl-qty', 'sl-price'].forEach((id) => document.getElementById(id).addEventListener('input', updateCalc));
+    document.getElementById('sl-cancel-btn').addEventListener('click', resetForm);
+    document.getElementById('sl-add-row-btn').addEventListener('click', () => addRow());
+
+    const itemsContainer = document.getElementById('sl-items-container');
+    itemsContainer.addEventListener('input', (e) => {
+      if (e.target.classList.contains('ri-qty') || e.target.classList.contains('ri-price')) {
+        recalcRow(e.target.closest('.sl-item-row'));
+      }
+    });
+    itemsContainer.addEventListener('change', (e) => {
+      if (e.target.classList.contains('ri-item')) onItemPick(e.target.closest('.sl-item-row'));
+    });
+    itemsContainer.addEventListener('click', (e) => {
+      const delBtn = e.target.closest('.ri-del');
+      if (delBtn) removeRow(delBtn.closest('.sl-item-row'));
+    });
+
     document.getElementById('sl-inv-btn').addEventListener('click', () => {
       InvoiceModule.generate({
         buyerId: document.getElementById('sl-inv-buyer').value,
@@ -80,6 +112,7 @@ const SalesModule = (() => {
     tableInstance = TableEngine.create('sales', {
       container: document.getElementById('sl-list-card'),
       columns: [
+        { key: 'docNo', label: '전표No.', render: (v) => v ? `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>` : '' },
         { key: 'date', label: '날짜' },
         { key: 'buyer', label: '거래처' },
         { key: 'item', label: '품목명' },
@@ -94,7 +127,7 @@ const SalesModule = (() => {
       ],
       dateFilter: true,
       dateField: 'date',
-      searchFields: ['buyer', 'item'],
+      searchFields: ['buyer', 'item', 'docNo'],
       rowActions: (row) => `
         <button data-act="invoice" data-id="${row.id}">명세서</button>
         <button data-act="edit" data-id="${row.id}">수정</button>
@@ -102,6 +135,8 @@ const SalesModule = (() => {
     });
 
     document.getElementById('sl-list-card').addEventListener('click', (e) => {
+      const docBtn = e.target.closest('.sl-docno-link');
+      if (docBtn) { openDetailModal(docBtn.getAttribute('data-docno')); return; }
       const btn = e.target.closest('button[data-act]');
       if (!btn) return;
       const id = btn.getAttribute('data-id');
@@ -142,85 +177,217 @@ const SalesModule = (() => {
     ).join('');
   }
 
-  /** 자동완성에서 "품목명 (규격)"을 선택하면 이름/규격/단가를 각 칸에 정확히 분리해 채운다. */
-  function onItemPick() {
-    const raw = document.getElementById('sl-item').value;
+  // ── 품목 줄(행) 관리 ──────────────────────────────────────
+
+  /** 품목 입력 줄을 하나 추가합니다. data가 있으면 그 값으로 채워 넣습니다(수정 시 사용). */
+  function addRow(data) {
+    const key = 'r' + (++rowSeq);
+    const container = document.getElementById('sl-items-container');
+    const div = document.createElement('div');
+    div.className = 'sl-item-row';
+    div.setAttribute('data-rowkey', key);
+    div.innerHTML = `
+      <input class="ri-item" list="sl-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}">
+      <input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}">
+      <input class="ri-qty" type="number" value="${data?.qty ?? 1}">
+      <input class="ri-price" type="number" value="${data?.unitPrice ?? 0}">
+      <span class="ri-subtotal">0</span>
+      <button type="button" class="ri-del" title="이 줄 삭제">✕</button>
+    `;
+    container.appendChild(div);
+    recalcRow(div);
+  }
+
+  function removeRow(rowEl) {
+    const container = document.getElementById('sl-items-container');
+    if (container.children.length <= 1) { alert('최소 한 줄은 있어야 합니다'); return; }
+    rowEl.remove();
+    recalcTotal();
+  }
+
+  /** 자동완성에서 "품목명 (규격)"을 고르면 이름/규격/단가를 그 줄에 정확히 채운다. */
+  function onItemPick(rowEl) {
+    const raw = rowEl.querySelector('.ri-item').value;
     const { name, hint } = splitNameAndHint(raw);
     let product = ProductsModule.findByNameSpec(name, hint) || ProductsModule.getCache().find((p) => p.name === name);
     if (product) {
-      document.getElementById('sl-item').value = product.name;
-      document.getElementById('sl-spec').value = product.spec || '';
-      document.getElementById('sl-price').value = product.price || 0;
+      rowEl.querySelector('.ri-item').value = product.name;
+      rowEl.querySelector('.ri-spec').value = product.spec || '';
+      rowEl.querySelector('.ri-price').value = product.price || 0;
     }
-    updateCalc();
+    recalcRow(rowEl);
   }
 
-  function updateCalc() {
-    const qty = rawNum(document.getElementById('sl-qty').value);
-    const price = rawNum(document.getElementById('sl-price').value);
+  function rowValues(rowEl) {
+    const qty = rawNum(rowEl.querySelector('.ri-qty').value);
+    const price = rawNum(rowEl.querySelector('.ri-price').value);
     const subtotal = qty * price;
     const vat = Math.round(subtotal * 0.1); // 항상 10% (통화 구분 없음 — 요구사항 확정 사항)
     const total = subtotal + vat;
-    document.getElementById('sl-calc').textContent =
+    return { qty, price, subtotal, vat, total };
+  }
+
+  function recalcRow(rowEl) {
+    const { subtotal } = rowValues(rowEl);
+    rowEl.querySelector('.ri-subtotal').textContent = subtotal.toLocaleString();
+    recalcTotal();
+  }
+
+  function recalcTotal() {
+    const rows = document.querySelectorAll('#sl-items-container .sl-item-row');
+    let subtotal = 0, vat = 0, total = 0;
+    rows.forEach((r) => {
+      const v = rowValues(r);
+      subtotal += v.subtotal; vat += v.vat; total += v.total;
+    });
+    document.getElementById('sl-doc-totals').textContent =
       `공급가액 ${subtotal.toLocaleString()} + 부가세(10%) ${vat.toLocaleString()} = 합계 ${total.toLocaleString()}`;
-    return { subtotal, vat, total };
   }
 
-  function fillForm(row) {
-    document.getElementById('sl-date').value = row?.date || new Date().toISOString().slice(0, 10);
-    document.getElementById('sl-buyer').value = row?.buyerId || '';
-    document.getElementById('sl-item').value = row?.item || '';
-    document.getElementById('sl-spec').value = row?.spec || '';
-    document.getElementById('sl-qty').value = row?.qty ?? 1;
-    document.getElementById('sl-price').value = row?.unitPrice ?? 0;
-    document.getElementById('sl-invno').value = row?.invNo || '';
-    document.getElementById('sl-memo').value = row?.memo || '';
-    editingId = row ? row.id : null;
-    document.getElementById('sl-cancel-btn').style.display = row ? '' : 'none';
-    document.getElementById('sl-save-btn').textContent = row ? '수정 저장' : '저장';
-    updateCalc();
+  // ── 등록/수정 폼 전체 ──────────────────────────────────────
+
+  function resetForm() {
+    document.getElementById('sl-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('sl-buyer').value = '';
+    document.getElementById('sl-invno').value = '';
+    document.getElementById('sl-memo').value = '';
+    document.getElementById('sl-items-container').innerHTML = '';
+    addRow();
+    editingDocNo = null;
+    editingIds = [];
+    document.getElementById('sl-docno-badge').style.display = 'none';
+    document.getElementById('sl-cancel-btn').style.display = 'none';
+    document.getElementById('sl-save-btn').textContent = '저장';
   }
 
+  /** 전표번호(또는 전표번호 없는 옛 낱개 레코드)를 폼에 통째로 불러와 수정 상태로 만든다. */
   function startEdit(id) {
     const row = cache.find((r) => r.id === id);
-    if (row) fillForm(row);
+    if (!row) return;
+    const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
+
+    document.getElementById('sl-date').value = row.date || '';
+    document.getElementById('sl-buyer').value = row.buyerId || '';
+    document.getElementById('sl-invno').value = row.invNo || '';
+    document.getElementById('sl-memo').value = row.memo || '';
+
+    document.getElementById('sl-items-container').innerHTML = '';
+    group.forEach((r) => addRow(r));
+
+    editingDocNo = row.docNo || null;
+    editingIds = group.map((r) => r.id);
+
+    const badge = document.getElementById('sl-docno-badge');
+    if (row.docNo) { badge.textContent = row.docNo; badge.style.display = ''; }
+    else badge.style.display = 'none';
+
+    document.getElementById('sl-cancel-btn').style.display = '';
+    document.getElementById('sl-save-btn').textContent = '수정 저장';
+    recalcTotal();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function save() {
     const date = document.getElementById('sl-date').value;
     const buyerId = document.getElementById('sl-buyer').value;
-    const item = document.getElementById('sl-item').value.trim();
-    if (!date || !buyerId || !item) { alert('날짜, 거래처, 품목명은 필수입니다'); return; }
+    if (!date || !buyerId) { alert('날짜, 거래처는 필수입니다'); return; }
+
+    const rowEls = Array.from(document.querySelectorAll('#sl-items-container .sl-item-row'));
+    const itemRows = rowEls
+      .map((el) => ({
+        item: el.querySelector('.ri-item').value.trim(),
+        spec: el.querySelector('.ri-spec').value.trim(),
+        ...rowValues(el)
+      }))
+      .filter((r) => r.item); // 품목명 없는 빈 줄은 저장하지 않음
+
+    if (!itemRows.length) { alert('품목을 최소 1개 이상 입력하세요'); return; }
 
     const buyer = CustomersModule.getCache().find((c) => c.id === buyerId);
-    const product = ProductsModule.findByNameSpec(item, document.getElementById('sl-spec').value);
-    const { subtotal, vat, total } = updateCalc();
+    const invNo = document.getElementById('sl-invno').value;
+    const memo = document.getElementById('sl-memo').value;
 
-    const data = {
-      date,
-      buyerId,
-      buyer: buyer ? buyer.name : '',
-      item,
-      spec: document.getElementById('sl-spec').value,
-      productId: product ? product.id : '',
-      qty: rawNum(document.getElementById('sl-qty').value),
-      unitPrice: rawNum(document.getElementById('sl-price').value),
-      subtotal, vat, total,
-      invNo: document.getElementById('sl-invno').value,
-      memo: document.getElementById('sl-memo').value
-    };
+    // 수정 중이면 기존 전표번호를 그대로 쓰고, 신규면 새로 채번한다
+    // (옛 낱개 레코드를 수정하는 경우도 이번에 새 전표번호를 받아 정식 전표로 승격된다).
+    const docNo = editingDocNo || await genDocNo(counterPath(), 'S');
 
-    if (editingId) {
-      await updateDoc(path(), editingId, data);
-    } else {
-      await addDoc(path(), data);
-    }
-    fillForm(null);
+    const ops = [];
+    editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
+    itemRows.forEach((r) => {
+      const product = ProductsModule.findByNameSpec(r.item, r.spec);
+      ops.push({
+        type: 'set', path: path(), id: genId(),
+        data: {
+          docNo, date, buyerId,
+          buyer: buyer ? buyer.name : '',
+          item: r.item, spec: r.spec,
+          productId: product ? product.id : '',
+          qty: r.qty, unitPrice: r.price,
+          subtotal: r.subtotal, vat: r.vat, total: r.total,
+          invNo, memo
+        }
+      });
+    });
+
+    await batchWrite(ops);
+    resetForm();
   }
 
+  /** 전표번호가 있으면 그 전표 전체(품목 여러 줄)를, 없으면(옛 데이터) 그 한 줄만 삭제한다. */
   async function remove(id) {
-    if (!confirm('이 매출 내역을 삭제하시겠습니까?')) return;
-    await deleteDoc(path(), id);
+    const row = cache.find((r) => r.id === id);
+    if (!row) return;
+    const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
+    const label = row.docNo ? `전표 ${row.docNo}(품목 ${group.length}개)` : '이 매출 내역';
+    if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
+    await batchWrite(group.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+  }
+
+  /** 전표번호를 클릭했을 때 뜨는 상세보기 모달 (화면 확인용 — 인쇄는 별도 "명세서 발행" 버튼). */
+  function openDetailModal(docNo) {
+    const group = cache.filter((r) => r.docNo === docNo);
+    if (!group.length) return;
+    const totals = group.reduce((acc, r) => ({
+      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+    }), { subtotal: 0, vat: 0, total: 0 });
+
+    let modal = document.getElementById('sl-detail-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'sl-detail-modal';
+      modal.className = 'te-modal-bg';
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div class="te-modal" style="width:520px;max-width:92vw">
+        <div class="te-modal-title">전표 ${escapeHtml(docNo)} 상세 <button class="te-modal-close" data-role="close">✕</button></div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+          ${escapeHtml(group[0].date)} · ${escapeHtml(group[0].buyer)}
+        </div>
+        <table class="inv-table" style="width:100%;font-size:12px">
+          <thead><tr><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
+          <tbody>
+            ${group.map((r) => `
+              <tr>
+                <td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.spec || '')}</td>
+                <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
+                <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
+                <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="sl-doc-totals" style="margin-top:8px">
+          공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="ls-btn-primary" data-role="print" style="width:auto">이 전표 명세서 발행</button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'flex';
+    modal.querySelector('[data-role="close"]').addEventListener('click', () => { modal.style.display = 'none'; });
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; }, { once: true });
+    modal.querySelector('[data-role="print"]').addEventListener('click', () => InvoiceModule.generate({ docNo }));
   }
 
   /** 재고(stock.js)·일별현황(daily.js)·대시보드에서 매출 데이터를 참조할 때 사용합니다. */
@@ -229,13 +396,13 @@ const SalesModule = (() => {
   /** 매출 데이터가 바뀔 때마다 호출될 콜백을 등록합니다. */
   function onUpdate(cb) { updateListeners.push(cb); }
 
-  /** 매출 내역 표의 "명세서" 버튼 — 그 건 하나(같은 거래처·같은 날짜 전체)만
-   * 바로 거래명세서로 발행한다. 거래처·기간별 통합 발행(아래 접이식 카드)과
-   * 달리, 등록 직후 그 자리에서 바로 뽑고 싶을 때 쓰는 단축 기능이다. */
+  /** 매출 내역 표의 "명세서" 버튼 — 전표번호가 있으면 그 전표 전체를, 없으면(옛 데이터)
+   * 그 거래처·그 날짜로 근사 발행한다. */
   function printSingleInvoice(id) {
     const row = cache.find((r) => r.id === id);
     if (!row) return;
-    InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
+    if (row.docNo) InvoiceModule.generate({ docNo: row.docNo });
+    else InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
   }
 
   return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist };

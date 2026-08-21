@@ -23,14 +23,22 @@ const InvoiceModule = (() => {
    * 선택하면 실제 PDF 파일이 만들어집니다.
    * @param {{buyerId:string, dateFrom:string, dateTo:string}} params
    */
-  function generate({ buyerId, dateFrom, dateTo }) {
+  function generate({ buyerId, dateFrom, dateTo, docNo }) {
+    let items;
+    if (docNo) {
+      // 전표 단위 발행 — 매출 내역 표의 "명세서" 버튼, 전표 상세보기 모달에서 사용
+      items = SalesModule.getCache().filter((r) => r.docNo === docNo);
+      if (!items.length) { alert('해당 전표를 찾을 수 없습니다'); return; }
+      buyerId = items[0].buyerId;
+    } else {
+      items = SalesModule.getCache().filter((r) =>
+        r.buyerId === buyerId && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo)
+      );
+      if (!items.length) { alert('선택한 기간에 해당 거래처의 매출 내역이 없습니다'); return; }
+    }
+
     const buyer = CustomersModule.getCache().find((c) => c.id === buyerId);
     if (!buyer) { alert('거래처를 선택하세요'); return; }
-
-    const items = SalesModule.getCache().filter((r) =>
-      r.buyerId === buyerId && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo)
-    );
-    if (!items.length) { alert('선택한 기간에 해당 거래처의 매출 내역이 없습니다'); return; }
 
     const company = companies[activeCoIdx];
     const totals = items.reduce((acc, it) => ({
@@ -43,7 +51,7 @@ const InvoiceModule = (() => {
     // 가운데 절취선을 넣는다 (품목이 많아 한 칸(半)에 다 안 들어가면
     // 넘치는 행은 그 칸 안에서 잘려 보일 수 있음 — 품목 수가 많은
     // 거래명세서는 절취선 없는 일반 방식을 권장).
-    const bodyHtml = buildBodyHtml(company, buyer, items, totals);
+    const bodyHtml = buildBodyHtml(company, buyer, items, totals, docNo);
     renderPrintArea(`
       <div class="inv-page">
         <div class="inv-copy">
@@ -60,7 +68,7 @@ const InvoiceModule = (() => {
     window.print();
   }
 
-  function buildBodyHtml(company, buyer, items, totals) {
+  function buildBodyHtml(company, buyer, items, totals, docNo) {
     return `
       <div class="inv-doc">
         <h1 class="inv-title">거 래 명 세 서</h1>
@@ -83,7 +91,7 @@ const InvoiceModule = (() => {
           </div>
         </div>
 
-        <div class="inv-meta">발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}</div>
+        <div class="inv-meta">발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}${docNo ? ' · 전표No: ' + escapeHtml(docNo) : ''}</div>
 
         <table class="inv-table">
           <thead>

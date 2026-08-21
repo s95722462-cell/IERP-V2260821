@@ -91,6 +91,44 @@ async function getDocOnce(path, id) {
 /** 필드 삭제용 상수 (updateDoc에서 특정 필드를 지울 때 사용) */
 const DELETE_FIELD = () => firebase.firestore.FieldValue.delete();
 
+/**
+ * 전표번호를 안전하게 채번합니다. 같은 날짜에 두 사람이 동시에 저장해도
+ * 번호가 겹치지 않도록 Firestore 트랜잭션으로 카운터 문서를 원자적으로
+ * 증가시킵니다 (Firestore 공식 권장 패턴).
+ * @param {string} counterCollectionPath - 카운터 문서를 둘 컬렉션 경로
+ *   예: `users/{safeId}/companies/{companyId}/counters`
+ * @param {string} prefix - 'S'(매출) 또는 'P'(매입) 등 한 글자 구분자
+ * @returns {Promise<string>} 예: 'S20260821-01'
+ */
+async function genDocNo(counterCollectionPath, prefix) {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const counterId = prefix + today;
+  const ref = db.collection(counterCollectionPath).doc(counterId);
+  const seq = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const next = (snap.exists ? (snap.data().seq || 0) : 0) + 1;
+    tx.set(ref, { seq: next }, { merge: true });
+    return next;
+  });
+  return `${prefix}${today}-${String(seq).padStart(2, '0')}`;
+}
+
+/**
+ * 여러 문서를 한 번에 원자적으로 저장/삭제합니다 (batch). 전표 하나(품목
+ * 여러 줄)를 저장·수정·삭제할 때, 중간에 실패해도 절반만 반영되는 사고가
+ * 없도록 이 함수로 묶어서 처리합니다.
+ * @param {{type:'set'|'delete', path:string, id:string, data?:object, merge?:boolean}[]} ops
+ */
+async function batchWrite(ops) {
+  const batch = db.batch();
+  ops.forEach((op) => {
+    const ref = db.collection(op.path).doc(op.id);
+    if (op.type === 'delete') batch.delete(ref);
+    else batch.set(ref, op.data, { merge: !!op.merge });
+  });
+  return await batch.commit();
+}
+
 // ── 실시간 리스너 관리 ──────────────────────────────────────
 
 const DbEngine = (() => {
@@ -179,4 +217,6 @@ window.updateDoc = updateDoc;
 window.deleteDoc = deleteDoc;
 window.getDocOnce = getDocOnce;
 window.DELETE_FIELD = DELETE_FIELD;
+window.genDocNo = genDocNo;
+window.batchWrite = batchWrite;
 window.DbEngine = DbEngine;
