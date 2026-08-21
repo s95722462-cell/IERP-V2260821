@@ -33,11 +33,8 @@ const DailyModule = (() => {
           ? '<span class="badge badge-red">매출</span>'
           : '<span class="badge badge-blue">매입</span>' },
         { key: 'party', label: '거래처/업체' },
-        { key: 'docNo', label: '전표No.', render: (v, row) => {
-          if (!v) return '';
-          if (row.type === '매출') return `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>`;
-          return escapeHtml(v); // 매입은 아직 전표 구조 적용 전(하위호환) — 텍스트로만 표시
-        } },
+        { key: 'docNo', label: '전표No.', render: (v) =>
+          v ? `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>` : '' },
         { key: 'item', label: '품목' },
         { key: 'spec', label: '규격' },
         { key: 'qty', label: '수량', align: 'right' },
@@ -50,7 +47,11 @@ const DailyModule = (() => {
 
     document.getElementById('daily-list-card').addEventListener('click', (e) => {
       const btn = e.target.closest('.sl-docno-link');
-      if (btn) SalesModule.openDetailModal(btn.getAttribute('data-docno'));
+      if (!btn) return;
+      const docNo = btn.getAttribute('data-docno');
+      // 접두사 S(매출)/P(매입)로 어느 모듈의 전표인지 구분해 해당 상세 모달을 연다.
+      if (docNo.startsWith('S')) SalesModule.openDetailModal(docNo);
+      else if (docNo.startsWith('P')) PurchaseModule.openDetailModal(docNo);
     });
   }
 
