@@ -51,8 +51,26 @@ const TableEngine = (() => {
    * @param {string[]} [opts.defaultActiveCols] - 처음 상태에서 보여줄 칼럼 key 목록 (생략 시 전체)
    */
   function create(tableId, opts) {
-    if (!activeCols[tableId]) activeCols[tableId] = opts.defaultActiveCols || opts.columns.map((c) => c.key);
-    if (!colOrder[tableId]) colOrder[tableId] = opts.columns.map((c) => c.key);
+    // 화면(테이블)에 새 칼럼이 추가되거나 빠지면, 예전에 저장해둔
+    // "항목 설정"(순서·표시여부)이 낡아서 새 칼럼이 설정 목록에 아예
+    // 안 뜨는 문제가 있었다. 매번 create() 호출 시 현재 opts.columns
+    // 기준으로 다시 맞춰준다: 없어진 칼럼은 빼고, 새로 생긴 칼럼은
+    // 목록 끝에 추가하면서 기본적으로 표시 상태로 켠다.
+    const allKeys = opts.columns.map((c) => c.key);
+
+    if (!colOrder[tableId]) {
+      colOrder[tableId] = allKeys.slice();
+    } else {
+      const newKeys = allKeys.filter((k) => !colOrder[tableId].includes(k));
+      colOrder[tableId] = colOrder[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
+    }
+
+    if (!activeCols[tableId]) {
+      activeCols[tableId] = opts.defaultActiveCols || allKeys.slice();
+    } else {
+      const newKeys = allKeys.filter((k) => !activeCols[tableId].includes(k));
+      activeCols[tableId] = activeCols[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
+    }
 
     const state = {
       tableId, opts, rawData: [],
