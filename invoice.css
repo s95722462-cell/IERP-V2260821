@@ -13,6 +13,8 @@
 @media print {
   @page { size: A4; margin: 15mm; }
 
+  #ls-boot, #ls-login, #ls-app { display: none !important; }
+
   body * { visibility: hidden; }
   #invoice-print-area, #invoice-print-area * { visibility: visible; }
   #invoice-print-area {
@@ -20,7 +22,6 @@
     position: absolute; left: 0; top: 0; width: 100%;
   }
 }
-
 .inv-doc {
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   color: #000; font-size: 11px; line-height: 1.5;
