@@ -73,10 +73,11 @@ button:hover { background: var(--border); }
 /* ── 전표(품목 여러 줄) 입력 UI — sales.js/purchase.js 공용 ────────── */
 .sl-items-head, .sl-item-row {
   display: grid;
-  grid-template-columns: 2fr 1.3fr 0.7fr 1fr 1fr 28px;
+  grid-template-columns: 28px 2fr 1.3fr 0.7fr 1fr 1fr 28px;
   gap: 8px;
   align-items: center;
 }
+.sl-item-row .ri-no { text-align: center; font-size: 12px; color: var(--text2); }
 .sl-items-head { font-size: 11px; color: var(--text2); font-weight: 700; padding: 0 2px 4px; }
 .sl-item-row { margin-bottom: 6px; }
 .sl-item-row input {

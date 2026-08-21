@@ -54,7 +54,7 @@ const SalesModule = (() => {
         </div>
 
         <div class="sl-items-head">
-          <div>품목명</div><div>규격</div><div>수량</div><div>단가</div><div>공급가액</div><div></div>
+          <div>No.</div><div>품목명</div><div>규격</div><div>수량</div><div>단가</div><div>공급가액</div><div></div>
         </div>
         <div id="sl-items-container"></div>
         <datalist id="sl-item-list"></datalist>
@@ -187,6 +187,7 @@ const SalesModule = (() => {
     div.className = 'sl-item-row';
     div.setAttribute('data-rowkey', key);
     div.innerHTML = `
+      <span class="ri-no"></span>
       <input class="ri-item" list="sl-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}">
       <input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}">
       <input class="ri-qty" type="number" value="${data?.qty ?? 1}">
@@ -196,6 +197,15 @@ const SalesModule = (() => {
     `;
     container.appendChild(div);
     recalcRow(div);
+    renumberRows();
+  }
+
+  /** 품목 줄의 No.(1, 2, 3...)를 화면에 다시 매긴다. 줄 추가/삭제 시마다 호출. */
+  function renumberRows() {
+    document.querySelectorAll('#sl-items-container .sl-item-row').forEach((row, idx) => {
+      const noEl = row.querySelector('.ri-no');
+      if (noEl) noEl.textContent = idx + 1;
+    });
   }
 
   function removeRow(rowEl) {
@@ -203,6 +213,7 @@ const SalesModule = (() => {
     if (container.children.length <= 1) { alert('최소 한 줄은 있어야 합니다'); return; }
     rowEl.remove();
     recalcTotal();
+    renumberRows();
   }
 
   /** 자동완성에서 "품목명 (규격)"을 고르면 이름/규격/단가를 그 줄에 정확히 채운다. */
