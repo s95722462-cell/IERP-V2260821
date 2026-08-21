@@ -73,6 +73,8 @@ const InvoiceModule = (() => {
       <div class="inv-doc">
         <h1 class="inv-title">거 래 명 세 서</h1>
 
+        <div class="inv-meta">발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}</div>
+
         <div class="inv-info-row">
           <div class="inv-info-box">
             <div class="inv-info-title">공급받는자</div>
@@ -91,12 +93,12 @@ const InvoiceModule = (() => {
           </div>
         </div>
 
-        <div class="inv-meta">발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}${docNo ? ' · 전표No: ' + escapeHtml(docNo) : ''}</div>
+        ${docNo ? `<div class="inv-docno-line">전표No: ${escapeHtml(docNo)}</div>` : ''}
 
         <table class="inv-table">
           <thead>
             <tr>
-              <th>No.</th><th>날짜</th><th>품목명</th><th>규격</th><th>수량</th>
+              <th>No.</th><th>품목명</th><th>규격</th><th>수량</th>
               <th>단가</th><th>공급가액</th><th>부가세</th><th>합계</th>
             </tr>
           </thead>
@@ -104,7 +106,6 @@ const InvoiceModule = (() => {
             ${items.map((it, idx) => `
               <tr>
                 <td style="text-align:center">${idx + 1}</td>
-                <td>${escapeHtml(it.date)}</td>
                 <td>${escapeHtml(it.item)}</td>
                 <td>${escapeHtml(it.spec || '')}</td>
                 <td style="text-align:right">${(it.qty || 0).toLocaleString()}</td>
