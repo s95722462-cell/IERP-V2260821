@@ -37,6 +37,12 @@ const LayoutShell = (() => {
    * @param {() => void} [opts.onLoginSubmit] - 로그인 폼 제출 시 (id/pw 값은 이 모듈이 읽어서 넘겨줌)
    */
   function init(opts) {
+    // 저장된 다크모드 설정을 제일 먼저 적용한다 (예전엔 저장만 되고
+    // 새로고침 시 불러오는 코드가 없어서 매번 라이트모드로 돌아가던
+    // 문제가 있었음 — layout-shell.js가 화면 골격을 그리기 전에
+    // 여기서 바로잡는다).
+    applyTheme(getSavedTheme());
+
     menuItems = opts.menuItems;
     onNavigateCb = opts.onNavigate;
     onCompanySwitchCb = opts.onCompanySwitch;
@@ -65,27 +71,11 @@ const LayoutShell = (() => {
       <div id="ls-login" class="ls-login" style="display:none">
         <div class="ls-login-box">
           <h1 id="ls-login-title">iERP</h1>
-
-          <div class="ls-tab-row">
-            <button class="ls-tab active" id="ls-tab-login" data-tab="login">로그인</button>
-            <button class="ls-tab" id="ls-tab-register" data-tab="register">회원가입</button>
-          </div>
-
-          <div id="ls-login-form">
-            <input id="ls-login-id" placeholder="아이디" autocomplete="username">
-            <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
-            <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
-            <button id="ls-login-btn" class="ls-btn-primary">로그인</button>
-            <div id="ls-login-err" class="ls-err"></div>
-          </div>
-
-          <div id="ls-register-form" style="display:none">
-            <input id="ls-reg-id" placeholder="아이디" autocomplete="username">
-            <input id="ls-reg-pw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
-            <input id="ls-reg-company" placeholder="상호명">
-            <button id="ls-reg-btn" class="ls-btn-primary">회원가입</button>
-            <div id="ls-reg-err" class="ls-err"></div>
-          </div>
+          <input id="ls-login-id" placeholder="아이디" autocomplete="username">
+          <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+          <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
+          <button id="ls-login-btn" class="ls-btn-primary">로그인</button>
+          <div id="ls-login-err" class="ls-err"></div>
         </div>
       </div>
 
@@ -99,6 +89,7 @@ const LayoutShell = (() => {
           <div class="ls-topbar">
             <div class="ls-company-tabs" id="ls-company-tabs"></div>
             <div class="ls-topbar-right">
+              <button class="ls-theme-toggle" id="ls-theme-toggle" title="다크모드 전환"></button>
               <span class="ls-sync"><span class="ls-sync-dot" id="ls-sync-dot"></span><span id="ls-sync-label">연결 중...</span></span>
             </div>
           </div>
@@ -119,6 +110,13 @@ const LayoutShell = (() => {
   }
 
   function bindStaticEvents(opts) {
+    renderThemeToggleIcon();
+    document.getElementById('ls-theme-toggle').addEventListener('click', () => {
+      const next = getSavedTheme() === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      renderThemeToggleIcon();
+    });
+
     document.getElementById('ls-logout-btn').addEventListener('click', () => {
       if (onLogoutCb) onLogoutCb();
     });
@@ -131,27 +129,6 @@ const LayoutShell = (() => {
         });
       }
     });
-    document.getElementById('ls-reg-btn').addEventListener('click', () => {
-      if (opts.onRegisterSubmit) {
-        opts.onRegisterSubmit({
-          username: document.getElementById('ls-reg-id').value,
-          password: document.getElementById('ls-reg-pw').value,
-          company: document.getElementById('ls-reg-company').value
-        });
-      }
-    });
-
-    document.getElementById('ls-tab-login').addEventListener('click', () => switchAuthTab('login'));
-    document.getElementById('ls-tab-register').addEventListener('click', () => switchAuthTab('register'));
-  }
-
-  function switchAuthTab(tab) {
-    document.getElementById('ls-tab-login').classList.toggle('active', tab === 'login');
-    document.getElementById('ls-tab-register').classList.toggle('active', tab === 'register');
-    document.getElementById('ls-login-form').style.display = tab === 'login' ? '' : 'none';
-    document.getElementById('ls-register-form').style.display = tab === 'register' ? '' : 'none';
-    document.getElementById('ls-login-err').textContent = '';
-    document.getElementById('ls-reg-err').textContent = '';
   }
 
   /** 화면 전환: 사이드바 메뉴 클릭 시 해당 패널만 보이게 하고, 콜백을 호출합니다. */
@@ -190,10 +167,6 @@ const LayoutShell = (() => {
     document.getElementById('ls-login-err').textContent = message || '';
   }
 
-  function setRegisterError(message) {
-    document.getElementById('ls-reg-err').textContent = message || '';
-  }
-
   /**
    * 회사 전환 탭을 그립니다. 헤더 배경이 어떤 테마든 항상 대비되도록
    * layout-shell.css의 color-mix 기반 스타일을 사용합니다.
@@ -214,6 +187,13 @@ const LayoutShell = (() => {
     });
   }
 
+  /** 상단바 다크모드 토글 버튼의 아이콘을 현재 테마에 맞게 그린다. */
+  function renderThemeToggleIcon() {
+    const btn = document.getElementById('ls-theme-toggle');
+    if (!btn) return;
+    btn.textContent = getSavedTheme() === 'dark' ? '☀️' : '🌙';
+  }
+
   function updateSyncStatus(status) {
     const dot = document.getElementById('ls-sync-dot');
     const label = document.getElementById('ls-sync-label');
@@ -232,7 +212,7 @@ const LayoutShell = (() => {
 
   return {
     init, navigate, registerPanel, showMainApp, showLoginScreen,
-    setLoginError, setRegisterError, renderCompanyTabs, updateSyncStatus
+    setLoginError, renderCompanyTabs, updateSyncStatus, renderThemeToggleIcon
   };
 })();
 

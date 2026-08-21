@@ -50,7 +50,7 @@ const SettingsModule = (() => {
     document.getElementById('st-theme-toggle').addEventListener('change', toggleTheme);
     document.getElementById('st-export-btn').addEventListener('click', exportJson);
 
-    document.getElementById('st-theme-toggle').checked = document.body.getAttribute('data-theme') === 'dark';
+    document.getElementById('st-theme-toggle').checked = getSavedTheme() === 'dark';
 
     renderCompanyList();
   }
@@ -184,10 +184,12 @@ const SettingsModule = (() => {
     if (window.onCompanySwitched) window.onCompanySwitched();
   }
 
+  /** 상단바에도 같은 다크모드 토글이 생겨서(layout-shell.js), 그쪽과 항상
+   * 같은 상태를 유지하도록 공용 함수(applyTheme, security.js)로 통일했다. */
   function toggleTheme() {
     const isDark = document.getElementById('st-theme-toggle').checked;
-    document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    localStorage.setItem('ierp_theme', isDark ? 'dark' : 'light');
+    applyTheme(isDark ? 'dark' : 'light');
+    LayoutShell.renderThemeToggleIcon();
   }
 
   function exportJson() {

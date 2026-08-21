@@ -41,12 +41,6 @@
   box-shadow: 0 4px 20px rgba(0,0,0,.1);
 }
 .ls-login-box h1 { text-align: center; margin: 0 0 12px; font-size: 22px; }
-.ls-tab-row { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-.ls-tab {
-  flex: 1; padding: 8px; border: none; background: transparent; color: var(--text2);
-  font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent;
-}
-.ls-tab.active { color: var(--text); font-weight: 700; border-bottom-color: var(--accent); }
 .ls-login-box input {
   padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--bg); color: var(--text); font-size: 14px;
@@ -110,6 +104,11 @@
 .ls-sync { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
 .ls-sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
 .ls-sync-dot.off { background: var(--red); }
+.ls-theme-toggle {
+  background: none; border: none; cursor: pointer; font-size: 16px;
+  line-height: 1; padding: 4px 6px; border-radius: var(--radius);
+}
+.ls-theme-toggle:hover { background: var(--surface2); }
 
 /* ── 모바일: 사이드바 → 하단 네비게이션으로 전환 ── */
 @media (max-width: 768px) {

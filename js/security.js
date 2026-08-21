@@ -94,9 +94,34 @@ function todayStr() {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * 저장된 다크모드 설정을 읽습니다 ('dark' 또는 'light', 저장된 값이
+ * 없으면 기본 'light'). 실제 화면 적용은 applyTheme()이 담당합니다.
+ * @returns {'dark'|'light'}
+ */
+function getSavedTheme() {
+  return localStorage.getItem('ierp_theme') === 'dark' ? 'dark' : 'light';
+}
+
+/**
+ * 다크/라이트 모드를 실제로 화면에 적용하고 브라우저에 저장합니다.
+ * 상단바 토글(layout-shell.js)과 설정 화면 토글(settings.js) 둘 다
+ * 이 함수 하나로 통일해서, 둘 중 어디서 바꾸든 항상 같은 상태를 유지하고
+ * 새로고침해도 저장된 설정 그대로 복원되게 한다 (예전에는 저장만 되고
+ * 새로고침 시 다시 불러오는 코드가 없어서 매번 라이트모드로 돌아가던
+ * 문제가 있었음).
+ * @param {'dark'|'light'} theme
+ */
+function applyTheme(theme) {
+  document.body.setAttribute('data-theme', theme);
+  localStorage.setItem('ierp_theme', theme);
+}
+
 // 다른 모듈에서 전역으로 사용할 수 있도록 window에 등록
 window.escapeHtml = escapeHtml;
 window.rawNum = rawNum;
 window.isValidEmail = isValidEmail;
 window.splitNameAndHint = splitNameAndHint;
 window.todayStr = todayStr;
+window.getSavedTheme = getSavedTheme;
+window.applyTheme = applyTheme;
