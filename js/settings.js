@@ -7,6 +7,8 @@
 // ══════════════════════════════════════════════════════════════
 
 const SettingsModule = (() => {
+  let editingCoIdx = null;
+
   function init() {
     const panel = LayoutShell.registerPanel('settings');
     panel.innerHTML = `
@@ -41,7 +43,7 @@ const SettingsModule = (() => {
     `;
 
     const { currentUser } = getAuthState();
-       if (currentUser) document.getElementById('st-uid').value = currentUser.id;
+    document.getElementById('st-uid').value = currentUser.id;
 
     document.getElementById('st-pw-save').addEventListener('click', changePassword);
     document.getElementById('st-add-co').addEventListener('click', addCompany);
@@ -59,16 +61,66 @@ const SettingsModule = (() => {
       <div class="st-co-row">
         <span>${escapeHtml(c.company || '회사' + (i + 1))}${i === activeCoIdx ? ' <span class="badge badge-blue">사용 중</span>' : ''}</span>
         <span class="st-co-actions">
+          <button data-act="edit" data-idx="${i}">${editingCoIdx === i ? '닫기' : '수정'}</button>
           ${i !== activeCoIdx ? `<button data-act="switch" data-idx="${i}">전환</button>` : ''}
           ${companies.length > 1 ? `<button data-act="delete" data-idx="${i}">삭제</button>` : ''}
         </span>
-      </div>`).join('');
+      </div>
+      ${editingCoIdx === i ? buildCompanyEditForm(c) : ''}`).join('');
 
     listEl.querySelectorAll('button[data-act]').forEach((btn) => {
       const idx = parseInt(btn.getAttribute('data-idx'), 10);
       if (btn.getAttribute('data-act') === 'switch') btn.addEventListener('click', () => switchCompany(idx));
       if (btn.getAttribute('data-act') === 'delete') btn.addEventListener('click', () => deleteCompany(idx));
+      if (btn.getAttribute('data-act') === 'edit') btn.addEventListener('click', () => {
+        editingCoIdx = editingCoIdx === idx ? null : idx;
+        renderCompanyList();
+      });
     });
+
+    const saveBtn = listEl.querySelector('[data-act="save-co"]');
+    if (saveBtn) saveBtn.addEventListener('click', () => saveCompanyEdit(parseInt(saveBtn.getAttribute('data-idx'), 10)));
+  }
+
+  /** 회사 상세 정보(거래명세서 공급자란에 그대로 쓰이는 값들) 수정 폼. */
+  function buildCompanyEditForm(c) {
+    const idx = companies.indexOf(c);
+    const f = (key, label, id) =>
+      `<div class="fg"><label>${label}</label><input id="${id}" value="${escapeHtml(c[key] || '')}"></div>`;
+    return `
+      <div class="st-co-edit-form form-grid" style="margin:8px 0 16px">
+        ${f('company', '회사명', 'stc-company')}
+        ${f('bizno', '사업자번호', 'stc-bizno')}
+        ${f('ceo', '대표자', 'stc-ceo')}
+        ${f('biztype', '업태', 'stc-biztype')}
+        ${f('bizitem', '종목', 'stc-bizitem')}
+        ${f('addr', '주소', 'stc-addr')}
+        ${f('tel', '연락처', 'stc-tel')}
+        ${f('fax', '팩스', 'stc-fax')}
+        ${f('email', '이메일', 'stc-email')}
+        ${f('bank', '은행', 'stc-bank')}
+        ${f('account', '계좌번호', 'stc-account')}
+        ${f('accountname', '예금주', 'stc-accountname')}
+        ${f('terms', '결제조건', 'stc-terms')}
+        <div class="fg" style="grid-column:1/-1"><label>거래명세서 하단 문구</label><input id="stc-footer" value="${escapeHtml(c.footer || '')}"></div>
+      </div>
+      <button class="ls-btn-primary" data-act="save-co" data-idx="${idx}" style="width:auto;margin-bottom:16px">회사 정보 저장</button>`;
+  }
+
+  async function saveCompanyEdit(idx) {
+    const get = (id) => document.getElementById(id).value.trim();
+    Object.assign(companies[idx], {
+      company: get('stc-company') || companies[idx].company,
+      bizno: get('stc-bizno'), ceo: get('stc-ceo'), biztype: get('stc-biztype'), bizitem: get('stc-bizitem'),
+      addr: get('stc-addr'), tel: get('stc-tel'), fax: get('stc-fax'), email: get('stc-email'),
+      bank: get('stc-bank'), account: get('stc-account'), accountname: get('stc-accountname'),
+      terms: get('stc-terms'), footer: get('stc-footer')
+    });
+    await saveUserMeta();
+    editingCoIdx = null;
+    renderCompanyList();
+    LayoutShell.renderCompanyTabs(companies, activeCoIdx);
+    alert('✅ 회사 정보가 저장되었습니다');
   }
 
   async function changePassword() {
