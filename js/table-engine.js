@@ -149,7 +149,11 @@ const TableEngine = (() => {
       const alignStyle = c.align === 'right' ? 'text-align:right;' : '';
       headHtml += `<th style="${widthStyle}${alignStyle}" data-key="${c.key}">${escapeHtml(c.label)}<div class="te-resizer"></div></th>`;
     });
-    if (state.opts.rowActions) headHtml += `<th class="te-no-resize te-actions-col">관리</th>`;
+    if (state.opts.rowActions) {
+      const savedActWidth = colWidths[state.tableId + '-__actions'];
+      const actWidthStyle = savedActWidth ? `width:${savedActWidth}px;min-width:${savedActWidth}px;` : '';
+      headHtml += `<th class="te-actions-col" style="${actWidthStyle}" data-key="__actions">관리<div class="te-resizer"></div></th>`;
+    }
     theadRow.innerHTML = headHtml;
 
     // 본문
