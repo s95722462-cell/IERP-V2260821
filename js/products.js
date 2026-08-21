@@ -209,7 +209,14 @@ const ProductsModule = (() => {
       existingNames.add(name);
     });
 
-    if (ops.length) await batchWrite(ops);
+    if (ops.length) {
+      try {
+        await batchWrite(ops);
+      } catch (err) {
+        alert('엑셀 업로드 중 오류가 발생했습니다: ' + err.message);
+        return;
+      }
+    }
     alert(`엑셀 업로드 완료\n\n새로 등록: ${ops.length}건\n중복으로 건너뜀: ${skipped}건${invalid ? `\n품목명 없어서 제외: ${invalid}건` : ''}`);
   }
 

@@ -117,16 +117,27 @@ async function genDocNo(counterCollectionPath, prefix) {
  * 여러 문서를 한 번에 원자적으로 저장/삭제합니다 (batch). 전표 하나(품목
  * 여러 줄)를 저장·수정·삭제할 때, 중간에 실패해도 절반만 반영되는 사고가
  * 없도록 이 함수로 묶어서 처리합니다.
+ *
+ * Firestore는 batch 하나에 문서 500개까지만 허용합니다 (넘기면 조용히
+ * 실패하고 아무것도 저장이 안 됨 — 엑셀 대량 업로드처럼 수백~수천 건을
+ * 한 번에 올릴 때 이 한도에 걸릴 수 있음). 그래서 500개 미만으로
+ * 여유 있게 나눠서(최대 400개씩) 순서대로 여러 batch로 자동 분할해
+ * 커밋한다. 호출하는 쪽은 이 사실을 몰라도 되고, 그냥 배열만 넘기면 됨.
+ *
  * @param {{type:'set'|'delete', path:string, id:string, data?:object, merge?:boolean}[]} ops
  */
 async function batchWrite(ops) {
-  const batch = db.batch();
-  ops.forEach((op) => {
-    const ref = db.collection(op.path).doc(op.id);
-    if (op.type === 'delete') batch.delete(ref);
-    else batch.set(ref, op.data, { merge: !!op.merge });
-  });
-  return await batch.commit();
+  const CHUNK_SIZE = 400;
+  for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
+    const chunk = ops.slice(i, i + CHUNK_SIZE);
+    const batch = db.batch();
+    chunk.forEach((op) => {
+      const ref = db.collection(op.path).doc(op.id);
+      if (op.type === 'delete') batch.delete(ref);
+      else batch.set(ref, op.data, { merge: !!op.merge });
+    });
+    await batch.commit();
+  }
 }
 
 // ── 실시간 리스너 관리 ──────────────────────────────────────
