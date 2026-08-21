@@ -1,0 +1,71 @@
+/* ══════════════════════════════════════════════════════════════
+   style.css — 기본 디자인 토큰 + 공통 컴포넌트
+   iERP 2.0
+
+   layout-shell.css, table-engine.css는 이 파일이 먼저 로드되어
+   아래 변수들이 정의되어 있다는 것을 전제로 합니다.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg:#f5f4f0; --surface:#fff; --surface2:#f0efe9; --border:#e2e0d8;
+  --text:#1a1917; --text2:#6b6960;
+  --accent:#1a1917; --accent-fg:#fff;
+  --green:#1a6b3c; --green-bg:#e8f5ee;
+  --red:#8b2020; --red-bg:#fceaea;
+  --blue:#1a3a6b; --blue-bg:#e8eef5;
+  --amber:#7a4a00; --amber-bg:#fdf3e0;
+  --radius:8px; --radius-lg:12px;
+}
+[data-theme='dark'] {
+  --bg:#121212; --surface:#1e1e1e; --surface2:#2c2c2c; --border:#333;
+  --text:#e0e0e0; --text2:#b0b0b0;
+  --accent:#ffffff; --accent-fg:#121212;
+  --green:#81c784; --green-bg:#1b3320;
+  --red:#e57373; --red-bg:#331b1b;
+  --blue:#64b5f6; --blue-bg:#1b2633;
+  --amber:#ffb74d; --amber-bg:#33261b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background: var(--bg); color: var(--text);
+}
+
+/* ── 카드 ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+.card-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* ── 폼 ── */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.fg label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+.fg input, .fg select {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text); font-size: 13px;
+}
+.btn-row { display: flex; gap: 8px; }
+button {
+  padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer;
+}
+button:hover { background: var(--border); }
+
+.sl-calc { margin-top: 10px; font-size: 13px; color: var(--text2); }
+
+/* ── KPI 카드 그룹 (대시보드/재고/일별현황 공통) ── */
+.stock-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.kpi { padding: 12px; background: var(--surface2); border-radius: var(--radius); text-align: center; }
+.kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.kpi-val { font-size: 18px; font-weight: 700; }
+
+/* ── 배지 ── */
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); }
+
+/* ── 알림 배너 ── */
+.alert-banner { padding: 10px 14px; background: var(--amber-bg); color: var(--amber); border-radius: var(--radius); margin-bottom: 14px; font-size: 13px; }
+
+/* ── 설정 화면 회사 목록 ── */
+.st-co-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.st-co-actions { display: flex; gap: 6px; }

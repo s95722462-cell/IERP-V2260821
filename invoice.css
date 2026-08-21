@@ -1,0 +1,44 @@
+/* ══════════════════════════════════════════════════════════════
+   invoice.css — invoice.js와 반드시 함께 로드되어야 함
+   iERP 2.0
+
+   평소 화면(#invoice-print-area)은 숨겨져 있다가, 인쇄(Ctrl+P 또는
+   window.print())할 때만 브라우저가 이 영역만 보여줍니다. 페이지가
+   넘치면 브라우저가 자동으로 다음 페이지로 넘겨 인쇄합니다 —
+   1.0에서 여백을 수동으로 맞추던 작업이 필요 없습니다.
+   ══════════════════════════════════════════════════════════════ */
+
+#invoice-print-area { display: none; }
+
+@media print {
+  @page { size: A4; margin: 15mm; }
+
+  body * { visibility: hidden; }
+  #invoice-print-area, #invoice-print-area * { visibility: visible; }
+  #invoice-print-area {
+    display: block;
+    position: absolute; left: 0; top: 0; width: 100%;
+  }
+}
+
+.inv-doc {
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  color: #000; font-size: 11px; line-height: 1.5;
+}
+.inv-title { text-align: center; letter-spacing: 8px; font-size: 20px; margin: 0 0 16px; }
+
+.inv-info-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.inv-info-box { flex: 1; border: 1px solid #333; padding: 8px 10px; }
+.inv-info-title { font-weight: 700; margin-bottom: 4px; }
+
+.inv-meta { text-align: right; font-size: 10px; margin-bottom: 6px; }
+
+.inv-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.inv-table th, .inv-table td { border: 1px solid #333; padding: 5px 6px; font-size: 10px; }
+.inv-table th { background: #eee; }
+.inv-table tr { page-break-inside: avoid; } /* 표 행이 페이지 경계에서 잘리지 않게 */
+
+.inv-totals { text-align: right; font-size: 12px; }
+.inv-total-final { font-weight: 700; font-size: 15px; margin-top: 4px; }
+
+.inv-footer { margin-top: 20px; font-size: 9px; color: #555; }

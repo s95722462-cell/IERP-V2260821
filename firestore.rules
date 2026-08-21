@@ -1,0 +1,36 @@
+// ══════════════════════════════════════════════════════════════
+// firestore.rules — auth.js와 반드시 함께 게시되어야 하는 보안 규칙
+// iERP 2.0
+//
+// 1.0과의 차이: 레거시 평문 계정이 없으므로(처음부터 Firebase Auth로만
+// 가입) "인증 전에도 예외적으로 읽기를 허용"하는 조건이 필요 없어졌다.
+// 그만큼 규칙이 더 단순하고 안전하다.
+// ══════════════════════════════════════════════════════════════
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{safeId} {
+      // 존재하지 않는 문서 조회는 항상 허용 (회원가입 시 아이디 중복 확인용 —
+      // 노출되는 데이터가 없으므로 안전)
+      allow get: if resource == null
+        || (request.auth != null
+            && request.auth.token.email.lower() == (safeId + '@ierp.local').lower());
+
+      allow create, update, delete: if request.auth != null
+        && request.auth.token.email.lower() == (safeId + '@ierp.local').lower();
+
+      match /companies/{companyId}/{collection}/{docId} {
+        allow read, write: if request.auth != null
+          && request.auth.token.email.lower() == (safeId + '@ierp.local').lower();
+      }
+    }
+
+    // 새로고침 시 "소문자 이메일 → 원래 safeId" 복원용 색인
+    match /emailIndex/{email} {
+      allow get, create, update: if request.auth != null
+        && request.auth.token.email.lower() == email.lower();
+    }
+  }
+}
