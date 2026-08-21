@@ -1,0 +1,80 @@
+// ══════════════════════════════════════════════════════════════
+// excel-io.js — 엑셀 업로드/다운로드 공용 모듈
+// iERP 2.0
+//
+// 의존성: SheetJS(xlsx.full.min.js, index.html에서 CDN으로 로드),
+//         security.js(escapeHtml는 여기선 안 씀 — 참고용 주석)
+//
+// 설계 원칙:
+//   - 이 모듈은 "엑셀 파일 ↔ 자바스크립트 배열" 변환만 담당한다.
+//     그 배열을 어떻게 검증하고 Firestore에 저장할지는 각 화면
+//     모듈(products.js 등)이 알아서 한다 — 화면마다 필드 구성과
+//     중복 처리 정책이 다르기 때문에, 여기서 그 로직까지 떠안으면
+//     오히려 화면마다 억지로 끼워맞추게 된다.
+//   - 품목뿐 아니라 나중에 매출·매입 등 다른 화면에서도 그대로
+//     재사용할 수 있도록, 특정 화면 지식(품목 필드명 등)을 이
+//     파일에 넣지 않는다.
+// ══════════════════════════════════════════════════════════════
+
+const ExcelIO = (() => {
+  /**
+   * 사용자가 고른 엑셀 파일(.xlsx/.xls/.csv)을 읽어, 첫 번째 시트를
+   * "헤더 줄 = 각 칸의 키" 형태의 객체 배열로 변환합니다.
+   * 예: 헤더가 "품목명, 규격"이면 각 행이 { 품목명: '...', 규격: '...' }.
+   * @param {File} file - <input type="file"> 에서 얻은 파일 객체
+   * @returns {Promise<object[]>}
+   */
+  function readFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const firstSheetName = wb.SheetNames[0];
+          const sheet = wb.Sheets[firstSheetName];
+          // defval: '' — 빈 칸을 undefined 대신 빈 문자열로 통일해,
+          // 각 화면 모듈에서 매번 null 체크를 반복하지 않아도 되게 한다.
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          resolve(rows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /**
+   * 헤더 줄만 있는 빈 엑셀 템플릿을 다운로드합니다 (사용자가 이 양식에
+   * 맞춰 채운 뒤 다시 업로드하도록 안내하는 용도).
+   * @param {string} filename - 확장자(.xlsx) 포함
+   * @param {string[]} headers - 첫 줄에 들어갈 칼럼명 목록
+   */
+  function downloadTemplate(filename, headers) {
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, filename);
+  }
+
+  /**
+   * 객체 배열을 엑셀 파일로 다운로드합니다 (현재 등록된 데이터를
+   * 백업하거나 확인하는 용도).
+   * @param {string} filename - 확장자(.xlsx) 포함
+   * @param {object[]} rows - 각 행 데이터 (키가 그대로 헤더가 됨)
+   * @param {string[]} [headerOrder] - 칼럼 순서를 강제하고 싶을 때 지정
+   */
+  function download(filename, rows, headerOrder) {
+    const ws = headerOrder
+      ? XLSX.utils.json_to_sheet(rows, { header: headerOrder })
+      : XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, filename);
+  }
+
+  return { readFile, downloadTemplate, download };
+})();
+
+window.ExcelIO = ExcelIO;

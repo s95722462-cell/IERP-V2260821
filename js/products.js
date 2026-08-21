@@ -38,6 +38,12 @@ const ProductsModule = (() => {
           <button class="ls-btn-primary" id="pr-save-btn" style="width:auto">저장</button>
           <button id="pr-cancel-btn" style="display:none">취소</button>
         </div>
+        <div class="btn-row" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+          <button id="pr-tmpl-btn">📄 엑셀 템플릿 다운로드</button>
+          <button id="pr-upload-btn">⬆️ 엑셀 업로드(대량 등록)</button>
+          <button id="pr-export-btn">⬇️ 엑셀 다운로드(현재 품목)</button>
+          <input type="file" id="pr-upload-input" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
       </div>
       <div class="card" id="pr-list-card" style="margin-top:16px">
         <div class="card-title">품목 목록</div>
@@ -46,6 +52,10 @@ const ProductsModule = (() => {
 
     document.getElementById('pr-save-btn').addEventListener('click', save);
     document.getElementById('pr-cancel-btn').addEventListener('click', () => fillForm(null));
+    document.getElementById('pr-tmpl-btn').addEventListener('click', downloadTemplate);
+    document.getElementById('pr-export-btn').addEventListener('click', exportExcel);
+    document.getElementById('pr-upload-btn').addEventListener('click', () => document.getElementById('pr-upload-input').click());
+    document.getElementById('pr-upload-input').addEventListener('change', handleUpload);
 
     tableInstance = TableEngine.create('products', {
       container: document.getElementById('pr-list-card'),
@@ -132,6 +142,76 @@ const ProductsModule = (() => {
 
   /** 다른 화면(매출/매입/재고)에서 품목 목록을 참조할 때 사용합니다. */
   function getCache() { return cache; }
+
+  // ── 엑셀 업로드/다운로드 (대량 등록) ──────────────────────────
+  // 업로드 양식의 칼럼명. 다운로드/템플릿/업로드 셋이 항상 이 순서·이름을
+  // 그대로 써야 서로 어긋나지 않는다 (아래 EXCEL_HEADERS 하나로 통일).
+  const EXCEL_HEADERS = ['코드', '품목명', '규격', '제조사', '기준단가', '단위', '초기재고', '안전재고', '메모'];
+
+  function downloadTemplate() {
+    ExcelIO.downloadTemplate('품목_업로드양식.xlsx', EXCEL_HEADERS);
+  }
+
+  function exportExcel() {
+    const rows = cache.map((p) => ({
+      코드: p.code || '', 품목명: p.name || '', 규격: p.spec || '', 제조사: p.maker || '',
+      기준단가: p.price || 0, 단위: p.unit || '', 초기재고: p.initStock || 0,
+      안전재고: p.safeStock || 0, 메모: p.memo || ''
+    }));
+    ExcelIO.download('품목_목록.xlsx', rows, EXCEL_HEADERS);
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 또 뜨도록 초기화
+    if (!file) return;
+
+    let rows;
+    try {
+      rows = await ExcelIO.readFile(file);
+    } catch (err) {
+      alert('엑셀 파일을 읽는 중 오류가 발생했습니다: ' + err.message);
+      return;
+    }
+    if (!rows.length) { alert('업로드할 데이터가 없습니다'); return; }
+
+    // 중복 판정: 코드가 채워져 있으면 코드 일치를, 코드가 비어있으면
+    // 품목명 일치를 기준으로 "이미 등록된 품목"으로 보고 건너뛴다
+    // (정책 확정: 덮어쓰지 않고 새 품목만 추가).
+    const existingCodes = new Set(cache.map((p) => p.code).filter(Boolean));
+    const existingNames = new Set(cache.map((p) => p.name));
+
+    const ops = [];
+    let skipped = 0, invalid = 0;
+    rows.forEach((r) => {
+      const name = String(r['품목명'] || '').trim();
+      if (!name) { invalid++; return; }
+      const code = String(r['코드'] || '').trim();
+      const isDup = code ? existingCodes.has(code) : existingNames.has(name);
+      if (isDup) { skipped++; return; }
+
+      ops.push({
+        type: 'set', path: path(), id: genId(),
+        data: {
+          code, name,
+          spec: String(r['규격'] || '').trim(),
+          maker: String(r['제조사'] || '').trim(),
+          price: rawNum(r['기준단가']),
+          unit: String(r['단위'] || '').trim(),
+          initStock: rawNum(r['초기재고']),
+          safeStock: rawNum(r['안전재고']),
+          memo: String(r['메모'] || '').trim()
+        }
+      });
+      // 같은 업로드 파일 안에서도 코드/품목명이 중복되면 그 다음 줄부턴
+      // 또 건너뛰도록 방금 추가한 것도 바로 반영해둔다.
+      if (code) existingCodes.add(code);
+      existingNames.add(name);
+    });
+
+    if (ops.length) await batchWrite(ops);
+    alert(`엑셀 업로드 완료\n\n새로 등록: ${ops.length}건\n중복으로 건너뜀: ${skipped}건${invalid ? `\n품목명 없어서 제외: ${invalid}건` : ''}`);
+  }
 
   /** 품목 데이터가 바뀔 때마다 호출될 콜백을 등록합니다 (재고 화면이 사용). */
   function onUpdate(cb) { updateListeners.push(cb); }
