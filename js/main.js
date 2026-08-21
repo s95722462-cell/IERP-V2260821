@@ -68,6 +68,15 @@ function initApp() {
       } catch (e) {
         LayoutShell.setLoginError(e.message);
       }
+    },
+    onRegisterSubmit: async ({ username, password, company }) => {
+      LayoutShell.setRegisterError('');
+      try {
+        await doRegister({ username, password, company });
+        afterLoginSuccess();
+      } catch (e) {
+        LayoutShell.setRegisterError(e.message);
+      }
     }
   });
 

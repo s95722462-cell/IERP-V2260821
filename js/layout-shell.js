@@ -65,11 +65,27 @@ const LayoutShell = (() => {
       <div id="ls-login" class="ls-login" style="display:none">
         <div class="ls-login-box">
           <h1 id="ls-login-title">iERP</h1>
-          <input id="ls-login-id" placeholder="아이디" autocomplete="username">
-          <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
-          <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
-          <button id="ls-login-btn" class="ls-btn-primary">로그인</button>
-          <div id="ls-login-err" class="ls-err"></div>
+
+          <div class="ls-tab-row">
+            <button class="ls-tab active" id="ls-tab-login" data-tab="login">로그인</button>
+            <button class="ls-tab" id="ls-tab-register" data-tab="register">회원가입</button>
+          </div>
+
+          <div id="ls-login-form">
+            <input id="ls-login-id" placeholder="아이디" autocomplete="username">
+            <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+            <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
+            <button id="ls-login-btn" class="ls-btn-primary">로그인</button>
+            <div id="ls-login-err" class="ls-err"></div>
+          </div>
+
+          <div id="ls-register-form" style="display:none">
+            <input id="ls-reg-id" placeholder="아이디" autocomplete="username">
+            <input id="ls-reg-pw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
+            <input id="ls-reg-company" placeholder="상호명">
+            <button id="ls-reg-btn" class="ls-btn-primary">회원가입</button>
+            <div id="ls-reg-err" class="ls-err"></div>
+          </div>
         </div>
       </div>
 
@@ -115,6 +131,27 @@ const LayoutShell = (() => {
         });
       }
     });
+    document.getElementById('ls-reg-btn').addEventListener('click', () => {
+      if (opts.onRegisterSubmit) {
+        opts.onRegisterSubmit({
+          username: document.getElementById('ls-reg-id').value,
+          password: document.getElementById('ls-reg-pw').value,
+          company: document.getElementById('ls-reg-company').value
+        });
+      }
+    });
+
+    document.getElementById('ls-tab-login').addEventListener('click', () => switchAuthTab('login'));
+    document.getElementById('ls-tab-register').addEventListener('click', () => switchAuthTab('register'));
+  }
+
+  function switchAuthTab(tab) {
+    document.getElementById('ls-tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('ls-tab-register').classList.toggle('active', tab === 'register');
+    document.getElementById('ls-login-form').style.display = tab === 'login' ? '' : 'none';
+    document.getElementById('ls-register-form').style.display = tab === 'register' ? '' : 'none';
+    document.getElementById('ls-login-err').textContent = '';
+    document.getElementById('ls-reg-err').textContent = '';
   }
 
   /** 화면 전환: 사이드바 메뉴 클릭 시 해당 패널만 보이게 하고, 콜백을 호출합니다. */
@@ -151,6 +188,10 @@ const LayoutShell = (() => {
 
   function setLoginError(message) {
     document.getElementById('ls-login-err').textContent = message || '';
+  }
+
+  function setRegisterError(message) {
+    document.getElementById('ls-reg-err').textContent = message || '';
   }
 
   /**
@@ -191,7 +232,7 @@ const LayoutShell = (() => {
 
   return {
     init, navigate, registerPanel, showMainApp, showLoginScreen,
-    setLoginError, renderCompanyTabs, updateSyncStatus
+    setLoginError, setRegisterError, renderCompanyTabs, updateSyncStatus
   };
 })();
 
