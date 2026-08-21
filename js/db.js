@@ -101,7 +101,7 @@ const DELETE_FIELD = () => firebase.firestore.FieldValue.delete();
  * @returns {Promise<string>} 예: 'S20260821-01'
  */
 async function genDocNo(counterCollectionPath, prefix) {
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const today = todayStr().replace(/-/g, '');
   const counterId = prefix + today;
   const ref = db.collection(counterCollectionPath).doc(counterId);
   const seq = await db.runTransaction(async (tx) => {

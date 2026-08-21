@@ -78,8 +78,25 @@ function splitNameAndHint(raw) {
   return { name: text.trim(), hint: '' };
 }
 
+/**
+ * 오늘 날짜를 "브라우저의 로컬(현지) 시간" 기준 YYYY-MM-DD로 반환합니다.
+ * `new Date().toISOString()`은 UTC(세계표준시) 기준이라, 한국(UTC+9)
+ * 새벽 0시~9시 사이에는 UTC로 아직 전날이라서 날짜 입력창 기본값·
+ * 거래명세서 발행일·전표번호 채번 날짜가 전부 하루 전으로 잘못
+ * 채워지는 사고가 있었다. 반드시 이 함수로 통일해서 그 문제를 막는다.
+ * @returns {string} 예: '2026-08-22'
+ */
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // 다른 모듈에서 전역으로 사용할 수 있도록 window에 등록
 window.escapeHtml = escapeHtml;
 window.rawNum = rawNum;
 window.isValidEmail = isValidEmail;
 window.splitNameAndHint = splitNameAndHint;
+window.todayStr = todayStr;

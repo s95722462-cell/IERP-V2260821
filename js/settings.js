@@ -203,7 +203,7 @@ const SettingsModule = (() => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `iERP_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `iERP_backup_${todayStr()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

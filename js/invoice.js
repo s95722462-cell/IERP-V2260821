@@ -75,7 +75,7 @@ const InvoiceModule = (() => {
 
         <div class="inv-meta-row">
           <div>${docNo ? '전표No: ' + escapeHtml(docNo) : ''}</div>
-          <div>발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}</div>
+          <div>발행일: ${escapeHtml(todayStr())}</div>
         </div>
 
         <div class="inv-info-row">

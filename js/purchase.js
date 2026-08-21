@@ -62,7 +62,7 @@ const PurchaseModule = (() => {
       </div>
     `;
 
-    document.getElementById('pu-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('pu-date').value = todayStr();
     addRow();
 
     document.getElementById('pu-save-btn').addEventListener('click', save);
@@ -237,7 +237,7 @@ const PurchaseModule = (() => {
   // ── 등록/수정 폼 전체 ──────────────────────────────────────
 
   function resetForm() {
-    document.getElementById('pu-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('pu-date').value = todayStr();
     document.getElementById('pu-vendor').value = '';
     document.getElementById('pu-invno').value = '';
     document.getElementById('pu-memo').value = '';

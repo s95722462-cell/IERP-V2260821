@@ -80,7 +80,7 @@ const SalesModule = (() => {
       </details>
     `;
 
-    document.getElementById('sl-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('sl-date').value = todayStr();
     addRow(); // 처음엔 빈 줄 1개로 시작
 
     document.getElementById('sl-save-btn').addEventListener('click', save);
@@ -270,7 +270,7 @@ const SalesModule = (() => {
   // ── 등록/수정 폼 전체 ──────────────────────────────────────
 
   function resetForm() {
-    document.getElementById('sl-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('sl-date').value = todayStr();
     document.getElementById('sl-buyer').value = '';
     document.getElementById('sl-invno').value = '';
     document.getElementById('sl-memo').value = '';
