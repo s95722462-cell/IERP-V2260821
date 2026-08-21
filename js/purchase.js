@@ -122,10 +122,20 @@ const PurchaseModule = (() => {
     if (unsubscribe) unsubscribe();
     unsubscribe = DbEngine.listen(path(), {
       orderBy: { field: 'date', direction: 'desc' },
-      onData: (docs) => { cache = docs; tableInstance.render(cache); updateListeners.forEach((cb) => cb(cache)); }
+      onData: (docs) => { cache = sortByDateThenDoc(docs); tableInstance.render(cache); updateListeners.forEach((cb) => cb(cache)); }
     });
     refreshVendorOptions();
     refreshItemDatalist();
+  }
+
+  /** 날짜로 정렬한 뒤, 같은 전표(docNo)의 품목 줄들이 표에서 서로 떨어지지
+   * 않고 붙어서 보이도록 전표No.를 2차 정렬 기준으로 쓴다. */
+  function sortByDateThenDoc(docs) {
+    return docs.slice().sort((a, b) => {
+      const d = (b.date || '').localeCompare(a.date || '');
+      if (d !== 0) return d;
+      return (a.docNo || a.id).localeCompare(b.docNo || b.id);
+    });
   }
 
   /** 거래처 목록이 바뀔 때(CustomersModule 갱신 시) 다시 호출해 드롭다운을 최신화합니다. */
