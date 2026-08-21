@@ -73,7 +73,10 @@ const InvoiceModule = (() => {
       <div class="inv-doc">
         <h1 class="inv-title">거 래 명 세 서</h1>
 
-        <div class="inv-meta">발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}</div>
+        <div class="inv-meta-row">
+          <div>${docNo ? '전표No: ' + escapeHtml(docNo) : ''}</div>
+          <div>발행일: ${escapeHtml(new Date().toISOString().slice(0, 10))}</div>
+        </div>
 
         <div class="inv-info-row">
           <div class="inv-info-box">
@@ -92,8 +95,6 @@ const InvoiceModule = (() => {
             <div>연락처: ${escapeHtml(company.tel || '-')}</div>
           </div>
         </div>
-
-        ${docNo ? `<div class="inv-docno-line">전표No: ${escapeHtml(docNo)}</div>` : ''}
 
         <table class="inv-table">
           <thead>
