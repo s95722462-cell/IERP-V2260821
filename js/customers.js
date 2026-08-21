@@ -54,6 +54,7 @@ const CustomersModule = (() => {
     tableInstance = TableEngine.create('customers', {
       container: document.getElementById('cu-list-card'),
       columns: [
+        { key: '__no', label: 'No.', align: 'center' },
         { key: 'name', label: '회사명' },
         { key: 'bizno', label: '사업자번호' },
         { key: 'ceo', label: '대표자' },

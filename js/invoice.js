@@ -47,11 +47,22 @@ const InvoiceModule = (() => {
       total: acc.total + it.total
     }), { subtotal: 0, vat: 0, total: 0 });
 
-    // A4 한 장에 공급자 보관용 / 공급받는자 보관용을 위아래로 나눠 찍고
-    // 가운데 절취선을 넣는다 (품목이 많아 한 칸(半)에 다 안 들어가면
-    // 넘치는 행은 그 칸 안에서 잘려 보일 수 있음 — 품목 수가 많은
-    // 거래명세서는 절취선 없는 일반 방식을 권장).
     const bodyHtml = buildBodyHtml(company, buyer, items, totals, docNo);
+
+    // 품목이 많으면(半 칸에 다 안 들어가 줄이 잘리는 걸 실측으로 확인한
+    // 기준선) 절취선 2단 방식 대신, 절취선 없이 A4 전체를 쓰는 일반
+    // 방식으로 자동 전환한다. 이 경우 내용이 넘치면 브라우저가 알아서
+    // 다음 페이지로 넘긴다(.inv-table tr의 page-break-inside:avoid 덕분에
+    // 행이 페이지 경계에서 잘리지 않음).
+    const MAX_ITEMS_FOR_SPLIT_LAYOUT = 8;
+    if (items.length > MAX_ITEMS_FOR_SPLIT_LAYOUT) {
+      renderPrintArea(bodyHtml);
+      window.print();
+      return;
+    }
+
+    // A4 한 장에 공급자 보관용 / 공급받는자 보관용을 위아래로 나눠 찍고
+    // 가운데 절취선을 넣는다 (품목이 적을 때만 — 위 기준 참고).
     renderPrintArea(`
       <div class="inv-page">
         <div class="inv-copy">

@@ -50,6 +50,7 @@ const ProductsModule = (() => {
     tableInstance = TableEngine.create('products', {
       container: document.getElementById('pr-list-card'),
       columns: [
+        { key: '__no', label: 'No.', align: 'center' },
         { key: 'code', label: '코드' },
         { key: 'name', label: '품목명' },
         { key: 'spec', label: '규격' },

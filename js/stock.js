@@ -31,6 +31,7 @@ const StockModule = (() => {
     tableInstance = TableEngine.create('stock', {
       container: document.getElementById('stock-list-card'),
       columns: [
+        { key: '__no', label: 'No.', align: 'center' },
         { key: 'code', label: '품목코드' },
         { key: 'name', label: '품목명' },
         { key: 'spec', label: '규격' },
