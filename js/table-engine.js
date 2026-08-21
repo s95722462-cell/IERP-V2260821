@@ -55,14 +55,31 @@ const TableEngine = (() => {
     // "항목 설정"(순서·표시여부)이 낡아서 새 칼럼이 설정 목록에 아예
     // 안 뜨는 문제가 있었다. 매번 create() 호출 시 현재 opts.columns
     // 기준으로 다시 맞춰준다: 없어진 칼럼은 빼고, 새로 생긴 칼럼은
-    // 목록 끝에 추가하면서 기본적으로 표시 상태로 켠다.
+    // (그냥 맨 뒤가 아니라) opts.columns에 정의된 위치에 맞게 끼워
+    // 넣으면서 기본적으로 표시 상태로 켠다.
     const allKeys = opts.columns.map((c) => c.key);
+
+    /** savedOrder에 없는 authoritativeKeys의 새 항목을, 그 항목 바로
+     * 앞(정의 순서상)에 있으면서 이미 savedOrder에 있는 항목 뒤에 끼워
+     * 넣는다. 그런 항목이 없으면(맨 앞 정의) savedOrder 맨 앞에 넣는다. */
+    function mergeOrder(savedOrder, authoritativeKeys) {
+      const result = savedOrder.filter((k) => authoritativeKeys.includes(k));
+      authoritativeKeys.forEach((key, i) => {
+        if (result.includes(key)) return;
+        let insertAfterIdx = -1;
+        for (let j = i - 1; j >= 0; j--) {
+          const idxInResult = result.indexOf(authoritativeKeys[j]);
+          if (idxInResult !== -1) { insertAfterIdx = idxInResult; break; }
+        }
+        result.splice(insertAfterIdx + 1, 0, key);
+      });
+      return result;
+    }
 
     if (!colOrder[tableId]) {
       colOrder[tableId] = allKeys.slice();
     } else {
-      const newKeys = allKeys.filter((k) => !colOrder[tableId].includes(k));
-      colOrder[tableId] = colOrder[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
+      colOrder[tableId] = mergeOrder(colOrder[tableId], allKeys);
     }
 
     if (!activeCols[tableId]) {
@@ -178,9 +195,13 @@ const TableEngine = (() => {
     if (!rows.length) {
       tbody.innerHTML = `<tr class="te-empty"><td colspan="${configs.length + 1}">데이터가 없습니다</td></tr>`;
     } else {
-      tbody.innerHTML = rows.map((row) => {
+      tbody.innerHTML = rows.map((row, idx) => {
         let rowHtml = '<tr>';
         configs.forEach((c) => {
+          // key가 '__no'인 칼럼은 저장된 데이터가 아니라, 지금 화면에 보이는
+          // 순서 그대로 1,2,3...을 매기는 표시 전용 번호다 (검색·정렬 결과
+          // 순서를 그대로 따라간다. 전표No.와는 별개).
+          if (c.key === '__no') { rowHtml += `<td style="text-align:center">${idx + 1}</td>`; return; }
           const value = row[c.key];
           const cell = c.render ? c.render(value, row) : escapeHtml(value ?? '');
           const alignStyle = c.align === 'right' ? 'text-align:right;' : '';

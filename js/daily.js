@@ -28,6 +28,7 @@ const DailyModule = (() => {
     tableInstance = TableEngine.create('daily', {
       container: document.getElementById('daily-list-card'),
       columns: [
+        { key: '__no', label: 'No.', align: 'center' },
         { key: 'date', label: '날짜' },
         { key: 'type', label: '구분', render: (v) => v === '매출'
           ? '<span class="badge badge-red">매출</span>'

@@ -86,6 +86,7 @@ const PurchaseModule = (() => {
     tableInstance = TableEngine.create('purchase', {
       container: document.getElementById('pu-list-card'),
       columns: [
+        { key: '__no', label: 'No.', align: 'center' },
         { key: 'docNo', label: '전표No.', render: (v) => v ? `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>` : '' },
         { key: 'date', label: '날짜' },
         { key: 'vendor', label: '공급업체' },

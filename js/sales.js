@@ -112,6 +112,7 @@ const SalesModule = (() => {
     tableInstance = TableEngine.create('sales', {
       container: document.getElementById('sl-list-card'),
       columns: [
+        { key: '__no', label: 'No.', align: 'center' },
         { key: 'docNo', label: '전표No.', render: (v) => v ? `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>` : '' },
         { key: 'date', label: '날짜' },
         { key: 'buyer', label: '거래처' },
