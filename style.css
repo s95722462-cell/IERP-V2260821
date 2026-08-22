@@ -97,3 +97,20 @@ button:hover { background: var(--border); }
   border: 1px solid var(--border); padding: 5px 6px; font-size: 12px;
 }
 .te-modal table.inv-table th { background: var(--surface2); }
+
+/* ── 오른쪽 슬라이드 입력 패널 (products.js 등에서 "새 등록/수정" 시
+   목록을 가리지 않고 옆에서 나타나는 폼) — 나중에 거래처·매출·매입
+   화면에서도 그대로 재사용할 공용 컴포넌트 */
+.side-panel-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 250;
+  display: flex; justify-content: flex-end;
+}
+.side-panel {
+  width: 380px; max-width: 90vw; height: 100%; overflow-y: auto;
+  background: var(--surface); padding: 16px; box-shadow: -4px 0 16px rgba(0,0,0,.2);
+  animation: side-panel-in .18s ease-out;
+}
+@keyframes side-panel-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
