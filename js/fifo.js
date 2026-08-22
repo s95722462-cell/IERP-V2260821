@@ -148,7 +148,7 @@ const FifoEngine = (() => {
     alert(`"${product.name}" 품목의 FIFO 재계산이 완료됐습니다 (매출 ${salesForProduct.length}건 반영)`);
   }
 
-  return { getLots, consume, recalcProduct };
+  return { getLots, consume, applyOpsToLocalCache, recalcProduct };
 })();
 
 window.FifoEngine = FifoEngine;
