@@ -32,6 +32,7 @@
 .te-table th {
   position: relative; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 11px;
   color: var(--text2); background: var(--surface2); border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   white-space: nowrap; user-select: none;
 }
 .te-table th.te-no-resize { width: 90px; }
@@ -40,16 +41,17 @@
   display: flex; flex-wrap: nowrap; gap: 4px; align-items: center;
 }
 .te-table td.te-actions-col button { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
-.te-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.te-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+.te-table th:last-child, .te-table td:last-child { border-right: none; }
 .te-table tbody tr[data-row-id] { cursor: pointer; }
 .te-table tbody tr[data-row-id]:hover { background: var(--surface2); }
 .te-table tr:last-child td { border-bottom: none; }
 .te-empty td { text-align: center; color: var(--text2); padding: 16px 10px; }
 
-/* 칼럼 리사이즈 손잡이 */
+/* 칼럼 리사이즈 손잡이 (세로 구분선 바로 위에 겹쳐서, 마우스를 올리면 강조되게) */
 .te-resizer {
-  position: absolute; top: 0; right: -2px; width: 5px; height: 100%;
-  cursor: col-resize; opacity: 0; transition: opacity .15s, background .15s;
+  position: absolute; top: 0; right: -3px; width: 6px; height: 100%;
+  cursor: col-resize; opacity: 0; transition: opacity .15s, background .15s; z-index: 1;
 }
 .te-resizer:hover, .te-resizer.resizing { opacity: 1; background: var(--accent); }
 
