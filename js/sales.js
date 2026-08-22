@@ -462,54 +462,6 @@ const SalesModule = (() => {
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  /** 전표번호를 클릭했을 때 뜨는 상세보기 모달 (화면 확인용 — 인쇄는 별도 "명세서 발행" 버튼). */
-  function openDetailModal(docNo) {
-    const group = cache.filter((r) => r.docNo === docNo);
-    if (!group.length) return;
-    const totals = group.reduce((acc, r) => ({
-      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
-    }), { subtotal: 0, vat: 0, total: 0 });
-
-    let modal = document.getElementById('sl-detail-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'sl-detail-modal';
-      modal.className = 'te-modal-bg';
-      document.body.appendChild(modal);
-    }
-    modal.innerHTML = `
-      <div class="te-modal" style="width:520px;max-width:92vw">
-        <div class="te-modal-title">전표 ${escapeHtml(docNo)} 상세 <button class="te-modal-close" data-role="close">✕</button></div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
-          ${escapeHtml(group[0].date)} · ${escapeHtml(group[0].buyer)}
-        </div>
-        <table class="inv-table" style="width:100%;font-size:12px">
-          <thead><tr><th>No.</th><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
-          <tbody>
-            ${group.map((r, idx) => `
-              <tr>
-                <td style="text-align:center">${idx + 1}</td>
-                <td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.spec || '')}</td>
-                <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
-                <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
-                <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-        <div class="sl-doc-totals" style="margin-top:8px">
-          공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
-        </div>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="ls-btn-primary" data-role="print" style="width:auto">이 전표 명세서 발행</button>
-        </div>
-      </div>
-    `;
-    modal.style.display = 'flex';
-    modal.querySelector('[data-role="close"]').addEventListener('click', () => { modal.style.display = 'none'; });
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; }, { once: true });
-    modal.querySelector('[data-role="print"]').addEventListener('click', () => InvoiceModule.generate({ docNo }));
-  }
-
   /** 재고(stock.js)·일별현황(daily.js)·대시보드에서 매출 데이터를 참조할 때 사용합니다. */
   function getCache() { return cache; }
 
@@ -525,7 +477,7 @@ const SalesModule = (() => {
     else InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
   }
 
-  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, openDetailModal, showDetailPanel };
+  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, showDetailPanel };
 })();
 
 window.SalesModule = SalesModule;
