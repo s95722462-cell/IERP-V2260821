@@ -1,0 +1,124 @@
+/* ══════════════════════════════════════════════════════════════
+   style.css — 기본 디자인 토큰 + 공통 컴포넌트
+   iERP 2.0
+
+   layout-shell.css, table-engine.css는 이 파일이 먼저 로드되어
+   아래 변수들이 정의되어 있다는 것을 전제로 합니다.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg:#f5f4f0; --surface:#fff; --surface2:#f0efe9; --border:#e2e0d8;
+  --text:#1a1917; --text2:#6b6960;
+  --accent:#1a1917; --accent-fg:#fff;
+  --green:#1a6b3c; --green-bg:#e8f5ee;
+  --red:#8b2020; --red-bg:#fceaea;
+  --blue:#1a3a6b; --blue-bg:#e8eef5;
+  --amber:#7a4a00; --amber-bg:#fdf3e0;
+  --radius:8px; --radius-lg:12px;
+}
+[data-theme='dark'] {
+  --bg:#121212; --surface:#1e1e1e; --surface2:#2c2c2c; --border:#333;
+  --text:#e0e0e0; --text2:#b0b0b0;
+  --accent:#ffffff; --accent-fg:#121212;
+  --green:#81c784; --green-bg:#1b3320;
+  --red:#e57373; --red-bg:#331b1b;
+  --blue:#64b5f6; --blue-bg:#1b2633;
+  --amber:#ffb74d; --amber-bg:#33261b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background: var(--bg); color: var(--text);
+}
+
+/* ── 카드 ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; }
+.card-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+
+/* ── 폼 ── */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.fg label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 2px; }
+.fg input, .fg select {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text); font-size: 13px;
+}
+.btn-row { display: flex; gap: 6px; }
+button {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer;
+}
+button:hover { background: var(--border); }
+
+.sl-calc { margin-top: 8px; font-size: 13px; color: var(--text2); }
+
+/* ── KPI 카드 그룹 (대시보드/재고/일별현황 공통) ── */
+.stock-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.kpi { padding: 8px 10px; background: var(--surface2); border-radius: var(--radius); text-align: center; }
+.kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+.kpi-val { font-size: 18px; font-weight: 700; }
+
+/* ── 배지 ── */
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); }
+
+/* ── 알림 배너 ── */
+.alert-banner { padding: 8px 12px; background: var(--amber-bg); color: var(--amber); border-radius: var(--radius); margin-bottom: 10px; font-size: 13px; }
+
+/* ── 설정 화면 회사 목록 ── */
+.st-co-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.st-co-actions { display: flex; gap: 6px; }
+
+/* ── 전표(품목 여러 줄) 입력 UI — sales.js/purchase.js 공용 ────────── */
+.sl-items-head, .sl-item-row {
+  display: grid;
+  grid-template-columns: 28px 2fr 1.3fr 0.7fr 1fr 1fr 28px;
+  gap: 8px;
+  align-items: center;
+}
+.sl-item-row .ri-no { text-align: center; font-size: 12px; color: var(--text2); }
+.sl-items-head { font-size: 11px; color: var(--text2); font-weight: 700; padding: 0 2px 4px; }
+.sl-item-row { margin-bottom: 6px; }
+.sl-item-row input {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); font-size: 13px; box-sizing: border-box;
+}
+.sl-item-row .ri-subtotal { text-align: right; font-size: 13px; padding-right: 4px; }
+.sl-item-row .ri-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 15px; padding: 4px; }
+.sl-add-row-btn { margin: 4px 0 10px; }
+.sl-doc-totals { text-align: right; font-size: 13px; color: var(--text2); }
+.sl-docno-link { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 700; padding: 0; text-decoration: underline; }
+
+/* 전표 상세보기 모달 안에서만 쓰는 표 스타일 (invoice.css의 .inv-table은
+   평소 화면에서 숨겨져 있으므로 별도로 정의) */
+.te-modal table.inv-table { border-collapse: collapse; }
+.te-modal table.inv-table th, .te-modal table.inv-table td {
+  border: 1px solid var(--border); padding: 5px 6px; font-size: 12px;
+}
+.te-modal table.inv-table th { background: var(--surface2); }
+
+/* ── 오른쪽 슬라이드 입력 패널 (products.js 등에서 "새 등록/수정" 시
+   목록을 가리지 않고 옆에서 나타나는 폼) — 나중에 거래처·매출·매입
+   화면에서도 그대로 재사용할 공용 컴포넌트 */
+.side-panel-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 250;
+  display: flex; justify-content: flex-end;
+}
+.side-panel {
+  width: 380px; max-width: 90vw; height: 100%; overflow-y: auto;
+  background: var(--surface); padding: 16px; box-shadow: -4px 0 16px rgba(0,0,0,.2);
+  animation: side-panel-in .18s ease-out;
+}
+@keyframes side-panel-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ── 대시보드 차트 2개를 나란히 배치 (좁은 화면에선 세로로 쌓임) */
+.dash-chart-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;
+}
+@media (max-width: 720px) {
+  .dash-chart-row { grid-template-columns: 1fr; }
+}

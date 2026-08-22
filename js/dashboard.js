@@ -1,13 +1,20 @@
 // ══════════════════════════════════════════════════════════════
-// dashboard.js — 대시보드 (요약 지표 + 최근 거래)
+// dashboard.js — 대시보드 (요약 지표 + 차트)
 // iERP 2.0 / 화면 모듈
 //
 // 의존성: security.js, layout-shell.js, sales.js, purchase.js,
-//         customers.js, products.js, stock.js
+//         customers.js, products.js, stock.js, Chart.js(CDN)
+//
+// "최근 거래 내역"을 텍스트로 나열하던 표 대신, 한눈에 파악되는
+// 차트(월별 매출/매입 추이, 거래처별 매출 비중)로 바꿨다. 최신
+// 대시보드 UI 트렌드 조사 결과와 일치하는 방향("Bold KPI + 차트,
+// 텍스트 나열 지양").
 // ══════════════════════════════════════════════════════════════
 
 const DashboardModule = (() => {
   let subscribed = false;
+  let trendChart = null;
+  let buyerChart = null;
 
   function init() {
     const panel = LayoutShell.registerPanel('dashboard');
@@ -17,13 +24,14 @@ const DashboardModule = (() => {
         <div class="card-title">📊 주요 비즈니스 지표</div>
         <div class="stock-kpis" id="dash-kpis"></div>
       </div>
-      <div class="card" style="margin-top:16px">
-        <div class="card-title">🕒 최근 거래 내역</div>
-        <div class="te-scroll">
-          <table class="te-table">
-            <thead><tr><th>No.</th><th>날짜</th><th>구분</th><th>거래처</th><th>품목</th><th style="text-align:right">금액</th></tr></thead>
-            <tbody id="dash-recent-tbody"></tbody>
-          </table>
+      <div class="dash-chart-row">
+        <div class="card">
+          <div class="card-title">📈 월별 매출/매입 추이</div>
+          <div style="height:260px"><canvas id="dash-trend-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🥧 거래처별 매출 비중 (TOP 5)</div>
+          <div style="height:260px"><canvas id="dash-buyer-chart"></canvas></div>
         </div>
       </div>
     `;
@@ -54,22 +62,63 @@ const DashboardModule = (() => {
       ? `<div class="alert-banner">⚠️ 재고 부족 알림: ${lowStock.length}개의 품목이 안전 재고 미만이거나 없습니다.</div>`
       : '';
 
-    const recent = [
-      ...sales.map((r) => ({ ...r, _type: '매출', _party: r.buyer })),
-      ...purchases.map((r) => ({ ...r, _type: '매입', _party: r.vendor }))
-    ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
+    renderTrendChart(sales, purchases);
+    renderBuyerChart(sales);
+  }
 
-    document.getElementById('dash-recent-tbody').innerHTML = recent.length
-      ? recent.map((r, idx) => `
-        <tr>
-          <td style="text-align:center">${idx + 1}</td>
-          <td>${escapeHtml(r.date || '')}</td>
-          <td>${r._type === '매출' ? '<span class="badge badge-red">매출</span>' : '<span class="badge badge-blue">매입</span>'}</td>
-          <td>${escapeHtml(r._party || '')}</td>
-          <td>${escapeHtml(r.item || '')}</td>
-          <td style="text-align:right">₩${(r.total || 0).toLocaleString()}</td>
-        </tr>`).join('')
-      : '<tr><td colspan="6" style="text-align:center;color:var(--text2)">거래 내역이 없습니다</td></tr>';
+  /** 최근 6개월(데이터가 있는 달만이 아니라 최근 6개월 전부)의 매출/매입
+   * 합계를 막대그래프로 보여준다. */
+  function renderTrendChart(sales, purchases) {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    const sumByMonth = (rows) => months.map((m) =>
+      rows.filter((r) => (r.date || '').startsWith(m)).reduce((s, r) => s + (r.total || 0), 0)
+    );
+
+    const ctx = document.getElementById('dash-trend-chart');
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          { label: '매출 (원)', data: sumByMonth(sales), backgroundColor: '#c0392b' },
+          { label: '매입 (원)', data: sumByMonth(purchases), backgroundColor: '#1a3a6b' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { ticks: { callback: (v) => v.toLocaleString() } } }
+      }
+    });
+  }
+
+  /** 매출 상위 5개 거래처의 비중을 도넛차트로 보여준다. */
+  function renderBuyerChart(sales) {
+    const byBuyer = {};
+    sales.forEach((r) => { byBuyer[r.buyer] = (byBuyer[r.buyer] || 0) + (r.total || 0); });
+    const top5 = Object.entries(byBuyer).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    const ctx = document.getElementById('dash-buyer-chart');
+    if (buyerChart) buyerChart.destroy();
+    buyerChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: top5.map(([name]) => name),
+        datasets: [{
+          data: top5.map(([, total]) => total),
+          backgroundColor: ['#1a6b3c', '#1a3a6b', '#7a4a00', '#8b2020', '#4a4a4a']
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'right' } }
+      }
+    });
   }
 
   function startListening() {
