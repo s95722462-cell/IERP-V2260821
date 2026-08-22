@@ -58,7 +58,7 @@ body {
 }
 .btn-row { display: flex; gap: 6px; }
 button {
-  padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer;
 }
 button:hover { background: var(--border); }
