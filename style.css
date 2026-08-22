@@ -25,7 +25,7 @@
      (고대비 흑백 조합이 야간 눈부심의 주된 원인이라 채도/명도를 낮춤) */
   --bg:#15181D; --surface:#1E222A; --surface2:#262B34; --border:#333A46;
   --text:#D8DCE3; --text2:#9AA3B2;
-  --accent:#5B8DEF; --accent-fg:#F5F7FA;
+  --accent:#2B3A52; --accent-fg:#DCE3EE;
   --green:#6FCF97; --green-bg:#1B2B22;
   --red:#F1746B; --red-bg:#2B1B1B;
   --blue:#6FA8E0; --blue-bg:#1B2733;
@@ -36,6 +36,13 @@
 body {
   margin: 0; font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
   background: var(--bg); color: var(--text);
+}
+
+/* 다크모드: 날짜(input type=date)의 브라우저 기본 캘린더 아이콘이 어두운
+   색으로 고정돼 있어서 어두운 입력창 배경에 묻혀 안 보이던 문제 — 아이콘을
+   반전시켜 밝게 보이게 한다 (검색 필터의 .te-date, 등록/수정 폼 날짜 입력 공통) */
+[data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }
 
 /* ── 카드 ── */
