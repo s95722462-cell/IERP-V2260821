@@ -26,7 +26,11 @@ const ProductsModule = (() => {
           🔧 품목 목록
           <button class="ls-btn-primary" id="pr-add-btn" style="margin-left:auto;width:auto">+ 새 품목 추가</button>
         </div>
-        <div class="btn-row" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      </div>
+
+      <details class="card" style="margin-top:16px">
+        <summary class="card-title" style="cursor:pointer">📄 엑셀 대량 업로드 / 관리</summary>
+        <div class="btn-row" style="margin-top:10px">
           <button id="pr-tmpl-btn">📄 엑셀 템플릿 다운로드</button>
           <button id="pr-upload-btn">⬆️ 엑셀 업로드(대량 등록)</button>
           <button id="pr-export-btn">⬇️ 엑셀 다운로드(현재 품목)</button>
@@ -34,7 +38,7 @@ const ProductsModule = (() => {
           <button id="pr-delete-all-btn" style="color:var(--red)" title="이 회사의 품목을 전부 삭제합니다 (되돌릴 수 없음)">🗑️ 전체 품목 일괄 삭제</button>
           <input type="file" id="pr-upload-input" accept=".xlsx,.xls,.csv" style="display:none">
         </div>
-      </div>
+      </details>
 
       <div class="side-panel-bg" id="pr-panel-bg" style="display:none">
         <div class="side-panel">

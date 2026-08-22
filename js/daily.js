@@ -167,14 +167,10 @@ const DailyModule = (() => {
     const margin = salesSubtotal > 0 ? (grossProfit / salesSubtotal * 100) : 0;
     const lineCount = rows.reduce((s, r) => s + (r.__lineCount || 1), 0);
 
-    let profitNote = '';
-    if (missingCost > 0) profitNote = ` <span style="font-size:10px;color:var(--text2)">(원가 미계산 ${missingCost}줄 제외)</span>`;
-    else if (hasEstimate) profitNote = ' <span style="font-size:10px;color:var(--amber)">(일부 추정치 포함)</span>';
-
     document.getElementById('daily-kpis').innerHTML = `
       <div class="kpi"><div class="kpi-label">매출합계</div><div class="kpi-val" style="color:var(--red)">₩${salesTotal.toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">매입합계</div><div class="kpi-val" style="color:var(--blue)">₩${purchTotal.toLocaleString()}</div></div>
-      <div class="kpi"><div class="kpi-label">매출총이익${profitNote}</div><div class="kpi-val">₩${Math.round(grossProfit).toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">매출총이익</div><div class="kpi-val">₩${Math.round(grossProfit).toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">이익률</div><div class="kpi-val" style="color:var(--green)">${margin.toFixed(1)}%</div></div>
       <div class="kpi"><div class="kpi-label">전표건수</div><div class="kpi-val">${rows.length}건</div></div>
       <div class="kpi"><div class="kpi-label">품목줄 수</div><div class="kpi-val">${lineCount}줄</div></div>
