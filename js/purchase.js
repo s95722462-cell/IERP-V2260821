@@ -35,7 +35,7 @@ const PurchaseModule = (() => {
     panel.innerHTML = `
       <div class="card" id="pu-list-card">
         <div class="card-title" style="display:flex;align-items:center">
-          📥 매입 내역
+          매입 내역
           <button class="ls-btn-primary" id="pu-add-btn" style="margin-left:auto;width:auto">+ 새 매입 등록</button>
         </div>
       </div>
@@ -44,7 +44,7 @@ const PurchaseModule = (() => {
       <div class="side-panel-bg" id="pu-panel-bg" style="display:none">
         <div class="side-panel side-panel-wide">
           <div class="card-title" style="display:flex;align-items:center">
-            <span id="pu-panel-title">📥 새 매입 등록</span>
+            <span id="pu-panel-title">새 매입 등록</span>
             <span id="pu-docno-badge" class="badge badge-blue" style="display:none;margin-left:8px"></span>
             <button id="pu-panel-close" style="margin-left:auto">✕</button>
           </div>
@@ -278,7 +278,7 @@ const PurchaseModule = (() => {
     addRow();
     editingDocNo = null;
     editingIds = [];
-    document.getElementById('pu-panel-title').textContent = '📥 새 매입 등록';
+    document.getElementById('pu-panel-title').textContent = '새 매입 등록';
     document.getElementById('pu-docno-badge').style.display = 'none';
     document.getElementById('pu-save-btn').textContent = '저장';
   }
@@ -299,7 +299,7 @@ const PurchaseModule = (() => {
     editingDocNo = row.docNo || null;
     editingIds = group.map((r) => r.id);
 
-    document.getElementById('pu-panel-title').textContent = '📥 매입 수정';
+    document.getElementById('pu-panel-title').textContent = '매입 수정';
     const badge = document.getElementById('pu-docno-badge');
     if (row.docNo) { badge.textContent = row.docNo; badge.style.display = ''; }
     else badge.style.display = 'none';
@@ -419,8 +419,8 @@ const PurchaseModule = (() => {
       }), { subtotal: 0, vat: 0, total: 0 });
       return {
         id: first.id, docNo: first.docNo, date: first.date, vendor: first.vendor,
-        item: `${first.item} 외 ${group.length - 1}건`, spec: '-',
-        qty: '-', unitPrice: '-',
+        item: first.item, spec: first.spec,
+        qty: first.qty, unitPrice: first.unitPrice,
         subtotal: totals.subtotal, vat: totals.vat, total: totals.total,
         invNo: first.invNo, memo: first.memo
       };

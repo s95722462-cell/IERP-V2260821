@@ -21,7 +21,7 @@ const DailyModule = (() => {
     const panel = LayoutShell.registerPanel('daily');
     panel.innerHTML = `
       <div class="card">
-        <div class="card-title">📅 일별 매출 / 매입 현황</div>
+        <div class="card-title">일별 매출 / 매입 현황</div>
         <div class="stock-kpis" id="daily-kpis"></div>
       </div>
       <div class="card" id="daily-list-card" style="margin-top:16px">
@@ -89,7 +89,7 @@ const DailyModule = (() => {
       const knownCost = group.filter((r) => r.costOfGoods !== undefined && r.costOfGoods !== null);
       return {
         id: first.id, date: first.date, type: first.type, party: first.party, docNo: first.docNo,
-        item: `${first.item} 외 ${group.length - 1}건`, spec: '-', qty: '-', total,
+        item: first.item, spec: first.spec, qty: first.qty, total,
         subtotal,
         costOfGoods: first.type === '매출' && knownCost.length ? knownCost.reduce((s, r) => s + r.costOfGoods, 0) : undefined,
         costEstimated: group.some((r) => r.costEstimated),

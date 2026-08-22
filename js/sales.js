@@ -44,13 +44,13 @@ const SalesModule = (() => {
     panel.innerHTML = `
       <div class="card" id="sl-list-card">
         <div class="card-title" style="display:flex;align-items:center">
-          📈 매출 내역
+          매출 내역
           <button class="ls-btn-primary" id="sl-add-btn" style="margin-left:auto;width:auto">+ 새 매출 등록</button>
         </div>
       </div>
       <div class="card" id="sl-detail-panel" style="margin-top:16px;display:none"></div>
       <details class="card" style="margin-top:16px">
-        <summary class="card-title" style="cursor:pointer">📄 거래처·기간별 거래명세서 발행 (세금계산서 발행용 자료)</summary>
+        <summary class="card-title" style="cursor:pointer">거래처·기간별 거래명세서 발행 (세금계산서 발행용 자료)</summary>
         <div class="form-grid" style="margin-top:10px">
           <div class="fg"><label>거래처</label><select id="sl-inv-buyer"><option value="">— 선택 —</option></select></div>
           <div class="fg"><label>시작일</label><input id="sl-inv-from" type="date"></div>
@@ -62,7 +62,7 @@ const SalesModule = (() => {
       <div class="side-panel-bg" id="sl-panel-bg" style="display:none">
         <div class="side-panel side-panel-wide">
           <div class="card-title" style="display:flex;align-items:center">
-            <span id="sl-panel-title">📈 새 매출 등록</span>
+            <span id="sl-panel-title">새 매출 등록</span>
             <span id="sl-docno-badge" class="badge badge-blue" style="display:none;margin-left:8px"></span>
             <button id="sl-panel-close" style="margin-left:auto">✕</button>
           </div>
@@ -311,7 +311,7 @@ const SalesModule = (() => {
     addRow();
     editingDocNo = null;
     editingIds = [];
-    document.getElementById('sl-panel-title').textContent = '📈 새 매출 등록';
+    document.getElementById('sl-panel-title').textContent = '새 매출 등록';
     document.getElementById('sl-docno-badge').style.display = 'none';
     document.getElementById('sl-save-btn').textContent = '저장';
   }
@@ -333,7 +333,7 @@ const SalesModule = (() => {
     editingDocNo = row.docNo || null;
     editingIds = group.map((r) => r.id);
 
-    document.getElementById('sl-panel-title').textContent = '📈 매출 수정';
+    document.getElementById('sl-panel-title').textContent = '매출 수정';
     const badge = document.getElementById('sl-docno-badge');
     if (row.docNo) { badge.textContent = row.docNo; badge.style.display = ''; }
     else badge.style.display = 'none';
@@ -475,8 +475,8 @@ const SalesModule = (() => {
       }), { subtotal: 0, vat: 0, total: 0 });
       return {
         id: first.id, docNo: first.docNo, date: first.date, buyer: first.buyer,
-        item: `${first.item} 외 ${group.length - 1}건`, spec: '-',
-        qty: '-', unitPrice: '-',
+        item: first.item, spec: first.spec,
+        qty: first.qty, unitPrice: first.unitPrice,
         subtotal: totals.subtotal, vat: totals.vat, total: totals.total,
         invNo: first.invNo, memo: first.memo
       };
