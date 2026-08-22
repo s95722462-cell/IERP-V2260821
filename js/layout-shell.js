@@ -222,9 +222,13 @@ const LayoutShell = (() => {
     localStorage.setItem('ls-sidebar-collapsed', collapsed ? '1' : '0');
     const toggleBtn = document.getElementById('ls-sidebar-toggle');
     if (toggleBtn) toggleBtn.title = collapsed ? '사이드바 펼치기' : '사이드바 접기';
-    // 접으면 드래그로 잡았던 너비는 잠시 무시하고 접힘 너비(56px)를 쓴다.
+    // 접으면 드래그로 잡았던 인라인 너비(style.width)를 지워야 CSS의
+    // .collapsed { width:56px } 규칙이 먹는다 (인라인 스타일이 클래스보다
+    // 우선순위가 높아서, 지우지 않으면 예전에 드래그한 너비가 그대로 남는 버그가 있었음).
     // 펼치면 저장된 너비를 다시 적용한다 (모바일 하단 네비 레이아웃에는 적용하지 않음).
-    if (!collapsed && window.innerWidth > 768) {
+    if (collapsed) {
+      sidebar.style.width = '';
+    } else if (window.innerWidth > 768) {
       const savedWidth = localStorage.getItem('ls-sidebar-width');
       if (savedWidth) sidebar.style.width = savedWidth + 'px';
     }
