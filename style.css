@@ -10,23 +10,26 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
 :root {
-  --bg:#f5f4f0; --surface:#fff; --surface2:#f0efe9; --border:#e2e0d8;
-  --text:#1a1917; --text2:#6b6960;
-  --accent:#1a1917; --accent-fg:#fff;
-  --green:#1a6b3c; --green-bg:#e8f5ee;
-  --red:#8b2020; --red-bg:#fceaea;
-  --blue:#1a3a6b; --blue-bg:#e8eef5;
-  --amber:#7a4a00; --amber-bg:#fdf3e0;
+  /* 라이트 모드: 순백 대신 옅은 블루그레이 배경 — 화사하면서 눈부심은 줄임 */
+  --bg:#F5F7FA; --surface:#FFFFFF; --surface2:#EEF1F6; --border:#DDE3EC;
+  --text:#1A1F2B; --text2:#667085;
+  --accent:#2F6FE0; --accent-fg:#FFFFFF;
+  --green:#16794F; --green-bg:#E6F4EC;
+  --red:#B42318; --red-bg:#FDECEA;
+  --blue:#1D4ED8; --blue-bg:#E8EEFC;
+  --amber:#92400E; --amber-bg:#FEF3E2;
   --radius:0; --radius-lg:0;
 }
 [data-theme='dark'] {
-  --bg:#121212; --surface:#1e1e1e; --surface2:#2c2c2c; --border:#333;
-  --text:#e0e0e0; --text2:#b0b0b0;
-  --accent:#ffffff; --accent-fg:#121212;
-  --green:#81c784; --green-bg:#1b3320;
-  --red:#e57373; --red-bg:#331b1b;
-  --blue:#64b5f6; --blue-bg:#1b2633;
-  --amber:#ffb74d; --amber-bg:#33261b;
+  /* 다크 모드: 순검정+순백 대신 남색 도는 다크그레이 + 톤다운 블루
+     (고대비 흑백 조합이 야간 눈부심의 주된 원인이라 채도/명도를 낮춤) */
+  --bg:#15181D; --surface:#1E222A; --surface2:#262B34; --border:#333A46;
+  --text:#D8DCE3; --text2:#9AA3B2;
+  --accent:#5B8DEF; --accent-fg:#F5F7FA;
+  --green:#6FCF97; --green-bg:#1B2B22;
+  --red:#F1746B; --red-bg:#2B1B1B;
+  --blue:#6FA8E0; --blue-bg:#1B2733;
+  --amber:#F0B429; --amber-bg:#2E2410;
 }
 
 * { box-sizing: border-box; }
