@@ -115,6 +115,9 @@ function getSavedTheme() {
 function applyTheme(theme) {
   document.body.setAttribute('data-theme', theme);
   localStorage.setItem('ierp_theme', theme);
+  // 대시보드처럼 CSS 변수 색상값을 JS로 읽어서 차트 등을 그리는
+  // 화면이 테마 전환 시 즉시 다시 그릴 수 있도록 이벤트를 알린다.
+  window.dispatchEvent(new CustomEvent('ierp:theme-changed', { detail: { theme } }));
 }
 
 // 다른 모듈에서 전역으로 사용할 수 있도록 window에 등록

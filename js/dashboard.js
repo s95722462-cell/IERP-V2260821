@@ -34,6 +34,11 @@ const DashboardModule = (() => {
         </div>
       </div>
     `;
+
+    // 다크/라이트 모드 전환 시 차트 색상(CSS 변수 읽어서 씀)을 즉시 다시 그린다
+    window.addEventListener('ierp:theme-changed', () => {
+      if (subscribed) refresh();
+    });
   }
 
   function refresh() {
@@ -60,6 +65,14 @@ const DashboardModule = (() => {
     renderBuyerChart(sales);
   }
 
+  /** CSS 변수(:root/[data-theme=dark]에 정의된 실제 색상값)를 읽어온다.
+   * 라이트/다크 모드가 바뀌어도 항상 지금 테마에 맞는 값을 가져오도록,
+   * 차트를 그리는 시점마다 매번 새로 읽는다. */
+  function themeColor(varName, fallback) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return v || fallback;
+  }
+
   /** 최근 3개월(데이터가 있는 달만이 아니라 최근 3개월 전부)의 매출/매입
    * 합계를 막대그래프로 보여준다. */
   function renderTrendChart(sales, purchases) {
@@ -75,18 +88,24 @@ const DashboardModule = (() => {
 
     const ctx = document.getElementById('dash-trend-chart');
     if (trendChart) trendChart.destroy();
+    const textColor = themeColor('--text2', '#667085');
+    const gridColor = themeColor('--border', '#DDE3EC');
     trendChart = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: months,
         datasets: [
-          { label: '매출 (원)', data: sumByMonth(sales), backgroundColor: '#c0392b' },
-          { label: '매입 (원)', data: sumByMonth(purchases), backgroundColor: '#1a3a6b' }
+          { label: '매출 (원)', data: sumByMonth(sales), backgroundColor: themeColor('--red', '#B42318') },
+          { label: '매입 (원)', data: sumByMonth(purchases), backgroundColor: themeColor('--blue', '#1D4ED8') }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        scales: { y: { ticks: { callback: (v) => v.toLocaleString() } } }
+        scales: {
+          x: { ticks: { color: textColor }, grid: { color: gridColor } },
+          y: { ticks: { color: textColor, callback: (v) => v.toLocaleString() }, grid: { color: gridColor } }
+        },
+        plugins: { legend: { labels: { color: textColor } } }
       }
     });
   }
@@ -99,18 +118,25 @@ const DashboardModule = (() => {
 
     const ctx = document.getElementById('dash-buyer-chart');
     if (buyerChart) buyerChart.destroy();
+    const textColor = themeColor('--text2', '#667085');
     buyerChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: top5.map(([name]) => name),
         datasets: [{
           data: top5.map(([, total]) => total),
-          backgroundColor: ['#1a6b3c', '#1a3a6b', '#7a4a00', '#8b2020', '#4a4a4a']
+          backgroundColor: [
+            themeColor('--blue', '#1D4ED8'),
+            themeColor('--green', '#16794F'),
+            themeColor('--accent', '#3E6FA8'),
+            themeColor('--amber', '#92400E'),
+            themeColor('--red', '#B42318')
+          ]
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right' } }
+        plugins: { legend: { position: 'right', labels: { color: textColor } } }
       }
     });
   }

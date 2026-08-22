@@ -101,7 +101,7 @@ button:hover { background: var(--border); }
 .sl-item-row .ri-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 15px; padding: 4px; }
 .sl-add-row-btn { margin: 4px 0 10px; }
 .sl-doc-totals { text-align: right; font-size: 13px; color: var(--text2); }
-.sl-docno-link { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 700; padding: 0; text-decoration: underline; }
+.sl-docno-link { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 400; padding: 0; text-decoration: underline; font-size: inherit; font-family: inherit; }
 
 /* 전표 상세보기 모달 안에서만 쓰는 표 스타일 (invoice.css의 .inv-table은
    평소 화면에서 숨겨져 있으므로 별도로 정의) */
