@@ -42,6 +42,7 @@ const ProductsModule = (() => {
           <button id="pr-tmpl-btn">📄 엑셀 템플릿 다운로드</button>
           <button id="pr-upload-btn">⬆️ 엑셀 업로드(대량 등록)</button>
           <button id="pr-export-btn">⬇️ 엑셀 다운로드(현재 품목)</button>
+          <button id="pr-fix-btn" title="예전 엑셀 업로드로 등록됐지만 화면에 안 보이는 품목이 있으면 복구합니다">🔧 숨은 품목 복구</button>
           <input type="file" id="pr-upload-input" accept=".xlsx,.xls,.csv" style="display:none">
         </div>
       </div>
@@ -56,6 +57,7 @@ const ProductsModule = (() => {
     document.getElementById('pr-export-btn').addEventListener('click', exportExcel);
     document.getElementById('pr-upload-btn').addEventListener('click', () => document.getElementById('pr-upload-input').click());
     document.getElementById('pr-upload-input').addEventListener('change', handleUpload);
+    document.getElementById('pr-fix-btn').addEventListener('click', fixMissingCreatedAt);
 
     tableInstance = TableEngine.create('products', {
       container: document.getElementById('pr-list-card'),
@@ -225,6 +227,38 @@ const ProductsModule = (() => {
       }
     }
     alert(`엑셀 업로드 완료\n\n새로 등록: ${ops.length}건\n중복으로 건너뜀: ${skipped}건${invalid ? `\n품목명 없어서 제외: ${invalid}건` : ''}`);
+  }
+
+  /**
+   * 예전 엑셀 업로드 버그로 createdAt이 빠진 채 저장된 품목을 찾아 복구합니다.
+   * 목록 조회는 createdAt 기준 정렬이라 이 필드가 없는 문서는 화면에서
+   * 통째로 빠지는데(Firestore의 orderBy 특성), 정렬 조건 없이 전체를
+   * 다시 조회해서 그 문서들만 골라 createdAt을 채워 넣는다. 한 번만
+   * 실행하면 되는 일회성 복구 기능이다.
+   */
+  async function fixMissingCreatedAt() {
+    if (!confirm('예전 엑셀 업로드로 화면에 안 보이던 품목이 있는지 확인하고 복구합니다. 계속할까요?')) return;
+    let snap;
+    try {
+      snap = await db.collection(path()).get();
+    } catch (err) {
+      alert('조회 중 오류가 발생했습니다: ' + err.message);
+      return;
+    }
+    const missing = snap.docs.filter((d) => !d.data().createdAt);
+    if (!missing.length) { alert('숨은 품목이 없습니다 — 이미 전부 정상 표시되고 있습니다.'); return; }
+
+    const ops = missing.map((d) => ({
+      type: 'set', path: path(), id: d.id,
+      data: { createdAt: firebase.firestore.FieldValue.serverTimestamp() }, merge: true
+    }));
+    try {
+      await batchWrite(ops);
+    } catch (err) {
+      alert('복구 중 오류가 발생했습니다: ' + err.message);
+      return;
+    }
+    alert(`복구 완료 — ${missing.length}개 품목이 목록에 다시 나타납니다.`);
   }
 
   /** 품목 데이터가 바뀔 때마다 호출될 콜백을 등록합니다 (재고 화면이 사용). */
