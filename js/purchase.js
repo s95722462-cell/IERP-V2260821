@@ -33,41 +33,56 @@ const PurchaseModule = (() => {
   function init() {
     const panel = LayoutShell.registerPanel('purchase');
     panel.innerHTML = `
-      <div class="card">
-        <div class="card-title">📥 매입 등록 / 수정 <span id="pu-docno-badge" class="badge badge-blue" style="display:none"></span></div>
-        <div class="form-grid">
-          <div class="fg"><label>날짜 *</label><input id="pu-date" type="date"></div>
-          <div class="fg"><label>공급업체 *</label>
-            <select id="pu-vendor"><option value="">— 선택 —</option></select>
-          </div>
-          <div class="fg"><label>인보이스No.</label><input id="pu-invno"></div>
-          <div class="fg" style="grid-column:1/-1"><label>비고</label><input id="pu-memo"></div>
+      <div class="card" id="pu-list-card">
+        <div class="card-title" style="display:flex;align-items:center">
+          📥 매입 내역
+          <button class="ls-btn-primary" id="pu-add-btn" style="margin-left:auto;width:auto">+ 새 매입 등록</button>
         </div>
-
-        <div class="sl-items-head">
-          <div>No.</div><div>품목명</div><div>규격</div><div>수량</div><div>단가</div><div>공급가액</div><div></div>
-        </div>
-        <div id="pu-items-container"></div>
-        <datalist id="pu-item-list"></datalist>
-        <button type="button" id="pu-add-row-btn" class="sl-add-row-btn">+ 품목 추가</button>
-
-        <div class="sl-doc-totals" id="pu-doc-totals">공급가액 0 + 부가세(10%) 0 = 합계 0</div>
-        <div class="btn-row" style="margin-top:10px">
-          <button class="ls-btn-primary" id="pu-save-btn" style="width:auto">저장</button>
-          <button id="pu-cancel-btn" style="display:none">취소</button>
-        </div>
-      </div>
-      <div class="card" id="pu-list-card" style="margin-top:16px">
-        <div class="card-title">매입 내역</div>
       </div>
       <div class="card" id="pu-detail-panel" style="margin-top:16px;display:none"></div>
+
+      <div class="side-panel-bg" id="pu-panel-bg" style="display:none">
+        <div class="side-panel side-panel-wide">
+          <div class="card-title" style="display:flex;align-items:center">
+            <span id="pu-panel-title">📥 새 매입 등록</span>
+            <span id="pu-docno-badge" class="badge badge-blue" style="display:none;margin-left:8px"></span>
+            <button id="pu-panel-close" style="margin-left:auto">✕</button>
+          </div>
+          <div class="form-grid">
+            <div class="fg"><label>날짜 *</label><input id="pu-date" type="date"></div>
+            <div class="fg"><label>공급업체 *</label>
+              <select id="pu-vendor"><option value="">— 선택 —</option></select>
+            </div>
+            <div class="fg"><label>인보이스No.</label><input id="pu-invno"></div>
+            <div class="fg" style="grid-column:1/-1"><label>비고</label><input id="pu-memo"></div>
+          </div>
+
+          <div class="sl-items-head">
+            <div>No.</div><div>품목명</div><div>규격</div><div>수량</div><div>단가</div><div>공급가액</div><div></div>
+          </div>
+          <div id="pu-items-container"></div>
+          <datalist id="pu-item-list"></datalist>
+          <button type="button" id="pu-add-row-btn" class="sl-add-row-btn">+ 품목 추가</button>
+
+          <div class="sl-doc-totals" id="pu-doc-totals">공급가액 0 + 부가세(10%) 0 = 합계 0</div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="ls-btn-primary" id="pu-save-btn" style="width:auto">저장</button>
+            <button id="pu-cancel-btn">취소</button>
+          </div>
+        </div>
+      </div>
     `;
 
     document.getElementById('pu-date').value = todayStr();
     addRow();
 
-    document.getElementById('pu-save-btn').addEventListener('click', save);
-    document.getElementById('pu-cancel-btn').addEventListener('click', resetForm);
+    document.getElementById('pu-add-btn').addEventListener('click', () => { resetForm(); openPanel(); });
+    document.getElementById('pu-panel-close').addEventListener('click', closePanel);
+    document.getElementById('pu-panel-bg').addEventListener('click', (e) => {
+      if (e.target.id === 'pu-panel-bg') closePanel();
+    });
+    document.getElementById('pu-save-btn').addEventListener('click', async () => { await save(); closePanel(); });
+    document.getElementById('pu-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('pu-add-row-btn').addEventListener('click', () => addRow());
 
     const itemsContainer = document.getElementById('pu-items-container');
@@ -241,6 +256,17 @@ const PurchaseModule = (() => {
 
   // ── 등록/수정 폼 전체 ──────────────────────────────────────
 
+  /** 오른쪽 슬라이드 패널을 연다 (새 매입 등록 / 수정 공용). */
+  function openPanel() {
+    document.getElementById('pu-panel-bg').style.display = 'flex';
+  }
+
+  /** 패널을 닫고 폼을 비운다. */
+  function closePanel() {
+    document.getElementById('pu-panel-bg').style.display = 'none';
+    resetForm();
+  }
+
   function resetForm() {
     document.getElementById('pu-date').value = todayStr();
     document.getElementById('pu-vendor').value = '';
@@ -250,8 +276,8 @@ const PurchaseModule = (() => {
     addRow();
     editingDocNo = null;
     editingIds = [];
+    document.getElementById('pu-panel-title').textContent = '📥 새 매입 등록';
     document.getElementById('pu-docno-badge').style.display = 'none';
-    document.getElementById('pu-cancel-btn').style.display = 'none';
     document.getElementById('pu-save-btn').textContent = '저장';
   }
 
@@ -271,14 +297,14 @@ const PurchaseModule = (() => {
     editingDocNo = row.docNo || null;
     editingIds = group.map((r) => r.id);
 
+    document.getElementById('pu-panel-title').textContent = '📥 매입 수정';
     const badge = document.getElementById('pu-docno-badge');
     if (row.docNo) { badge.textContent = row.docNo; badge.style.display = ''; }
     else badge.style.display = 'none';
 
-    document.getElementById('pu-cancel-btn').style.display = '';
     document.getElementById('pu-save-btn').textContent = '수정 저장';
     recalcTotal();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    openPanel();
   }
 
   async function save() {
@@ -323,7 +349,6 @@ const PurchaseModule = (() => {
     });
 
     await batchWrite(ops);
-    resetForm();
   }
 
   async function remove(id) {

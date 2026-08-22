@@ -114,3 +114,12 @@ button:hover { background: var(--border); }
   from { transform: translateX(24px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+.side-panel.side-panel-wide { width: 560px; }
+
+/* ── 대시보드 차트 2개를 나란히 배치 (좁은 화면에선 세로로 쌓임) */
+.dash-chart-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;
+}
+@media (max-width: 720px) {
+  .dash-chart-row { grid-template-columns: 1fr; }
+}

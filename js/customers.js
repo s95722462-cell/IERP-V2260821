@@ -25,31 +25,45 @@ const CustomersModule = (() => {
   function init() {
     const panel = LayoutShell.registerPanel('customers');
     panel.innerHTML = `
-      <div class="card">
-        <div class="card-title">🏢 거래처 등록 / 수정</div>
-        <div class="form-grid">
-          <div class="fg"><label>회사명 *</label><input id="cu-name" placeholder="(주)○○무역"></div>
-          <div class="fg"><label>사업자번호</label><input id="cu-bizno"></div>
-          <div class="fg"><label>대표자</label><input id="cu-ceo"></div>
-          <div class="fg"><label>업태</label><input id="cu-biztype" placeholder="제조업, 도소매 등"></div>
-          <div class="fg"><label>종목</label><input id="cu-bizitem" placeholder="자동화 부품 등"></div>
-          <div class="fg"><label>연락처</label><input id="cu-tel"></div>
-          <div class="fg"><label>이메일</label><input id="cu-email"></div>
-          <div class="fg" style="grid-column:1/-1"><label>주소</label><input id="cu-addr"></div>
-          <div class="fg" style="grid-column:1/-1"><label>메모</label><input id="cu-memo"></div>
-        </div>
-        <div class="btn-row" style="margin-top:10px">
-          <button class="ls-btn-primary" id="cu-save-btn" style="width:auto">저장</button>
-          <button id="cu-cancel-btn" style="display:none">취소</button>
+      <div class="card" id="cu-list-card">
+        <div class="card-title" style="display:flex;align-items:center">
+          🏢 거래처 목록
+          <button class="ls-btn-primary" id="cu-add-btn" style="margin-left:auto;width:auto">+ 새 거래처 추가</button>
         </div>
       </div>
-      <div class="card" id="cu-list-card" style="margin-top:16px">
-        <div class="card-title">거래처 목록</div>
+
+      <div class="side-panel-bg" id="cu-panel-bg" style="display:none">
+        <div class="side-panel">
+          <div class="card-title" style="display:flex;align-items:center">
+            <span id="cu-panel-title">🏢 새 거래처 등록</span>
+            <button id="cu-panel-close" style="margin-left:auto">✕</button>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="fg"><label>회사명 *</label><input id="cu-name" placeholder="(주)○○무역"></div>
+            <div class="fg"><label>사업자번호</label><input id="cu-bizno"></div>
+            <div class="fg"><label>대표자</label><input id="cu-ceo"></div>
+            <div class="fg"><label>업태</label><input id="cu-biztype" placeholder="제조업, 도소매 등"></div>
+            <div class="fg"><label>종목</label><input id="cu-bizitem" placeholder="자동화 부품 등"></div>
+            <div class="fg"><label>연락처</label><input id="cu-tel"></div>
+            <div class="fg"><label>이메일</label><input id="cu-email"></div>
+            <div class="fg"><label>주소</label><input id="cu-addr"></div>
+            <div class="fg"><label>메모</label><input id="cu-memo"></div>
+          </div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="ls-btn-primary" id="cu-save-btn" style="width:auto">저장</button>
+            <button id="cu-cancel-btn">취소</button>
+          </div>
+        </div>
       </div>
     `;
 
-    document.getElementById('cu-save-btn').addEventListener('click', save);
-    document.getElementById('cu-cancel-btn').addEventListener('click', () => fillForm(null));
+    document.getElementById('cu-add-btn').addEventListener('click', () => { fillForm(null); openPanel(); });
+    document.getElementById('cu-panel-close').addEventListener('click', closePanel);
+    document.getElementById('cu-panel-bg').addEventListener('click', (e) => {
+      if (e.target.id === 'cu-panel-bg') closePanel();
+    });
+    document.getElementById('cu-save-btn').addEventListener('click', async () => { await save(); closePanel(); });
+    document.getElementById('cu-cancel-btn').addEventListener('click', closePanel);
 
     tableInstance = TableEngine.create('customers', {
       container: document.getElementById('cu-list-card'),
@@ -79,6 +93,17 @@ const CustomersModule = (() => {
     });
   }
 
+  /** 오른쪽 슬라이드 패널을 연다 (새 거래처 추가 / 수정 공용). */
+  function openPanel() {
+    document.getElementById('cu-panel-bg').style.display = 'flex';
+  }
+
+  /** 패널을 닫고 폼을 비운다. */
+  function closePanel() {
+    document.getElementById('cu-panel-bg').style.display = 'none';
+    fillForm(null);
+  }
+
   /** 실시간 구독을 시작합니다. 로그인 직후, 그리고 회사를 전환할 때마다 다시 호출합니다. */
   function startListening() {
     if (unsubscribe) unsubscribe();
@@ -99,13 +124,13 @@ const CustomersModule = (() => {
     document.getElementById('cu-addr').value = row?.addr || '';
     document.getElementById('cu-memo').value = row?.memo || '';
     editingId = row ? row.id : null;
-    document.getElementById('cu-cancel-btn').style.display = row ? '' : 'none';
+    document.getElementById('cu-panel-title').textContent = row ? '🏢 거래처 수정' : '🏢 새 거래처 등록';
     document.getElementById('cu-save-btn').textContent = row ? '수정 저장' : '저장';
   }
 
   function startEdit(id) {
     const row = cache.find((r) => r.id === id);
-    if (row) fillForm(row);
+    if (row) { fillForm(row); openPanel(); }
   }
 
   async function save() {
@@ -127,7 +152,6 @@ const CustomersModule = (() => {
     } else {
       await addDoc(path(), data);
     }
-    fillForm(null);
   }
 
   async function remove(id) {
