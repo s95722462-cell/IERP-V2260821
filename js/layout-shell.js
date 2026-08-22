@@ -51,6 +51,7 @@ const LayoutShell = (() => {
     renderShellDom();
     bindStaticEvents(opts);
     initSidePanelEnhancer();
+    initToolbarSettingsMerge();
 
     DbEngine.onStatusChange(updateSyncStatus);
 
@@ -374,6 +375,54 @@ const LayoutShell = (() => {
       collapseBtn.textContent = '−';
       collapseBtn.title = '접기';
     });
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // "항목 설정" 버튼을 표 위 카드의 제목줄로 이동
+  //   table-engine.js는 항상 검색창과 같은 줄(.te-toolbar)에
+  //   "⚙️ 항목 설정" 버튼을 그리는데, "+새 OO 등록" 버튼과 다른
+  //   줄에 있어서 위치가 어긋나 보인다는 요청이 있었다.
+  //   table-engine.js·각 화면 파일은 그대로 두고, 표(.te-wrap)가
+  //   생길 때마다 그 바로 위 카드의 제목줄(.card-title)로 버튼만
+  //   옮겨서 "+새 OO 등록"과 같은 줄에 나란히 붙게 한다.
+  // ────────────────────────────────────────────────────────────
+
+  function initToolbarSettingsMerge() {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        m.addedNodes.forEach((node) => {
+          if (node.nodeType !== 1) return;
+          if (node.classList && node.classList.contains('te-wrap')) {
+            mergeSettingsIntoTitle(node);
+          } else if (node.querySelector) {
+            const wrap = node.querySelector('.te-wrap');
+            if (wrap) mergeSettingsIntoTitle(wrap);
+          }
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function mergeSettingsIntoTitle(wrap) {
+    if (wrap.dataset.lsSettingsMerged) return;
+    const settingsBtn = wrap.querySelector(':scope > .te-toolbar > .te-settings-btn');
+    if (!settingsBtn) return;
+
+    // 표(.te-wrap)는 같은 카드 안에서 제목줄(.card-title) 바로 다음
+    // 형제로 붙는 구조다 (products.js/customers.js/sales.js/purchase.js/
+    // stock.js/daily.js 전부 동일하게 확인함). 구조가 다르면 안전하게
+    // 원래 위치 그대로 둔다.
+    const titleRow = wrap.previousElementSibling;
+    if (!titleRow || !titleRow.classList.contains('card-title')) return;
+
+    wrap.dataset.lsSettingsMerged = '1';
+    if (titleRow.querySelector('.ls-btn-primary')) {
+      settingsBtn.style.marginLeft = '8px'; // "+새 OO 등록" 버튼 바로 옆에 살짝 띄워서
+    } else {
+      settingsBtn.style.marginLeft = 'auto'; // 등록 버튼이 없는 화면(재고현황 등)은 제목 오른쪽 끝으로
+    }
+    titleRow.appendChild(settingsBtn);
   }
 
   function updateSyncStatus(status) {
