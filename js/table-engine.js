@@ -175,6 +175,10 @@ const TableEngine = (() => {
     const tbody = table.querySelector('tbody');
     const configs = getActiveConfigs(state);
     const rows = filterData(state);
+    // 검색어·기간 필터가 바뀔 때마다, 지금 화면에 실제로 보이는 행
+    // 목록을 화면 모듈에도 알려준다 (일별현황의 "기간별 이익률" KPI처럼,
+    // 필터링된 결과 기준으로 합계를 다시 계산해야 하는 화면에서 사용).
+    if (state.opts.onFilterChange) state.opts.onFilterChange(rows);
 
     // 헤더
     let headHtml = '';

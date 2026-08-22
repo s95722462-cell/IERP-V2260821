@@ -338,18 +338,35 @@ const SalesModule = (() => {
     editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
     itemRows.forEach((r) => {
       const product = ProductsModule.findByNameSpec(r.item, r.spec);
-      ops.push({
-        type: 'set', path: path(), id: genId(),
-        data: {
-          docNo, date, buyerId,
-          buyer: buyer ? buyer.name : '',
-          item: r.item, spec: r.spec,
-          productId: product ? product.id : '',
-          qty: r.qty, unitPrice: r.price,
-          subtotal: r.subtotal, vat: r.vat, total: r.total,
-          invNo, memo
-        }
-      });
+      const saleId = genId();
+      const saleData = {
+        docNo, date, buyerId,
+        buyer: buyer ? buyer.name : '',
+        item: r.item, spec: r.spec,
+        productId: product ? product.id : '',
+        qty: r.qty, unitPrice: r.price,
+        subtotal: r.subtotal, vat: r.vat, total: r.total,
+        invNo, memo
+      };
+
+      // 등록된 품목과 정확히 매칭되면 FIFO로 매출원가를 계산해 같이
+      // 저장한다 (자유 입력 품목명이라 매칭 안 되면 원가 계산 생략).
+      // 매입 뱃치의 남은 수량을 갱신하는 ops도 이 매출 저장과 같은
+      // batch에 묶어서, 저장이 중간에 실패해도 반쪽만 반영되지 않게 한다.
+      if (product) {
+        const fifo = FifoEngine.consume(product.id, r.qty);
+        saleData.costOfGoods = fifo.costOfGoods;
+        saleData.costLots = fifo.costLots;
+        saleData.costEstimated = fifo.estimated;
+        ops.push(...fifo.ops);
+        // 한 전표 안에 같은 품목이 여러 줄로 나뉘어 있을 때, 다음 줄
+        // 계산에서 이번 줄이 방금 깎은 재고가 바로 반영되도록 로컬
+        // 캐시에도 즉시 적용해둔다 (실제 Firestore 반영은 이 함수
+        // 마지막의 batchWrite(ops) 한 번으로 묶어서 한다).
+        FifoEngine.applyOpsToLocalCache(fifo.ops);
+      }
+
+      ops.push({ type: 'set', path: path(), id: saleId, data: saleData });
     });
 
     await batchWrite(ops);

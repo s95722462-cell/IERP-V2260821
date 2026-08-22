@@ -310,6 +310,7 @@ const PurchaseModule = (() => {
           item: r.item, spec: r.spec,
           productId: product ? product.id : '',
           qty: r.qty, unitPrice: r.price,
+          remainingQty: r.qty,
           subtotal: r.subtotal, vat: r.vat, total: r.total,
           invNo, memo
         }

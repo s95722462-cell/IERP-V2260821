@@ -6,17 +6,17 @@
    --accent, --accent-fg, --radius 변수가 이미 정의되어 있어야 함
    ══════════════════════════════════════════════════════════════ */
 
-.te-wrap { display: flex; flex-direction: column; gap: 10px; }
+.te-wrap { display: flex; flex-direction: column; gap: 8px; }
 
-.te-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.te-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .te-search {
-  padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--bg); color: var(--text); font-size: 13px; min-width: 200px;
 }
-.te-date { padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+.te-date { padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
 .te-date-sep { color: var(--text2); }
 .te-settings-btn {
-  margin-left: auto; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  margin-left: auto; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface2); color: var(--text); font-size: 12px; cursor: pointer;
 }
 
@@ -25,7 +25,7 @@
 .te-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 .te-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
 .te-table th {
-  position: relative; padding: 8px 10px; text-align: left; font-weight: 700; font-size: 11px;
+  position: relative; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 11px;
   color: var(--text2); background: var(--surface2); border-bottom: 1px solid var(--border);
   white-space: nowrap; user-select: none;
 }
@@ -35,9 +35,9 @@
   display: flex; flex-wrap: nowrap; gap: 4px; align-items: center;
 }
 .te-table td.te-actions-col button { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
-.te-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+.te-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
 .te-table tr:last-child td { border-bottom: none; }
-.te-empty td { text-align: center; color: var(--text2); padding: 24px 10px; }
+.te-empty td { text-align: center; color: var(--text2); padding: 16px 10px; }
 
 /* 칼럼 리사이즈 손잡이 */
 .te-resizer {
@@ -53,16 +53,16 @@
   position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300;
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
-.te-modal { width: 320px; max-height: 80vh; overflow-y: auto; background: var(--surface); border-radius: var(--radius); padding: 16px; }
-.te-modal-title { display: flex; align-items: center; font-weight: 700; margin-bottom: 12px; }
+.te-modal { width: 320px; max-height: 80vh; overflow-y: auto; background: var(--surface); border-radius: var(--radius); padding: 12px; }
+.te-modal-title { display: flex; align-items: center; font-weight: 700; margin-bottom: 8px; }
 .te-modal-close { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 16px; color: var(--text2); }
 .te-settings-item {
-  display: flex; align-items: center; gap: 8px; padding: 8px 4px;
+  display: flex; align-items: center; gap: 6px; padding: 6px 4px;
   border-bottom: 1px solid var(--border); cursor: grab;
 }
 .te-settings-item.dragging { opacity: .4; }
 .te-drag-handle { color: var(--text2); }
 .te-btn-primary {
-  width: 100%; margin-top: 12px; padding: 10px; border: none; border-radius: var(--radius);
+  width: 100%; margin-top: 10px; padding: 8px; border: none; border-radius: var(--radius);
   background: var(--accent); color: var(--accent-fg); font-weight: 700; cursor: pointer;
 }

@@ -44,7 +44,19 @@ const StockModule = (() => {
         { key: 'safeStock', label: '안전재고', align: 'right' },
         { key: 'status', label: '상태', render: renderStatus }
       ],
-      searchFields: ['name', 'code', 'spec']
+      searchFields: ['name', 'code', 'spec'],
+      rowActions: (row) => `<button data-act="recalc" data-id="${row.id}" title="과거 매입·매출을 수정한 뒤, 이 품목의 FIFO 매출원가·재고금액을 처음부터 다시 계산합니다">FIFO 재계산</button>`
+    });
+
+    document.getElementById('stock-list-card').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-act="recalc"]');
+      if (!btn) return;
+      btn.disabled = true;
+      try {
+        await FifoEngine.recalcProduct(btn.getAttribute('data-id'));
+      } finally {
+        btn.disabled = false;
+      }
     });
   }
 
@@ -70,11 +82,12 @@ const StockModule = (() => {
       const inQty = purchases.filter(matchIn).reduce((s, r) => s + (r.qty || 0), 0);
       const outQty = sales.filter(matchIn).reduce((s, r) => s + (r.qty || 0), 0);
       const current = (p.initStock || 0) + inQty - outQty;
-      return {
-        ...p,
-        inQty, outQty, current,
-        stockValue: current * (p.price || 0)
-      };
+      // 재고금액은 "현재고 × 기준단가"라는 단순 계산 대신, FIFO로 실제
+      // 남아있는 매입 뱃치(+초기재고)의 원가를 그대로 합산한 실제
+      // 평가액을 쓴다 — 매입 단가가 여러 번 바뀌는 품목(환율·업체별
+      // 가격 변동)에서 훨씬 정확하다.
+      const stockValue = FifoEngine.getLots(p.id).reduce((s, lot) => s + lot.remainingQty * lot.unitPrice, 0);
+      return { ...p, inQty, outQty, current, stockValue };
     });
   }
 

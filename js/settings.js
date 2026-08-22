@@ -170,13 +170,15 @@ const SettingsModule = (() => {
     if (activeCoIdx >= companies.length) activeCoIdx = companies.length - 1;
     await saveUserMeta();
 
+    // batchWrite()(db.js)를 써서 400개씩 자동 분할 삭제한다 — 여기서
+    // db.batch()를 직접 썼다면 컬렉션 하나가 500개를 넘는 순간(예:
+    // 품목 엑셀 대량 업로드 이후) 삭제가 조용히 실패했을 것이다.
     const { currentUser } = getAuthState();
     for (const col of ['customers', 'products', 'sales', 'purchases']) {
       const colPath = `users/${currentUser.safeId}/companies/${removedId}/${col}`;
       const snap = await db.collection(colPath).get();
-      const batch = db.batch();
-      snap.docs.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
+      const ops = snap.docs.map((d) => ({ type: 'delete', path: colPath, id: d.id }));
+      if (ops.length) await batchWrite(ops);
     }
 
     renderCompanyList();

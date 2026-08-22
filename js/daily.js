@@ -43,7 +43,8 @@ const DailyModule = (() => {
       ],
       dateFilter: true,
       dateField: 'date',
-      searchFields: ['party', 'item', 'docNo']
+      searchFields: ['party', 'item', 'docNo'],
+      onFilterChange: renderKpis
     });
 
     document.getElementById('daily-list-card').addEventListener('click', (e) => {
@@ -58,7 +59,8 @@ const DailyModule = (() => {
 
   function computeRows() {
     const sales = SalesModule.getCache().map((r) => ({
-      date: r.date, type: '매출', party: r.buyer, item: r.item, spec: r.spec, qty: r.qty, total: r.total, docNo: r.docNo || ''
+      date: r.date, type: '매출', party: r.buyer, item: r.item, spec: r.spec, qty: r.qty, total: r.total, docNo: r.docNo || '',
+      subtotal: r.subtotal || 0, costOfGoods: r.costOfGoods, costEstimated: !!r.costEstimated
     }));
     const purchases = PurchaseModule.getCache().map((r) => ({
       date: r.date, type: '매입', party: r.vendor, item: r.item, spec: r.spec, qty: r.qty, total: r.total, docNo: r.docNo || ''
@@ -77,17 +79,38 @@ const DailyModule = (() => {
 
   function refresh() {
     const rows = computeRows();
-    tableInstance.render(rows);
-    renderKpis(rows);
+    tableInstance.render(rows); // render()가 내부적으로 필터를 적용하며 onFilterChange를 통해 renderKpis도 호출한다
   }
 
+  /** 지금 표에 실제로 보이는(검색·기간 필터 반영된) 행 기준으로 KPI를
+   * 다시 계산한다 — table-engine.js의 onFilterChange 콜백으로 필터가
+   * 바뀔 때마다 호출된다. 그래서 예를 들어 기간을 8월로 좁히면 이
+   * KPI도 정확히 8월 한 달치 매출총이익·이익률로 바뀐다. */
   function renderKpis(rows) {
-    const salesTotal = rows.filter((r) => r.type === '매출').reduce((s, r) => s + (r.total || 0), 0);
+    const salesRows = rows.filter((r) => r.type === '매출');
+    const salesTotal = salesRows.reduce((s, r) => s + (r.total || 0), 0);
     const purchTotal = rows.filter((r) => r.type === '매입').reduce((s, r) => s + (r.total || 0), 0);
+
+    // 매출총이익 = 매출 공급가액 합계 - 매출원가(FIFO) 합계. 원가가
+    // 아직 계산 안 된(옛 데이터 또는 미등록 품목) 줄은 원가 0으로 보고
+    // 그만큼 이익이 과대평가될 수 있다는 걸 별도 표시로 알려준다.
+    const salesSubtotal = salesRows.reduce((s, r) => s + (r.subtotal || 0), 0);
+    const knownCostRows = salesRows.filter((r) => r.costOfGoods !== undefined && r.costOfGoods !== null);
+    const cogsTotal = knownCostRows.reduce((s, r) => s + (r.costOfGoods || 0), 0);
+    const missingCost = salesRows.length - knownCostRows.length;
+    const hasEstimate = salesRows.some((r) => r.costEstimated);
+    const grossProfit = salesSubtotal - cogsTotal;
+    const margin = salesSubtotal > 0 ? (grossProfit / salesSubtotal * 100) : 0;
+
+    let profitNote = '';
+    if (missingCost > 0) profitNote = ` <span style="font-size:10px;color:var(--text2)">(원가 미계산 ${missingCost}줄 제외)</span>`;
+    else if (hasEstimate) profitNote = ' <span style="font-size:10px;color:var(--amber)">(일부 추정치 포함)</span>';
+
     document.getElementById('daily-kpis').innerHTML = `
       <div class="kpi"><div class="kpi-label">매출합계</div><div class="kpi-val" style="color:var(--red)">₩${salesTotal.toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">매입합계</div><div class="kpi-val" style="color:var(--blue)">₩${purchTotal.toLocaleString()}</div></div>
-      <div class="kpi"><div class="kpi-label">손익</div><div class="kpi-val">₩${(salesTotal - purchTotal).toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">매출총이익${profitNote}</div><div class="kpi-val">₩${Math.round(grossProfit).toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">이익률</div><div class="kpi-val" style="color:var(--green)">${margin.toFixed(1)}%</div></div>
       <div class="kpi"><div class="kpi-label">전표건수</div><div class="kpi-val">${countDocs(rows)}건</div></div>
       <div class="kpi"><div class="kpi-label">품목줄 수</div><div class="kpi-val">${rows.length}줄</div></div>
     `;

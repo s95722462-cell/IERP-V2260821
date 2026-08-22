@@ -33,29 +33,29 @@ body {
 }
 
 /* ── 카드 ── */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
-.card-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; }
+.card-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 
 /* ── 폼 ── */
-.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-.fg label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.fg label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 2px; }
 .fg input, .fg select {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--bg); color: var(--text); font-size: 13px;
 }
-.btn-row { display: flex; gap: 8px; }
+.btn-row { display: flex; gap: 6px; }
 button {
-  padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer;
 }
 button:hover { background: var(--border); }
 
-.sl-calc { margin-top: 10px; font-size: 13px; color: var(--text2); }
+.sl-calc { margin-top: 8px; font-size: 13px; color: var(--text2); }
 
 /* ── KPI 카드 그룹 (대시보드/재고/일별현황 공통) ── */
-.stock-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-.kpi { padding: 12px; background: var(--surface2); border-radius: var(--radius); text-align: center; }
-.kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.stock-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.kpi { padding: 8px 10px; background: var(--surface2); border-radius: var(--radius); text-align: center; }
+.kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
 .kpi-val { font-size: 18px; font-weight: 700; }
 
 /* ── 배지 ── */
@@ -64,10 +64,10 @@ button:hover { background: var(--border); }
 .badge-blue { background: var(--blue-bg); color: var(--blue); }
 
 /* ── 알림 배너 ── */
-.alert-banner { padding: 10px 14px; background: var(--amber-bg); color: var(--amber); border-radius: var(--radius); margin-bottom: 14px; font-size: 13px; }
+.alert-banner { padding: 8px 12px; background: var(--amber-bg); color: var(--amber); border-radius: var(--radius); margin-bottom: 10px; font-size: 13px; }
 
 /* ── 설정 화면 회사 목록 ── */
-.st-co-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.st-co-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .st-co-actions { display: flex; gap: 6px; }
 
 /* ── 전표(품목 여러 줄) 입력 UI — sales.js/purchase.js 공용 ────────── */

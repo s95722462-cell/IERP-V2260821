@@ -200,7 +200,14 @@ const ProductsModule = (() => {
           unit: String(r['단위'] || '').trim(),
           initStock: rawNum(r['초기재고']),
           safeStock: rawNum(r['안전재고']),
-          memo: String(r['메모'] || '').trim()
+          memo: String(r['메모'] || '').trim(),
+          // 목록 조회가 createdAt 기준으로 정렬하는데, Firestore는
+          // 정렬 기준 필드가 아예 없는 문서는 조회 결과에서 통째로
+          // 빼버린다 (에러 없이 조용히 제외). 일반 등록(addDoc)은
+          // 자동으로 채워주지만 대량 업로드는 이 필드를 직접 안
+          // 넣고 있어서, 업로드는 성공해도 목록엔 하나도 안 보이던
+          // 사고가 있었다.
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }
       });
       // 같은 업로드 파일 안에서도 코드/품목명이 중복되면 그 다음 줄부턴
