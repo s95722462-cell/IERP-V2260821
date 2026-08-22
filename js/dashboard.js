@@ -19,7 +19,6 @@ const DashboardModule = (() => {
   function init() {
     const panel = LayoutShell.registerPanel('dashboard');
     panel.innerHTML = `
-      <div id="dash-low-stock-banner"></div>
       <div class="card">
         <div class="card-title">📊 주요 비즈니스 지표</div>
         <div class="stock-kpis" id="dash-kpis"></div>
@@ -57,21 +56,16 @@ const DashboardModule = (() => {
       <div class="kpi"><div class="kpi-label">재고부족 품목</div><div class="kpi-val" style="color:var(--amber)">${lowStock.length}개</div></div>
     `;
 
-    const banner = document.getElementById('dash-low-stock-banner');
-    banner.innerHTML = lowStock.length
-      ? `<div class="alert-banner">⚠️ 재고 부족 알림: ${lowStock.length}개의 품목이 안전 재고 미만이거나 없습니다.</div>`
-      : '';
-
     renderTrendChart(sales, purchases);
     renderBuyerChart(sales);
   }
 
-  /** 최근 6개월(데이터가 있는 달만이 아니라 최근 6개월 전부)의 매출/매입
+  /** 최근 3개월(데이터가 있는 달만이 아니라 최근 3개월 전부)의 매출/매입
    * 합계를 막대그래프로 보여준다. */
   function renderTrendChart(sales, purchases) {
     const months = [];
     const now = new Date();
-    for (let i = 5; i >= 0; i--) {
+    for (let i = 2; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
