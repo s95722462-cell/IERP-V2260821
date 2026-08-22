@@ -59,7 +59,14 @@
   width: 220px; flex-shrink: 0; background: var(--accent); color: var(--accent-fg);
   display: flex; flex-direction: column; padding: 12px 0;
   transition: width .15s ease;
+  position: relative;
 }
+.ls-sidebar-resize-handle {
+  position: absolute; top: 0; right: -3px; bottom: 0; width: 6px;
+  cursor: col-resize; z-index: 5;
+}
+.ls-sidebar-resize-handle:hover { background: rgba(0,0,0,.15); }
+.ls-sidebar.collapsed .ls-sidebar-resize-handle { display: none; }
 .ls-sidebar-top { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 12px 16px; }
 .ls-logo { font-size: 18px; font-weight: 800; }
 .ls-sidebar-toggle {
@@ -139,6 +146,7 @@
   }
   .ls-logo { display: none; }
   .ls-sidebar-top { display: none; } /* 접기 토글은 데스크톱 전용 */
+  .ls-sidebar-resize-handle { display: none; } /* 리사이즈도 데스크톱 전용 */
   .ls-sidebar.collapsed { width: 100%; } /* 모바일에서는 접힘 상태 무시 */
   .ls-menu { flex-direction: row; overflow-x: auto; padding: 0; }
   .ls-menu-item { flex-direction: column; gap: 2px; font-size: 10px; padding: 6px 10px; }

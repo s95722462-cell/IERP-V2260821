@@ -90,6 +90,7 @@ const LayoutShell = (() => {
           <button class="ls-logout" id="ls-logout-btn">
             <span class="ls-logout-icon">⎋</span><span class="ls-logout-label">로그아웃</span>
           </button>
+          <div class="ls-sidebar-resize-handle" id="ls-sidebar-resize-handle"></div>
         </aside>
         <div class="ls-main">
           <div class="ls-topbar">
@@ -124,6 +125,7 @@ const LayoutShell = (() => {
       const sidebar = document.getElementById('ls-sidebar');
       applySidebarCollapsed(!sidebar.classList.contains('collapsed'));
     });
+    initSidebarResize();
     document.getElementById('ls-theme-toggle').addEventListener('click', () => {
       const next = getSavedTheme() === 'dark' ? 'light' : 'dark';
       applyTheme(next);
@@ -220,6 +222,47 @@ const LayoutShell = (() => {
     localStorage.setItem('ls-sidebar-collapsed', collapsed ? '1' : '0');
     const toggleBtn = document.getElementById('ls-sidebar-toggle');
     if (toggleBtn) toggleBtn.title = collapsed ? '사이드바 펼치기' : '사이드바 접기';
+    // 접으면 드래그로 잡았던 너비는 잠시 무시하고 접힘 너비(56px)를 쓴다.
+    // 펼치면 저장된 너비를 다시 적용한다 (모바일 하단 네비 레이아웃에는 적용하지 않음).
+    if (!collapsed && window.innerWidth > 768) {
+      const savedWidth = localStorage.getItem('ls-sidebar-width');
+      if (savedWidth) sidebar.style.width = savedWidth + 'px';
+    }
+  }
+
+  /** 사이드바 오른쪽 가장자리를 드래그해서 너비를 조절하는 기능. 접힌 상태에서는 동작하지 않는다. */
+  function initSidebarResize() {
+    const sidebar = document.getElementById('ls-sidebar');
+    const handle = document.getElementById('ls-sidebar-resize-handle');
+    if (!sidebar || !handle) return;
+
+    // 저장된 너비 복원 (접힌 상태가 아니고, 데스크톱 폭일 때만)
+    const savedWidth = localStorage.getItem('ls-sidebar-width');
+    if (savedWidth && !sidebar.classList.contains('collapsed') && window.innerWidth > 768) {
+      sidebar.style.width = savedWidth + 'px';
+    }
+
+    let dragging = false, startX = 0, startWidth = 0;
+    handle.addEventListener('mousedown', (e) => {
+      if (sidebar.classList.contains('collapsed')) return; // 접힌 상태에선 리사이즈 금지
+      dragging = true;
+      startX = e.clientX;
+      startWidth = sidebar.getBoundingClientRect().width;
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      let newWidth = startWidth + (e.clientX - startX);
+      newWidth = Math.max(140, Math.min(newWidth, 400));
+      sidebar.style.width = newWidth + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.userSelect = '';
+      localStorage.setItem('ls-sidebar-width', Math.round(sidebar.getBoundingClientRect().width));
+    });
   }
 
   // ────────────────────────────────────────────────────────────
