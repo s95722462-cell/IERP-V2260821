@@ -179,11 +179,12 @@ const ProductsModule = (() => {
     }
     if (!rows.length) { alert('업로드할 데이터가 없습니다'); return; }
 
-    // 중복 판정: 코드가 채워져 있으면 코드 일치를, 코드가 비어있으면
-    // 품목명 일치를 기준으로 "이미 등록된 품목"으로 보고 건너뛴다
-    // (정책 확정: 덮어쓰지 않고 새 품목만 추가).
-    const existingCodes = new Set(cache.map((p) => p.code).filter(Boolean));
-    const existingNames = new Set(cache.map((p) => p.name));
+    // 중복 판정: 코드+품목명+규격을 다 합친 값이 완전히 같을 때만
+    // "이미 등록된 품목"으로 보고 건너뛴다 (정책 확정: 덮어쓰지 않고
+    // 새 품목만 추가). 코드만 보고 판정하면, 여러 품목이 같은 코드를
+    // 공유하는 파일(예: 브랜드 코드를 공통으로 쓰는 경우)에서 첫 줄
+    // 빼고 전부 중복으로 잘못 걸러지는 사고가 나서 복합키로 바꿨다.
+    const existingKeys = new Set(cache.map((p) => `${p.code || ''}|${p.name || ''}|${p.spec || ''}`));
 
     const ops = [];
     let skipped = 0, invalid = 0;
@@ -191,14 +192,14 @@ const ProductsModule = (() => {
       const name = String(r['품목명'] || '').trim();
       if (!name) { invalid++; return; }
       const code = String(r['코드'] || '').trim();
-      const isDup = code ? existingCodes.has(code) : existingNames.has(name);
-      if (isDup) { skipped++; return; }
+      const spec = String(r['규격'] || '').trim();
+      const key = `${code}|${name}|${spec}`;
+      if (existingKeys.has(key)) { skipped++; return; }
 
       ops.push({
         type: 'set', path: path(), id: genId(),
         data: {
-          code, name,
-          spec: String(r['규격'] || '').trim(),
+          code, name, spec,
           maker: String(r['제조사'] || '').trim(),
           price: rawNum(r['기준단가']),
           unit: String(r['단위'] || '').trim(),
@@ -214,10 +215,9 @@ const ProductsModule = (() => {
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }
       });
-      // 같은 업로드 파일 안에서도 코드/품목명이 중복되면 그 다음 줄부턴
-      // 또 건너뛰도록 방금 추가한 것도 바로 반영해둔다.
-      if (code) existingCodes.add(code);
-      existingNames.add(name);
+      // 같은 업로드 파일 안에서도 복합키가 겹치면 그 다음 줄부턴 또
+      // 건너뛰도록 방금 추가한 것도 바로 반영해둔다.
+      existingKeys.add(key);
     });
 
     if (ops.length) {
