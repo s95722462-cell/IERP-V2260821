@@ -502,7 +502,7 @@ const SalesModule = (() => {
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
         ${escapeHtml(group[0].date)} · ${escapeHtml(group[0].buyer)}
       </div>
-      <table class="inv-table" style="width:100%;font-size:12px">
+      <table class="te-table">
         <thead><tr><th>No.</th><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
         <tbody>
           ${group.map((r, idx) => `

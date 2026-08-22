@@ -50,6 +50,7 @@ const LayoutShell = (() => {
 
     renderShellDom();
     bindStaticEvents(opts);
+    initSidePanelEnhancer();
 
     DbEngine.onStatusChange(updateSyncStatus);
 
@@ -80,10 +81,15 @@ const LayoutShell = (() => {
       </div>
 
       <div id="ls-app" class="ls-app" style="display:none">
-        <aside class="ls-sidebar">
-          <div class="ls-logo" id="ls-logo">iERP</div>
+        <aside class="ls-sidebar" id="ls-sidebar">
+          <div class="ls-sidebar-top">
+            <div class="ls-logo" id="ls-logo">iERP</div>
+            <button class="ls-sidebar-toggle" id="ls-sidebar-toggle" title="사이드바 접기">«</button>
+          </div>
           <nav class="ls-menu" id="ls-menu"></nav>
-          <button class="ls-logout" id="ls-logout-btn">로그아웃</button>
+          <button class="ls-logout" id="ls-logout-btn">
+            <span class="ls-logout-icon">⎋</span><span class="ls-logout-label">로그아웃</span>
+          </button>
         </aside>
         <div class="ls-main">
           <div class="ls-topbar">
@@ -111,6 +117,13 @@ const LayoutShell = (() => {
 
   function bindStaticEvents(opts) {
     renderThemeToggleIcon();
+
+    // 사이드바 접기 상태 복원 (VS Code 스타일 — 아이콘만 남기고 접힘)
+    applySidebarCollapsed(getSavedSidebarCollapsed());
+    document.getElementById('ls-sidebar-toggle').addEventListener('click', () => {
+      const sidebar = document.getElementById('ls-sidebar');
+      applySidebarCollapsed(!sidebar.classList.contains('collapsed'));
+    });
     document.getElementById('ls-theme-toggle').addEventListener('click', () => {
       const next = getSavedTheme() === 'dark' ? 'light' : 'dark';
       applyTheme(next);
@@ -192,6 +205,112 @@ const LayoutShell = (() => {
     const btn = document.getElementById('ls-theme-toggle');
     if (!btn) return;
     btn.textContent = getSavedTheme() === 'dark' ? '☀️' : '🌙';
+  }
+
+  /** 사이드바 접기 상태를 localStorage에서 읽는다. */
+  function getSavedSidebarCollapsed() {
+    return localStorage.getItem('ls-sidebar-collapsed') === '1';
+  }
+
+  /** 사이드바를 접거나 펼치고, 상태를 localStorage에 저장한다. */
+  function applySidebarCollapsed(collapsed) {
+    const sidebar = document.getElementById('ls-sidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed', collapsed);
+    localStorage.setItem('ls-sidebar-collapsed', collapsed ? '1' : '0');
+    const toggleBtn = document.getElementById('ls-sidebar-toggle');
+    if (toggleBtn) toggleBtn.title = collapsed ? '사이드바 펼치기' : '사이드바 접기';
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // 오른쪽 슬라이드 패널(.side-panel) 자동 강화
+  //   products.js/customers.js/sales.js/purchase.js는 전혀 손대지
+  //   않고, 이 모듈이 MutationObserver로 .side-panel-bg가 DOM에
+  //   나타나는 순간을 감지해서 리사이즈 핸들 + 접기/확장 버튼을
+  //   자동으로 주입한다. 각 화면 모듈은 지금처럼 그대로 두면 된다.
+  // ────────────────────────────────────────────────────────────
+
+  function initSidePanelEnhancer() {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        m.addedNodes.forEach((node) => {
+          if (node.nodeType !== 1) return;
+          if (node.classList && node.classList.contains('side-panel-bg')) {
+            enhanceSidePanel(node);
+          } else if (node.querySelector) {
+            const bg = node.querySelector('.side-panel-bg');
+            if (bg) enhanceSidePanel(bg);
+          }
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function enhanceSidePanel(bgEl) {
+    const panel = bgEl.querySelector('.side-panel');
+    if (!panel || panel.dataset.lsEnhanced) return;
+    panel.dataset.lsEnhanced = '1';
+
+    // 리사이즈 핸들 (패널 왼쪽 가장자리)
+    const handle = document.createElement('div');
+    handle.className = 'sp-resize-handle';
+    panel.prepend(handle);
+
+    // 접기/확장 컨트롤 버튼
+    const controls = document.createElement('div');
+    controls.className = 'sp-controls';
+    controls.innerHTML = `
+      <button type="button" class="sp-ctrl-btn" id="sp-expand-btn" title="전체화면">⤢</button>
+      <button type="button" class="sp-ctrl-btn" id="sp-collapse-btn" title="접기">−</button>
+    `;
+    panel.prepend(controls);
+
+    // 저장된 너비 복원 (side-panel-wide처럼 폭이 이미 지정된 패널은 건드리지 않음)
+    const savedWidth = localStorage.getItem('ls-panel-width');
+    if (savedWidth) panel.style.width = savedWidth + 'px';
+
+    // 드래그로 너비 조절
+    let dragging = false, startX = 0, startWidth = 0;
+    handle.addEventListener('mousedown', (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startWidth = panel.getBoundingClientRect().width;
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      // 패널이 화면 오른쪽에서 열리므로, 왼쪽으로 끌수록(clientX 감소) 넓어진다
+      const delta = startX - e.clientX;
+      let newWidth = startWidth + delta;
+      newWidth = Math.max(280, Math.min(newWidth, window.innerWidth * 0.95));
+      panel.classList.remove('side-panel-fullscreen');
+      panel.style.width = newWidth + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.userSelect = '';
+      localStorage.setItem('ls-panel-width', Math.round(panel.getBoundingClientRect().width));
+    });
+
+    // 접기: 얇은 탭으로 축소 (다시 누르면 원래 너비로 복원)
+    const collapseBtn = controls.querySelector('#sp-collapse-btn');
+    collapseBtn.addEventListener('click', () => {
+      const collapsed = panel.classList.toggle('side-panel-collapsed');
+      collapseBtn.textContent = collapsed ? '+' : '−';
+      collapseBtn.title = collapsed ? '펼치기' : '접기';
+    });
+
+    // 확장: 전체화면 토글
+    const expandBtn = controls.querySelector('#sp-expand-btn');
+    expandBtn.addEventListener('click', () => {
+      panel.classList.remove('side-panel-collapsed');
+      panel.classList.toggle('side-panel-fullscreen');
+      collapseBtn.textContent = '−';
+      collapseBtn.title = '접기';
+    });
   }
 
   function updateSyncStatus(status) {
