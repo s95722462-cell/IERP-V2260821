@@ -14,7 +14,7 @@
   --red:#8b2020; --red-bg:#fceaea;
   --blue:#1a3a6b; --blue-bg:#e8eef5;
   --amber:#7a4a00; --amber-bg:#fdf3e0;
-  --radius:8px; --radius-lg:12px;
+  --radius:0; --radius-lg:0;
 }
 [data-theme='dark'] {
   --bg:#121212; --surface:#1e1e1e; --surface2:#2c2c2c; --border:#333;
@@ -59,7 +59,7 @@ button:hover { background: var(--border); }
 .kpi-val { font-size: 18px; font-weight: 700; }
 
 /* ── 배지 ── */
-.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 0; font-size: 11px; font-weight: 700; }
 .badge-red { background: var(--red-bg); color: var(--red); }
 .badge-blue { background: var(--blue-bg); color: var(--blue); }
 
@@ -118,9 +118,8 @@ button:hover { background: var(--border); }
 .side-panel.side-panel-wide { width: 560px; }
 
 /* ── 패널 리사이즈/접기/확장 (layout-shell.js가 패널이 열릴 때마다
-   자동으로 주입하는 요소들 — products.js 등 개별 화면 코드는
-   수정하지 않음) ── */
-.side-panel:has(.sp-controls) { padding-top: 44px; }
+   각 화면의 공통 헤더(.card-title) 안 ✕닫기 버튼 바로 앞에 자동으로
+   주입하는 요소들 — products.js 등 개별 화면 코드는 수정하지 않음) ── */
 
 .sp-resize-handle {
   position: absolute; left: -4px; top: 0; bottom: 0; width: 8px;
@@ -128,14 +127,17 @@ button:hover { background: var(--border); }
 }
 .sp-resize-handle:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 
+/* 제목 ... [⤢][−][✕] 가 한 줄에 붙도록, 컨트롤 자체를 오른쪽으로 밀고
+   원래 ✕ 버튼의 margin-left:auto는 지워서 컨트롤+닫기가 한 덩어리로 붙게 한다 */
 .sp-controls {
-  position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; z-index: 4;
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: auto; margin-right: 6px;
 }
+.card-title .sp-close-btn { margin-left: 0 !important; }
+
 .sp-ctrl-btn {
-  width: 24px; height: 24px; padding: 0; border: 1px solid var(--border);
-  border-radius: var(--radius); background: var(--surface2); color: var(--text);
-  font-size: 13px; line-height: 1; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  padding: 4px 9px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); font-size: 13px; line-height: 1; cursor: pointer;
 }
 .sp-ctrl-btn:hover { background: var(--border); }
 
@@ -144,12 +146,22 @@ button:hover { background: var(--border); }
   width: 100vw !important; max-width: 100vw;
 }
 
-/* 접기: 컨트롤 버튼만 남기고 얇은 세로 탭으로 축소 */
+/* 접기: 헤더(제목+컨트롤+닫기)만 남기고 얇은 세로 탭으로 축소.
+   헤더 안에서도 제목/배지 텍스트는 숨기고 컨트롤·닫기 버튼만 남긴다. */
 .side-panel.side-panel-collapsed {
-  width: 44px !important; overflow: hidden; padding: 44px 4px 16px;
+  width: 60px !important; overflow: hidden; padding: 16px 6px;
 }
-.side-panel.side-panel-collapsed > *:not(.sp-controls):not(.sp-resize-handle) {
+.side-panel.side-panel-collapsed > *:not(.card-title) {
   display: none;
+}
+.side-panel.side-panel-collapsed > .card-title {
+  flex-direction: column; align-items: center; gap: 6px;
+}
+.side-panel.side-panel-collapsed > .card-title > *:not(.sp-controls):not(.sp-close-btn) {
+  display: none;
+}
+.side-panel.side-panel-collapsed .sp-controls {
+  flex-direction: column; margin: 0;
 }
 
 /* ── 대시보드 차트 2개를 나란히 배치 (좁은 화면에선 세로로 쌓임) */

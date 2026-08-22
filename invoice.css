@@ -35,7 +35,7 @@
   .inv-copy { flex: 1 1 0; overflow: hidden; position: relative; padding-top: 5mm; box-sizing: border-box; }
   .inv-copy-label {
     position: absolute; top: 0; right: 0;
-    font-size: 9px; border: 1px solid #333; border-radius: 3px;
+    font-size: 9px; border: 1px solid #333; border-radius: 0;
     padding: 1px 8px; background: #fff;
   }
   .inv-cutline {

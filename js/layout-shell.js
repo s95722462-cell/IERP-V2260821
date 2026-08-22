@@ -304,14 +304,30 @@ const LayoutShell = (() => {
     handle.className = 'sp-resize-handle';
     panel.prepend(handle);
 
-    // 접기/확장 컨트롤 버튼
-    const controls = document.createElement('div');
+    // 접기/확장 컨트롤 버튼 — 패널을 열 때마다 각 화면(sales.js 등)이 그리는
+    // 공통 헤더(.card-title: 제목 → (배지) → ✕닫기) 안에, ✕ 버튼 바로 앞에
+    // 끼워 넣는다. 이렇게 해야 "제목 ... [⤢][−][✕]"가 한 줄로 붙어서
+    // 지금처럼 컨트롤이 헤더 위에 따로 떠서 두 줄로 보이는 언밸런스한
+    // 모양이 안 생긴다. 4개 화면 모두 같은 헤더 구조를 쓰는 걸 확인했음.
+    const controls = document.createElement('span');
     controls.className = 'sp-controls';
     controls.innerHTML = `
       <button type="button" class="sp-ctrl-btn" id="sp-expand-btn" title="전체화면">⤢</button>
       <button type="button" class="sp-ctrl-btn" id="sp-collapse-btn" title="접기">−</button>
     `;
-    panel.prepend(controls);
+    const header = panel.querySelector(':scope > .card-title');
+    let closeBtn = null;
+    if (header) {
+      closeBtn = header.querySelector('button');
+      if (closeBtn) {
+        closeBtn.classList.add('sp-close-btn'); // 접힘 상태에서도 계속 보이게 표시
+        header.insertBefore(controls, closeBtn);
+      } else {
+        header.appendChild(controls);
+      }
+    } else {
+      panel.prepend(controls); // 혹시 다른 구조의 패널이면 예전처럼 맨 위에 얹는다
+    }
 
     // 저장된 너비 복원 (side-panel-wide처럼 폭이 이미 지정된 패널은 건드리지 않음)
     const savedWidth = localStorage.getItem('ls-panel-width');
