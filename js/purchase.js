@@ -81,7 +81,7 @@ const PurchaseModule = (() => {
     document.getElementById('pu-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pu-panel-bg') closePanel();
     });
-    document.getElementById('pu-save-btn').addEventListener('click', async () => { await save(); closePanel(); });
+    document.getElementById('pu-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
     document.getElementById('pu-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('pu-add-row-btn').addEventListener('click', () => addRow());
 
@@ -119,8 +119,10 @@ const PurchaseModule = (() => {
       dateFilter: true,
       dateField: 'date',
       searchFields: ['vendor', 'item', 'docNo'],
-      rowId: (row) => row.docNo || '',
-      onRowClick: (docNo) => showDetailPanel(docNo),
+      rowId: (row) => row.docNo || row.id, // 전표 있으면 전표No., 없으면(옛 데이터) 그 줄 자체의 id
+      onRowClick: (key) => showDetailPanel(key),
+      selectable: true,
+      onBulkDelete: bulkDelete,
       rowActions: (row) => `
         <button data-act="edit" data-id="${row.id}">수정</button>
         <button data-act="del" data-id="${row.id}">삭제</button>`
@@ -310,7 +312,7 @@ const PurchaseModule = (() => {
   async function save() {
     const date = document.getElementById('pu-date').value;
     const vendorId = document.getElementById('pu-vendor').value;
-    if (!date || !vendorId) { alert('날짜, 공급업체는 필수입니다'); return; }
+    if (!date || !vendorId) { alert('날짜, 공급업체는 필수입니다'); return false; }
 
     const rowEls = Array.from(document.querySelectorAll('#pu-items-container .sl-item-row'));
     const itemRows = rowEls
@@ -321,13 +323,20 @@ const PurchaseModule = (() => {
       }))
       .filter((r) => r.item);
 
-    if (!itemRows.length) { alert('품목을 최소 1개 이상 입력하세요'); return; }
+    if (!itemRows.length) { alert('품목을 최소 1개 이상 입력하세요'); return false; }
 
     const vendor = CustomersModule.getCache().find((c) => c.id === vendorId);
     const invNo = document.getElementById('pu-invno').value;
     const memo = document.getElementById('pu-memo').value;
 
-    const docNo = editingDocNo || await genDocNo(counterPath(), 'P');
+    let docNo;
+    try {
+      docNo = editingDocNo || await genDocNo(counterPath(), 'P');
+    } catch (err) {
+      alert('전표번호 채번 중 오류가 발생했습니다: ' + err.message);
+      console.error('[채번 실패]', err);
+      return false;
+    }
 
     const ops = [];
     editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
@@ -348,7 +357,14 @@ const PurchaseModule = (() => {
       });
     });
 
-    await batchWrite(ops);
+    try {
+      await batchWrite(ops);
+      return true;
+    } catch (err) {
+      alert('저장 중 오류가 발생했습니다: ' + err.message);
+      console.error('[저장 실패]', err);
+      return false;
+    }
   }
 
   async function remove(id) {
@@ -358,6 +374,30 @@ const PurchaseModule = (() => {
     const label = row.docNo ? `전표 ${row.docNo}(품목 ${group.length}개)` : '이 매입 내역';
     if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
     await batchWrite(group.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+  }
+
+  /** 전표 키(전표No. 또는 옛 낱개 레코드의 id) 하나를 실제 문서 묶음으로
+   * 되돌린다. docNo로 먼저 찾아보고, 없으면(옛 데이터) 그 id 자체를
+   * 단일 문서로 취급한다. */
+  function resolveGroupByKey(key) {
+    const byDoc = cache.filter((r) => r.docNo === key);
+    if (byDoc.length) return byDoc;
+    const single = cache.find((r) => r.id === key);
+    return single ? [single] : [];
+  }
+
+  /** 표 체크박스로 여러 전표(또는 옛 낱개 레코드)를 한 번에 삭제한다. */
+  async function bulkDelete(selectedKeys) {
+    if (!selectedKeys.length) return;
+    const allRows = selectedKeys.flatMap(resolveGroupByKey);
+    if (!allRows.length) return;
+    if (!confirm(`선택한 ${selectedKeys.length}건(품목 ${allRows.length}줄)을 삭제하시겠습니까?`)) return;
+    try {
+      await batchWrite(allRows.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+    } catch (err) {
+      alert('삭제 중 오류가 발생했습니다: ' + err.message);
+      console.error('[일괄삭제 실패]', err);
+    }
   }
 
   /** 같은 전표(docNo)로 묶인 여러 품목 줄을 표에서 한 줄로 요약한다.

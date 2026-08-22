@@ -91,7 +91,8 @@ const TableEngine = (() => {
 
     const state = {
       tableId, opts, rawData: [],
-      searchText: '', dateFrom: '', dateTo: ''
+      searchText: '', dateFrom: '', dateTo: '',
+      selectedIds: new Set()
     };
     instances[tableId] = state;
 
@@ -117,6 +118,9 @@ const TableEngine = (() => {
         <span class="te-date-sep">~</span>
         <input type="date" class="te-date" data-role="date-to">`;
     }
+    if (opts.selectable) {
+      toolbarHtml += `<button class="te-bulk-del-btn" data-role="bulk-delete" style="display:none">🗑️ 선택 삭제 (<span data-role="bulk-count">0</span>)</button>`;
+    }
     toolbarHtml += `<button class="te-settings-btn" data-role="settings">⚙️ 항목 설정</button>`;
     toolbarHtml += '</div>';
 
@@ -137,6 +141,14 @@ const TableEngine = (() => {
     // 알려준다). "관리" 열 버튼 클릭은 행 클릭으로 취급하지 않는다.
     const tbodyEl = wrap.querySelector('tbody');
     tbodyEl.addEventListener('click', (e) => {
+      // 체크박스 클릭은 행 클릭(상세보기 등)으로 취급하지 않고 선택 토글만 한다.
+      const check = e.target.closest('.te-row-check');
+      if (check) {
+        const id = check.getAttribute('data-id');
+        if (check.checked) state.selectedIds.add(id); else state.selectedIds.delete(id);
+        updateBulkDeleteUi(state);
+        return;
+      }
       if (!state.opts.onRowClick) return;
       if (e.target.closest('.te-actions-col')) return;
       const tr = e.target.closest('tr[data-row-id]');
@@ -144,6 +156,27 @@ const TableEngine = (() => {
       const id = tr.getAttribute('data-row-id');
       if (id) state.opts.onRowClick(id);
     });
+
+    if (opts.selectable) {
+      // 헤더의 "전체 선택" 체크박스는 렌더링마다 새로 그려지므로, thead에
+      // 위임(delegation)으로 붙여서 매번 다시 붙일 필요가 없게 한다.
+      const theadEl = wrap.querySelector('thead');
+      theadEl.addEventListener('click', (e) => {
+        const master = e.target.closest('.te-check-all');
+        if (!master) return;
+        const rows = state.opts.rowId ? filterData(state).map((r) => String(state.opts.rowId(r) || '')).filter(Boolean) : [];
+        if (master.checked) rows.forEach((id) => state.selectedIds.add(id));
+        else state.selectedIds.clear();
+        renderRows(state); // 체크 상태를 각 행 체크박스에도 반영하기 위해 다시 그린다
+      });
+
+      wrap.querySelector('[data-role="bulk-delete"]').addEventListener('click', () => {
+        if (!state.selectedIds.size) return;
+        if (state.opts.onBulkDelete) state.opts.onBulkDelete(Array.from(state.selectedIds));
+        state.selectedIds.clear();
+        updateBulkDeleteUi(state);
+      });
+    }
 
     const searchInput = wrap.querySelector('[data-role="search"]');
     if (searchInput) searchInput.addEventListener('input', () => { state.searchText = searchInput.value.toLowerCase(); renderRows(state); });
@@ -194,6 +227,13 @@ const TableEngine = (() => {
 
     // 헤더
     let headHtml = '';
+    if (state.opts.selectable) {
+      const allSelected = rows.length > 0 && rows.every((r) => {
+        const rid = state.opts.rowId ? state.opts.rowId(r) : null;
+        return rid && state.selectedIds.has(String(rid));
+      });
+      headHtml += `<th class="te-check-col"><input type="checkbox" class="te-check-all" ${allSelected ? 'checked' : ''}></th>`;
+    }
     configs.forEach((c) => {
       const savedWidth = colWidths[state.tableId + '-' + c.key];
       const widthStyle = savedWidth ? `width:${savedWidth}px;min-width:${savedWidth}px;` : '';
@@ -208,12 +248,18 @@ const TableEngine = (() => {
     theadRow.innerHTML = headHtml;
 
     // 본문
+    const colCount = configs.length + 1 + (state.opts.selectable ? 1 : 0);
     if (!rows.length) {
-      tbody.innerHTML = `<tr class="te-empty"><td colspan="${configs.length + 1}">데이터가 없습니다</td></tr>`;
+      tbody.innerHTML = `<tr class="te-empty"><td colspan="${colCount}">데이터가 없습니다</td></tr>`;
     } else {
       tbody.innerHTML = rows.map((row, idx) => {
         const rid = state.opts.rowId ? state.opts.rowId(row) : null;
         let rowHtml = `<tr${rid ? ` data-row-id="${escapeHtml(String(rid))}"` : ''}>`;
+        if (state.opts.selectable) {
+          const idStr = rid ? String(rid) : '';
+          const checked = idStr && state.selectedIds.has(idStr);
+          rowHtml += `<td class="te-check-col"><input type="checkbox" class="te-row-check" data-id="${escapeHtml(idStr)}" ${checked ? 'checked' : ''} ${idStr ? '' : 'disabled'}></td>`;
+        }
         configs.forEach((c) => {
           // key가 '__no'인 칼럼은 저장된 데이터가 아니라, 지금 화면에 보이는
           // 순서 그대로 1,2,3...을 매기는 표시 전용 번호다 (검색·정렬 결과
@@ -231,6 +277,17 @@ const TableEngine = (() => {
     }
 
     bindResizers(table, state.tableId);
+    if (state.opts.selectable) updateBulkDeleteUi(state);
+  }
+
+  /** "선택 삭제" 버튼의 표시 여부와 선택 개수를 갱신한다. */
+  function updateBulkDeleteUi(state) {
+    const btn = state.rootEl.querySelector('[data-role="bulk-delete"]');
+    if (!btn) return;
+    const n = state.selectedIds.size;
+    btn.style.display = n > 0 ? '' : 'none';
+    const countEl = btn.querySelector('[data-role="bulk-count"]');
+    if (countEl) countEl.textContent = n;
   }
 
   // ── 칼럼 리사이즈 (드래그 시작 시 모든 칼럼을 고정하는 방식) ──
