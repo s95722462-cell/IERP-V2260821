@@ -6,6 +6,9 @@
    아래 변수들이 정의되어 있다는 것을 전제로 합니다.
    ══════════════════════════════════════════════════════════════ */
 
+/* 전체 폰트: Pretendard (CDN, 별도 파일 다운로드 없이 자동 로드됨) */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
 :root {
   --bg:#f5f4f0; --surface:#fff; --surface2:#f0efe9; --border:#e2e0d8;
   --text:#1a1917; --text2:#6b6960;
@@ -28,7 +31,7 @@
 
 * { box-sizing: border-box; }
 body {
-  margin: 0; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  margin: 0; font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
   background: var(--bg); color: var(--text);
 }
 
