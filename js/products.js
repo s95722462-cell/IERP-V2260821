@@ -43,6 +43,7 @@ const ProductsModule = (() => {
           <button id="pr-upload-btn">⬆️ 엑셀 업로드(대량 등록)</button>
           <button id="pr-export-btn">⬇️ 엑셀 다운로드(현재 품목)</button>
           <button id="pr-fix-btn" title="예전 엑셀 업로드로 등록됐지만 화면에 안 보이는 품목이 있으면 복구합니다">🔧 숨은 품목 복구</button>
+          <button id="pr-delete-all-btn" style="color:var(--red)" title="이 회사의 품목을 전부 삭제합니다 (되돌릴 수 없음)">🗑️ 전체 품목 일괄 삭제</button>
           <input type="file" id="pr-upload-input" accept=".xlsx,.xls,.csv" style="display:none">
         </div>
       </div>
@@ -58,6 +59,7 @@ const ProductsModule = (() => {
     document.getElementById('pr-upload-btn').addEventListener('click', () => document.getElementById('pr-upload-input').click());
     document.getElementById('pr-upload-input').addEventListener('change', handleUpload);
     document.getElementById('pr-fix-btn').addEventListener('click', fixMissingCreatedAt);
+    document.getElementById('pr-delete-all-btn').addEventListener('click', deleteAllProducts);
 
     tableInstance = TableEngine.create('products', {
       container: document.getElementById('pr-list-card'),
@@ -259,6 +261,46 @@ const ProductsModule = (() => {
       return;
     }
     alert(`복구 완료 — ${missing.length}개 품목이 목록에 다시 나타납니다.`);
+  }
+
+  /**
+   * 이 회사의 품목을 전부 삭제하는 관리자용 정리 기능입니다. 잘못된
+   * 엑셀 업로드로 빈 값짜리 품목이 대량으로 쌓였을 때, 지우고 처음부터
+   * 다시 올리는 용도입니다. 되돌릴 수 없어서 회사명을 직접 입력해야만
+   * 진행되도록 이중 확인을 둡니다. 매출/매입에 이미 연결된 품목이라도
+   * (productId로) 과거 거래 기록 자체는 남아있으니 거래 내역이
+   * 사라지지는 않지만, 품목 마스터가 없어지면 향후 그 품목 자동완성은
+   * 안 됩니다.
+   */
+  async function deleteAllProducts() {
+    const company = companies[activeCoIdx];
+    const companyName = company ? company.company : '';
+    const typed = prompt(
+      `"${companyName}"의 품목을 전부 삭제합니다. 되돌릴 수 없습니다.\n\n` +
+      `계속하려면 회사명을 정확히 입력하세요: ${companyName}`
+    );
+    if (typed !== companyName) {
+      if (typed !== null) alert('입력한 회사명이 일치하지 않아 취소되었습니다.');
+      return;
+    }
+
+    let snap;
+    try {
+      snap = await db.collection(path()).get();
+    } catch (err) {
+      alert('조회 중 오류가 발생했습니다: ' + err.message);
+      return;
+    }
+    if (!snap.docs.length) { alert('삭제할 품목이 없습니다.'); return; }
+
+    const ops = snap.docs.map((d) => ({ type: 'delete', path: path(), id: d.id }));
+    try {
+      await batchWrite(ops);
+    } catch (err) {
+      alert('삭제 중 오류가 발생했습니다: ' + err.message);
+      return;
+    }
+    alert(`${ops.length}개 품목을 전부 삭제했습니다.`);
   }
 
   /** 품목 데이터가 바뀔 때마다 호출될 콜백을 등록합니다 (재고 화면이 사용). */

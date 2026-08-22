@@ -133,6 +133,18 @@ const TableEngine = (() => {
     opts.container.appendChild(wrap);
     state.rootEl = wrap;
 
+    // 행 클릭 지원 (opts.rowId로 각 행의 식별값을 얻고, opts.onRowClick으로
+    // 알려준다). "관리" 열 버튼 클릭은 행 클릭으로 취급하지 않는다.
+    const tbodyEl = wrap.querySelector('tbody');
+    tbodyEl.addEventListener('click', (e) => {
+      if (!state.opts.onRowClick) return;
+      if (e.target.closest('.te-actions-col')) return;
+      const tr = e.target.closest('tr[data-row-id]');
+      if (!tr) return;
+      const id = tr.getAttribute('data-row-id');
+      if (id) state.opts.onRowClick(id);
+    });
+
     const searchInput = wrap.querySelector('[data-role="search"]');
     if (searchInput) searchInput.addEventListener('input', () => { state.searchText = searchInput.value.toLowerCase(); renderRows(state); });
 
@@ -200,7 +212,8 @@ const TableEngine = (() => {
       tbody.innerHTML = `<tr class="te-empty"><td colspan="${configs.length + 1}">데이터가 없습니다</td></tr>`;
     } else {
       tbody.innerHTML = rows.map((row, idx) => {
-        let rowHtml = '<tr>';
+        const rid = state.opts.rowId ? state.opts.rowId(row) : null;
+        let rowHtml = `<tr${rid ? ` data-row-id="${escapeHtml(String(rid))}"` : ''}>`;
         configs.forEach((c) => {
           // key가 '__no'인 칼럼은 저장된 데이터가 아니라, 지금 화면에 보이는
           // 순서 그대로 1,2,3...을 매기는 표시 전용 번호다 (검색·정렬 결과

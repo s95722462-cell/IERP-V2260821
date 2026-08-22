@@ -87,13 +87,13 @@ const PurchaseModule = (() => {
       container: document.getElementById('pu-list-card'),
       columns: [
         { key: '__no', label: 'No.', align: 'center' },
-        { key: 'docNo', label: '전표No.', render: (v) => v ? `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>` : '' },
+        { key: 'docNo', label: '전표No.', render: (v) => v ? `<span class="sl-docno-link">${escapeHtml(v)}</span>` : '' },
         { key: 'date', label: '날짜' },
         { key: 'vendor', label: '공급업체' },
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
         { key: 'qty', label: '수량', align: 'right' },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (v || 0).toLocaleString() },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (typeof v === 'number') ? v.toLocaleString() : (v || '') },
         { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() },
         { key: 'vat', label: '부가세', align: 'right', render: (v) => (v || 0).toLocaleString() },
         { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + (v || 0).toLocaleString() },
@@ -103,14 +103,14 @@ const PurchaseModule = (() => {
       dateFilter: true,
       dateField: 'date',
       searchFields: ['vendor', 'item', 'docNo'],
+      rowId: (row) => row.docNo || '',
+      onRowClick: (docNo) => showDetailPanel(docNo),
       rowActions: (row) => `
         <button data-act="edit" data-id="${row.id}">수정</button>
         <button data-act="del" data-id="${row.id}">삭제</button>`
     });
 
     document.getElementById('pu-list-card').addEventListener('click', (e) => {
-      const docBtn = e.target.closest('.sl-docno-link');
-      if (docBtn) { openDetailModal(docBtn.getAttribute('data-docno')); return; }
       const btn = e.target.closest('button[data-act]');
       if (!btn) return;
       const id = btn.getAttribute('data-id');
@@ -123,7 +123,11 @@ const PurchaseModule = (() => {
     if (unsubscribe) unsubscribe();
     unsubscribe = DbEngine.listen(path(), {
       orderBy: { field: 'date', direction: 'desc' },
-      onData: (docs) => { cache = sortByDateThenDoc(docs); tableInstance.render(cache); updateListeners.forEach((cb) => cb(cache)); }
+      onData: (docs) => {
+        cache = sortByDateThenDoc(docs);
+        tableInstance.render(groupRows(cache));
+        updateListeners.forEach((cb) => cb(cache));
+      }
     });
     refreshVendorOptions();
     refreshItemDatalist();
@@ -330,6 +334,73 @@ const PurchaseModule = (() => {
     await batchWrite(group.map((r) => ({ type: 'delete', path: path(), id: r.id })));
   }
 
+  /** 같은 전표(docNo)로 묶인 여러 품목 줄을 표에서 한 줄로 요약한다.
+   * sales.js의 groupRows()와 동일한 로직(용어만 거래처→공급업체). */
+  function groupRows(rawRows) {
+    const groups = {};
+    const order = [];
+    rawRows.forEach((r) => {
+      const key = r.docNo || ('__single_' + r.id);
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    });
+    return order.map((key) => {
+      const group = groups[key];
+      if (group.length === 1) return group[0];
+      const first = group[0];
+      const totals = group.reduce((acc, r) => ({
+        subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+      }), { subtotal: 0, vat: 0, total: 0 });
+      return {
+        id: first.id, docNo: first.docNo, date: first.date, vendor: first.vendor,
+        item: `${first.item} 외 ${group.length - 1}건`, spec: '-',
+        qty: '-', unitPrice: '-',
+        subtotal: totals.subtotal, vat: totals.vat, total: totals.total,
+        invNo: first.invNo, memo: first.memo
+      };
+    });
+  }
+
+  /** 표에서 전표(행)를 클릭하면 표 바로 아래 카드에 상세 내역을 펼쳐 보여준다
+   * (모달 대신 인라인 표시 — daily.js에서 부르는 openDetailModal과는 별개). */
+  function showDetailPanel(docNo) {
+    if (!docNo) return;
+    const group = cache.filter((r) => r.docNo === docNo);
+    if (!group.length) return;
+    const totals = group.reduce((acc, r) => ({
+      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+    }), { subtotal: 0, vat: 0, total: 0 });
+
+    const panel = document.getElementById('pu-detail-panel');
+    panel.innerHTML = `
+      <div class="card-title" style="display:flex">전표 ${escapeHtml(docNo)} 상세
+        <button id="pu-detail-close" style="margin-left:auto">✕ 닫기</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+        ${escapeHtml(group[0].date)} · ${escapeHtml(group[0].vendor)}
+      </div>
+      <table class="inv-table" style="width:100%;font-size:12px">
+        <thead><tr><th>No.</th><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
+        <tbody>
+          ${group.map((r, idx) => `
+            <tr>
+              <td style="text-align:center">${idx + 1}</td>
+              <td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.spec || '')}</td>
+              <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
+              <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
+              <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="sl-doc-totals" style="margin-top:8px">
+        공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
+      </div>
+    `;
+    panel.style.display = 'block';
+    document.getElementById('pu-detail-close').addEventListener('click', () => { panel.style.display = 'none'; });
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   /** 전표번호를 클릭했을 때 뜨는 상세보기 모달. */
   function openDetailModal(docNo) {
     const group = cache.filter((r) => r.docNo === docNo);
@@ -380,7 +451,7 @@ const PurchaseModule = (() => {
   /** 매입 데이터가 바뀔 때마다 호출될 콜백을 등록합니다. */
   function onUpdate(cb) { updateListeners.push(cb); }
 
-  return { init, startListening, getCache, onUpdate, refreshVendorOptions, refreshItemDatalist, openDetailModal };
+  return { init, startListening, getCache, onUpdate, refreshVendorOptions, refreshItemDatalist, openDetailModal, showDetailPanel };
 })();
 
 window.PurchaseModule = PurchaseModule;

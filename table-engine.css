@@ -36,6 +36,8 @@
 }
 .te-table td.te-actions-col button { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
 .te-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.te-table tbody tr[data-row-id] { cursor: pointer; }
+.te-table tbody tr[data-row-id]:hover { background: var(--surface2); }
 .te-table tr:last-child td { border-bottom: none; }
 .te-empty td { text-align: center; color: var(--text2); padding: 16px 10px; }
 

@@ -69,6 +69,7 @@ const SalesModule = (() => {
       <div class="card" id="sl-list-card" style="margin-top:16px">
         <div class="card-title">매출 내역</div>
       </div>
+      <div class="card" id="sl-detail-panel" style="margin-top:16px;display:none"></div>
       <details class="card" style="margin-top:16px">
         <summary class="card-title" style="cursor:pointer">📄 거래처·기간별 거래명세서 발행 (세금계산서 발행용 자료)</summary>
         <div class="form-grid" style="margin-top:10px">
@@ -113,13 +114,13 @@ const SalesModule = (() => {
       container: document.getElementById('sl-list-card'),
       columns: [
         { key: '__no', label: 'No.', align: 'center' },
-        { key: 'docNo', label: '전표No.', render: (v) => v ? `<button class="sl-docno-link" data-docno="${escapeHtml(v)}">${escapeHtml(v)}</button>` : '' },
+        { key: 'docNo', label: '전표No.', render: (v) => v ? `<span class="sl-docno-link">${escapeHtml(v)}</span>` : '' },
         { key: 'date', label: '날짜' },
         { key: 'buyer', label: '거래처' },
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
         { key: 'qty', label: '수량', align: 'right' },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (v || 0).toLocaleString() },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (typeof v === 'number') ? v.toLocaleString() : (v || '') },
         { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() },
         { key: 'vat', label: '부가세', align: 'right', render: (v) => (v || 0).toLocaleString() },
         { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + (v || 0).toLocaleString() },
@@ -129,6 +130,8 @@ const SalesModule = (() => {
       dateFilter: true,
       dateField: 'date',
       searchFields: ['buyer', 'item', 'docNo'],
+      rowId: (row) => row.docNo || '',
+      onRowClick: (docNo) => showDetailPanel(docNo),
       rowActions: (row) => `
         <button data-act="invoice" data-id="${row.id}">명세서</button>
         <button data-act="edit" data-id="${row.id}">수정</button>
@@ -136,8 +139,6 @@ const SalesModule = (() => {
     });
 
     document.getElementById('sl-list-card').addEventListener('click', (e) => {
-      const docBtn = e.target.closest('.sl-docno-link');
-      if (docBtn) { openDetailModal(docBtn.getAttribute('data-docno')); return; }
       const btn = e.target.closest('button[data-act]');
       if (!btn) return;
       const id = btn.getAttribute('data-id');
@@ -151,7 +152,11 @@ const SalesModule = (() => {
     if (unsubscribe) unsubscribe();
     unsubscribe = DbEngine.listen(path(), {
       orderBy: { field: 'date', direction: 'desc' },
-      onData: (docs) => { cache = sortByDateThenDoc(docs); tableInstance.render(cache); updateListeners.forEach((cb) => cb(cache)); }
+      onData: (docs) => {
+        cache = sortByDateThenDoc(docs);
+        tableInstance.render(groupRows(cache));
+        updateListeners.forEach((cb) => cb(cache));
+      }
     });
     refreshBuyerOptions();
     refreshItemDatalist();
@@ -383,6 +388,80 @@ const SalesModule = (() => {
     await batchWrite(group.map((r) => ({ type: 'delete', path: path(), id: r.id })));
   }
 
+  /** 같은 전표(docNo)로 묶인 여러 품목 줄을 표에서 한 줄로 요약한다.
+   * 전표번호가 없는(개편 이전) 옛 낱개 레코드는 원래 값 그대로 한 줄로 둔다.
+   * 실제 계산(재고·대시보드 등)에 쓰이는 flat한 cache 자체는 안 건드리고,
+   * 표시용으로만 별도 배열을 만든다. */
+  function groupRows(rawRows) {
+    const groups = {};
+    const order = [];
+    rawRows.forEach((r) => {
+      const key = r.docNo || ('__single_' + r.id);
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    });
+    return order.map((key) => {
+      const group = groups[key];
+      if (group.length === 1) return group[0];
+      const first = group[0];
+      const totals = group.reduce((acc, r) => ({
+        subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+      }), { subtotal: 0, vat: 0, total: 0 });
+      return {
+        id: first.id, docNo: first.docNo, date: first.date, buyer: first.buyer,
+        item: `${first.item} 외 ${group.length - 1}건`, spec: '-',
+        qty: '-', unitPrice: '-',
+        subtotal: totals.subtotal, vat: totals.vat, total: totals.total,
+        invNo: first.invNo, memo: first.memo
+      };
+    });
+  }
+
+  /** 표에서 전표(행)를 클릭하면 표 바로 아래 카드에 상세 내역을 펼쳐 보여준다
+   * (모달 대신 인라인 표시 — 여러 화면 사이를 오가는 daily.js에서 부르는
+   * openDetailModal과는 별개 함수다). */
+  function showDetailPanel(docNo) {
+    if (!docNo) return;
+    const group = cache.filter((r) => r.docNo === docNo);
+    if (!group.length) return;
+    const totals = group.reduce((acc, r) => ({
+      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+    }), { subtotal: 0, vat: 0, total: 0 });
+
+    const panel = document.getElementById('sl-detail-panel');
+    panel.innerHTML = `
+      <div class="card-title" style="display:flex">전표 ${escapeHtml(docNo)} 상세
+        <button id="sl-detail-close" style="margin-left:auto">✕ 닫기</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+        ${escapeHtml(group[0].date)} · ${escapeHtml(group[0].buyer)}
+      </div>
+      <table class="inv-table" style="width:100%;font-size:12px">
+        <thead><tr><th>No.</th><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
+        <tbody>
+          ${group.map((r, idx) => `
+            <tr>
+              <td style="text-align:center">${idx + 1}</td>
+              <td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.spec || '')}</td>
+              <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
+              <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
+              <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="sl-doc-totals" style="margin-top:8px">
+        공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="ls-btn-primary" id="sl-detail-print" style="width:auto">이 전표 명세서 발행</button>
+      </div>
+    `;
+    panel.style.display = 'block';
+    document.getElementById('sl-detail-close').addEventListener('click', () => { panel.style.display = 'none'; });
+    document.getElementById('sl-detail-print').addEventListener('click', () => InvoiceModule.generate({ docNo }));
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   /** 전표번호를 클릭했을 때 뜨는 상세보기 모달 (화면 확인용 — 인쇄는 별도 "명세서 발행" 버튼). */
   function openDetailModal(docNo) {
     const group = cache.filter((r) => r.docNo === docNo);
@@ -446,7 +525,7 @@ const SalesModule = (() => {
     else InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
   }
 
-  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, openDetailModal };
+  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, openDetailModal, showDetailPanel };
 })();
 
 window.SalesModule = SalesModule;
