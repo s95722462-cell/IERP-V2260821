@@ -98,11 +98,7 @@ button:hover { background: var(--border); }
   width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface2); color: var(--text); font-size: 13px; box-sizing: border-box;
 }
-.sl-item-row .ri-subtotal {
-  display: block; text-align: right; font-size: 13px;
-  padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface2); color: var(--text); box-sizing: border-box;
-}
+.sl-item-row .ri-subtotal { text-align: right; font-size: 13px; padding-right: 4px; }
 .sl-item-row .ri-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 15px; padding: 4px; }
 .sl-add-row-btn { margin: 4px 0 10px; }
 .sl-doc-totals { text-align: right; font-size: 13px; color: var(--text2); }
