@@ -23,6 +23,8 @@ const LayoutShell = (() => {
   let onCompanySwitchCb = null;
   let onLogoutCb = null;
   let currentPanelId = null;
+  let lastCompanies = [];  // 회사 목록 마지막 값 (사이드바 "회사" 뷰가 나중에 열려도 다시 그릴 수 있도록 기억)
+  let lastActiveIdx = 0;
 
   /**
    * 사이드바/상단바/로그인 화면/메인 화면 골격을 만들고 문서에 삽입합니다.
@@ -89,7 +91,12 @@ const LayoutShell = (() => {
             <div class="ls-logo" id="ls-logo">iERP</div>
             <button class="ls-sidebar-toggle" id="ls-sidebar-toggle" title="사이드바 접기">«</button>
           </div>
+          <div class="ls-nav-switch" id="ls-nav-switch">
+            <button type="button" class="ls-nav-switch-btn active" data-view="home">홈</button>
+            <button type="button" class="ls-nav-switch-btn" data-view="company">회사</button>
+          </div>
           <nav class="ls-menu" id="ls-menu"></nav>
+          <div class="ls-company-list" id="ls-company-list" style="display:none"></div>
           <button class="ls-logout" id="ls-logout-btn">
             <span class="ls-logout-icon">⎋</span><span class="ls-logout-label">로그아웃</span>
           </button>
@@ -97,7 +104,7 @@ const LayoutShell = (() => {
         </aside>
         <div class="ls-main">
           <div class="ls-topbar">
-            <div class="ls-company-tabs" id="ls-company-tabs"></div>
+            <div class="ls-active-company" id="ls-company-tabs"></div>
             <div class="ls-topbar-right">
               <button class="ls-theme-toggle" id="ls-theme-toggle" title="다크모드 전환"></button>
               <span class="ls-sync"><span class="ls-sync-dot" id="ls-sync-dot"></span><span id="ls-sync-label">연결 중...</span></span>
@@ -129,6 +136,21 @@ const LayoutShell = (() => {
       applySidebarCollapsed(!sidebar.classList.contains('collapsed'));
     });
     initSidebarResize();
+
+    // 사이드바 "홈"/"회사" 전환 토글: 홈은 기존 메뉴 목록, 회사는 회사
+    // 목록(클릭해서 전환)을 보여준다. 상단바 회사 표시(단일 이름)와는
+    // 별개로, 여기서는 목록 전체를 보고 고를 수 있게 한다.
+    document.getElementById('ls-nav-switch').addEventListener('click', (e) => {
+      const btn = e.target.closest('.ls-nav-switch-btn');
+      if (!btn) return;
+      setSidebarView(btn.getAttribute('data-view'));
+    });
+    document.getElementById('ls-company-list').addEventListener('click', (e) => {
+      const item = e.target.closest('.ls-co-item');
+      if (!item) return;
+      if (onCompanySwitchCb) onCompanySwitchCb(parseInt(item.getAttribute('data-idx'), 10));
+    });
+
     document.getElementById('ls-theme-toggle').addEventListener('click', () => {
       const next = getSavedTheme() === 'dark' ? 'light' : 'dark';
       applyTheme(next);
@@ -187,23 +209,27 @@ const LayoutShell = (() => {
   }
 
   /**
-   * 회사 전환 탭을 그립니다. 헤더 배경이 어떤 테마든 항상 대비되도록
-   * layout-shell.css의 color-mix 기반 스타일을 사용합니다.
+   * 상단바에 현재 사용 중인 회사명 1개만 표시합니다. 회사 전환은 왼쪽
+   * 사이드바의 "회사" 뷰(setSidebarView('company'))에서 하고, 여기
+   * 상단바는 더 이상 클릭 가능한 탭이 아니라 단순 표시 라벨입니다.
+   * 사이드바 "회사" 뷰가 나중에 열려도 최신 목록을 보여줄 수 있도록
+   * 회사 목록/활성 인덱스를 기억해뒀다가 그 목록도 함께 갱신합니다.
    * @param {{id:string, company:string}[]} companies
    * @param {number} activeIdx
    */
   function renderCompanyTabs(companies, activeIdx) {
-    const wrap = document.getElementById('ls-company-tabs');
-    wrap.innerHTML = companies.map((c, i) => `
-      <button type="button" class="ls-co-tab${i === activeIdx ? ' active' : ''}" data-idx="${i}" title="${escapeHtml(c.company || '회사' + (i + 1))}">
-        ${escapeHtml(c.company || '회사' + (i + 1))}
-      </button>
-    `).join('');
-    wrap.querySelectorAll('.ls-co-tab').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (onCompanySwitchCb) onCompanySwitchCb(parseInt(btn.getAttribute('data-idx'), 10));
-      });
-    });
+    lastCompanies = companies;
+    lastActiveIdx = activeIdx;
+
+    const label = document.getElementById('ls-company-tabs');
+    if (label) {
+      const active = companies[activeIdx];
+      label.textContent = active ? (active.company || '회사' + (activeIdx + 1)) : '';
+    }
+
+    // 사이드바 "회사" 뷰가 지금 보이는 중이면 목록도 최신 상태로 다시 그린다.
+    const companyListEl = document.getElementById('ls-company-list');
+    if (companyListEl && companyListEl.style.display !== 'none') renderSidebarCompanyList();
   }
 
   /** 상단바 다크모드 토글 버튼의 아이콘을 현재 테마에 맞게 그린다. */
@@ -211,6 +237,32 @@ const LayoutShell = (() => {
     const btn = document.getElementById('ls-theme-toggle');
     if (!btn) return;
     btn.textContent = getSavedTheme() === 'dark' ? '라이트 모드' : '다크 모드';
+  }
+
+  /** 사이드바 왼쪽 목록 영역을 "홈"(모듈 메뉴) 또는 "회사"(회사 목록)로 전환한다. */
+  function setSidebarView(view) {
+    const menuEl = document.getElementById('ls-menu');
+    const companyListEl = document.getElementById('ls-company-list');
+    const switchWrap = document.getElementById('ls-nav-switch');
+    if (!menuEl || !companyListEl || !switchWrap) return;
+    const isCompany = view === 'company';
+    menuEl.style.display = isCompany ? 'none' : '';
+    companyListEl.style.display = isCompany ? '' : 'none';
+    switchWrap.querySelectorAll('.ls-nav-switch-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-view') === view);
+    });
+    if (isCompany) renderSidebarCompanyList();
+  }
+
+  /** 사이드바 "회사" 뷰의 목록을 마지막으로 받은 회사 데이터로 다시 그린다. */
+  function renderSidebarCompanyList() {
+    const listEl = document.getElementById('ls-company-list');
+    if (!listEl) return;
+    listEl.innerHTML = lastCompanies.map((c, i) => `
+      <button type="button" class="ls-co-item${i === lastActiveIdx ? ' active' : ''}" data-idx="${i}">
+        ${escapeHtml(c.company || '회사' + (i + 1))}
+      </button>
+    `).join('');
   }
 
   /** 사이드바 접기 상태를 localStorage에서 읽는다. */
@@ -232,6 +284,7 @@ const LayoutShell = (() => {
     // 펼치면 저장된 너비를 다시 적용한다 (모바일 하단 네비 레이아웃에는 적용하지 않음).
     if (collapsed) {
       sidebar.style.width = '';
+      setSidebarView('home'); // 접힌 상태에서는 회사 목록을 보여줄 공간이 없으므로 홈으로 되돌린다
     } else if (window.innerWidth > 768) {
       const savedWidth = localStorage.getItem('ls-sidebar-width');
       if (savedWidth) sidebar.style.width = savedWidth + 'px';

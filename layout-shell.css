@@ -116,16 +116,37 @@
 .ls-panel { display: none; }
 .ls-panel.active { display: block; }
 
-/* ── 회사 전환 탭 (테마 대비 자동) ── */
-.ls-company-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
-.ls-co-tab {
-  background: var(--surface2); color: var(--text2);
-  border: 1px solid var(--border); border-radius: 0;
-  padding: 3px 10px; font-size: 12px; cursor: pointer;
-  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* ── 상단바: 현재 사용 중인 회사명 1개만 표시 (클릭 불가, 단순 라벨) ── */
+.ls-active-company {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  padding: 3px 10px; background: var(--surface2); border: 1px solid var(--border);
+  max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ls-co-tab:hover { background: var(--border); color: var(--text); }
-.ls-co-tab.active { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
+
+/* ── 사이드바 "홈"/"회사" 전환 토글 ── */
+.ls-nav-switch {
+  display: flex; gap: 2px; margin: 0 8px 8px; padding: 2px;
+  background: color-mix(in srgb, var(--accent-fg) 12%, transparent); border-radius: var(--radius);
+}
+.ls-nav-switch-btn {
+  flex: 1; padding: 5px 0; border: none; border-radius: var(--radius);
+  background: transparent; color: color-mix(in srgb, var(--accent-fg) 75%, transparent);
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.ls-nav-switch-btn.active { background: var(--accent-fg); color: var(--accent); }
+.ls-sidebar.collapsed .ls-nav-switch { display: none; }
+
+/* ── 사이드바 "회사" 뷰: 회사 목록(클릭해서 전환) ── */
+.ls-company-list { display: flex; flex-direction: column; gap: 1px; padding: 0 8px; flex: 1; overflow-y: auto; }
+.ls-co-item {
+  display: block; width: 100%; text-align: left;
+  padding: 7px 10px; border: none; border-radius: var(--radius);
+  background: transparent; color: color-mix(in srgb, var(--accent-fg) 80%, transparent);
+  font-size: 13px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ls-co-item:hover { background: color-mix(in srgb, var(--accent-fg) 10%, transparent); }
+.ls-co-item.active { background: var(--accent-fg); color: var(--accent); font-weight: 700; }
 
 /* ── 동기화 상태 표시 ── */
 .ls-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
@@ -148,6 +169,7 @@
     order: 2; /* 화면 하단에 고정 — 스크롤해도 항상 같은 자리에 보임 */
     box-shadow: 0 -2px 10px rgba(0,0,0,.12);
   }
+  .ls-nav-switch { display: none; } /* 회사 전환은 데스크톱 전용 — 모바일은 항상 모듈 메뉴만 표시 */
   .ls-logo { display: none; }
   .ls-sidebar-top { display: none; } /* 접기 토글은 데스크톱 전용 */
   .ls-sidebar-resize-handle { display: none; } /* 리사이즈도 데스크톱 전용 */
