@@ -103,7 +103,14 @@ button:hover { background: var(--border); }
 }
 .sl-items-head > div { padding: 6px 8px; box-sizing: border-box; border-right: 1px solid var(--border); }
 .sl-items-head > div:last-child { border-right: none; }
-.sl-item-row { margin-bottom: 6px; gap: 0; }
+.sl-item-row { margin-bottom: 0; gap: 0; }
+.sl-item-row + .sl-item-row .ri-no,
+.sl-item-row + .sl-item-row input,
+.sl-item-row + .sl-item-row .ri-subtotal,
+.sl-item-row + .sl-item-row .ri-del {
+  border-top: none; /* 위 줄과 테두리가 겹치지 않도록 아래 줄의 위쪽 테두리만 생략 */
+}
+#sl-items-container, #pu-items-container { margin-bottom: 8px; }
 .sl-item-row input {
   width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface); color: var(--text); font-size: 13px; box-sizing: border-box;
