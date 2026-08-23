@@ -50,7 +50,6 @@
 .te-table th:last-child, .te-table td:last-child { border-right: none; }
 .te-table tbody tr[data-row-id] { cursor: pointer; }
 .te-table tbody tr[data-row-id]:hover { background: var(--surface2); }
-.te-table tr:last-child td { border-bottom: none; }
 .te-empty td { text-align: center; color: var(--text2); padding: 16px 10px; }
 
 /* 칼럼 리사이즈 손잡이 (세로 구분선 바로 위에 겹쳐서, 마우스를 올리면 강조되게) */
