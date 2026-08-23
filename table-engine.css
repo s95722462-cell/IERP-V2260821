@@ -11,10 +11,10 @@
 .te-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .te-search {
   padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--bg); color: var(--text); font-size: 13px; min-width: 200px;
-  box-sizing: border-box;
+  background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;
+  line-height: 1.3; min-width: 200px; box-sizing: border-box;
 }
-.te-date { padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); box-sizing: border-box; }
+.te-date { padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-family: inherit; line-height: 1.3; box-sizing: border-box; }
 .te-date-sep { color: var(--text2); }
 .te-settings-btn {
   margin-left: auto; padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius);
