@@ -16,7 +16,7 @@ const SettingsModule = (() => {
         <div class="card-title">내 계정</div>
         <form id="st-account-form">
           <div class="form-grid">
-            <div class="fg"><label>아이디</label><input id="st-uid" readonly style="background:var(--surface2)"></div>
+            <div class="fg"><label>아이디</label><input id="st-uid" readonly autocomplete="username" style="background:var(--surface2)"></div>
             <div class="fg"><label>새 비밀번호 (변경 시에만 입력)</label><input id="st-newpw" type="password" autocomplete="new-password"></div>
           </div>
           <button class="ls-btn-primary" id="st-pw-save" type="submit" style="width:auto;margin-top:10px">비밀번호 변경</button>
