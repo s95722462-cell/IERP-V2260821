@@ -57,10 +57,16 @@ const PurchaseModule = (() => {
             <div class="fg" style="grid-column:1/-1"><label>비고</label><input id="pu-memo"></div>
           </div>
 
-          <div class="sl-items-head">
-            <div>No.</div><div>품목명</div><div>규격</div><div>수량</div><div>단가</div><div>공급가액</div><div></div>
-          </div>
-          <div id="pu-items-container"></div>
+          <table class="sl-items-table">
+            <thead>
+              <tr>
+                <th style="text-align:center">No.</th><th>품목명</th><th>규격</th>
+                <th style="text-align:right">수량</th><th style="text-align:right">단가</th>
+                <th style="text-align:right">공급가액</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="pu-items-container"></tbody>
+          </table>
           <datalist id="pu-item-list"></datalist>
           <button type="button" id="pu-add-row-btn" class="sl-add-row-btn">+ 품목 추가</button>
 
@@ -185,20 +191,20 @@ const PurchaseModule = (() => {
   function addRow(data) {
     const key = 'r' + (++rowSeq);
     const container = document.getElementById('pu-items-container');
-    const div = document.createElement('div');
-    div.className = 'sl-item-row';
-    div.setAttribute('data-rowkey', key);
-    div.innerHTML = `
-      <span class="ri-no"></span>
-      <input class="ri-item" list="pu-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}">
-      <input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}">
-      <input class="ri-qty" type="number" value="${data?.qty ?? 1}">
-      <input class="ri-price" type="number" value="${data?.unitPrice ?? 0}">
-      <span class="ri-subtotal">0</span>
-      <button type="button" class="ri-del" title="이 줄 삭제">✕</button>
+    const tr = document.createElement('tr');
+    tr.className = 'sl-item-row';
+    tr.setAttribute('data-rowkey', key);
+    tr.innerHTML = `
+      <td><span class="ri-no"></span></td>
+      <td><input class="ri-item" list="pu-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
+      <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"></td>
+      <td><input class="ri-qty" type="number" value="${data?.qty ?? 1}"></td>
+      <td><input class="ri-price" type="number" value="${data?.unitPrice ?? 0}"></td>
+      <td><span class="ri-subtotal">0</span></td>
+      <td><button type="button" class="ri-del" title="이 줄 삭제">✕</button></td>
     `;
-    container.appendChild(div);
-    recalcRow(div);
+    container.appendChild(tr);
+    recalcRow(tr);
     renumberRows();
   }
 

@@ -85,47 +85,32 @@ button:hover { background: var(--border); }
 .st-co-actions { display: flex; gap: 6px; }
 
 /* ── 전표(품목 여러 줄) 입력 UI — sales.js/purchase.js 공용 ────────── */
-.sl-items-head, .sl-item-row {
-  display: grid;
-  grid-template-columns: 28px 2fr 1.3fr 0.7fr 1fr 1fr 28px;
-  gap: 8px;
-  align-items: stretch;
+.sl-items-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px;
 }
-.sl-item-row .ri-no {
-  display: flex; align-items: center; justify-content: center;
-  text-align: center; font-size: 12px; color: var(--text2);
-  border: 1px solid var(--border); background: var(--surface); box-sizing: border-box;
+.sl-items-table th {
+  background: var(--surface2); font-weight: 700; color: var(--text2); font-size: 11px;
+  padding: 6px 8px; border: 1px solid var(--border); box-sizing: border-box;
 }
-.sl-items-head {
-  margin-top: 16px;
-  font-size: 11px; color: var(--text2); font-weight: 700; gap: 0;
-  background: var(--surface2); border: 1px solid var(--border);
+.sl-items-table td { padding: 0; border: 1px solid var(--border); box-sizing: border-box; }
+.sl-items-table td input {
+  display: block; width: 100%; padding: 6px 8px; border: none; background: transparent;
+  color: var(--text); font-size: 13px; box-sizing: border-box;
 }
-.sl-items-head > div { padding: 6px 8px; box-sizing: border-box; border-right: 1px solid var(--border); }
-.sl-items-head > div:last-child { border-right: none; }
-.sl-item-row { margin-bottom: 0; gap: 0; }
-.sl-item-row + .sl-item-row .ri-no,
-.sl-item-row + .sl-item-row input,
-.sl-item-row + .sl-item-row .ri-subtotal,
-.sl-item-row + .sl-item-row .ri-del {
-  border-top: none; /* 위 줄과 테두리가 겹치지 않도록 아래 줄의 위쪽 테두리만 생략 */
+.sl-items-table td input:focus { background: var(--surface2); outline: none; }
+.sl-items-table .ri-qty, .sl-items-table .ri-price { text-align: right; }
+.sl-items-table .ri-no {
+  display: block; text-align: center; font-size: 12px; color: var(--text2); padding: 6px 8px;
 }
-#sl-items-container, #pu-items-container { margin-bottom: 8px; }
-.sl-item-row input {
-  width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); color: var(--text); font-size: 13px; box-sizing: border-box;
+.sl-items-table .ri-subtotal {
+  display: block; text-align: right; font-size: 13px; padding: 6px 8px; color: var(--text);
 }
-.sl-item-row .ri-subtotal {
-  display: block; text-align: right; font-size: 13px;
-  padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); color: var(--text); box-sizing: border-box;
+.sl-items-table .ri-del {
+  display: block; width: 100%; background: none; border: none;
+  color: var(--red); cursor: pointer; font-size: 15px; padding: 6px 8px;
 }
-.sl-item-row .ri-del {
-  background: var(--surface); border: 1px solid var(--border); box-sizing: border-box;
-  color: var(--red); cursor: pointer; font-size: 15px; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.sl-add-row-btn { margin: 4px 0 10px; }
+.sl-items-table .ri-del:hover { background: var(--red-bg); }
+.sl-add-row-btn { margin: 8px 0 10px; }
 .sl-doc-totals { text-align: right; font-size: 13px; color: var(--text2); }
 .sl-docno-link { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 400; padding: 0; text-decoration: underline; font-size: inherit; font-family: inherit; }
 
