@@ -126,19 +126,14 @@ const DailyModule = (() => {
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
         ${escapeHtml(group[0].date)} · ${escapeHtml(partyLabel || '')}
       </div>
-      <table class="te-table">
-        <thead><tr><th>No.</th><th>품목명</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th></tr></thead>
-        <tbody>
-          ${group.map((r, idx) => `
-            <tr>
-              <td style="text-align:center">${idx + 1}</td>
-              <td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.spec || '')}</td>
-              <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
-              <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
-              <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
+      ${TableEngine.renderStaticTable([
+        { key: '__no', label: 'No.', align: 'center' },
+        { key: 'item', label: '품목명' },
+        { key: 'spec', label: '규격' },
+        { key: 'qty', label: '수량', align: 'right', render: (v) => (v || 0).toLocaleString() },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (v || 0).toLocaleString() },
+        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() }
+      ], group)}
       <div class="sl-doc-totals" style="margin-top:8px">
         공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
       </div>

@@ -547,7 +547,59 @@ const TableEngine = (() => {
     renderRows(state);
   }
 
-  return { create };
+  /**
+   * TableEngine.create()로 만든 목록표가 아니라, sales.js/purchase.js/
+   * daily.js의 "전표 상세" 같은 작은 고정 표를 그릴 때 쓰는 함수. 표
+   * (.te-scroll)와 그 모바일용 카드뷰(.te-card-list)를 한 번에 만들어
+   * 반환하므로, 이 함수로 만든 표는 목록표와 똑같이 모바일에서 자동으로
+   * 카드형으로 바뀐다. columns/rows 형식은 create()의 opts.columns와 같다.
+   * @param {{key:string, label:string, align?:'left'|'right', render?:(value:*, row:object)=>string}[]} columns
+   * @param {object[]} rows
+   * @returns {string} HTML
+   */
+  function renderStaticTable(columns, rows) {
+    const theadHtml = columns.map((c) =>
+      `<th${c.align === 'right' ? ' style="text-align:right"' : ''}>${escapeHtml(c.label)}</th>`
+    ).join('');
+
+    const cellHtml = (c, row, idx) => {
+      if (c.key === '__no') return `<td style="text-align:center">${idx + 1}</td>`;
+      const value = row[c.key];
+      const cell = c.render ? c.render(value, row) : escapeHtml(value ?? '');
+      return `<td${c.align === 'right' ? ' style="text-align:right"' : ''}>${cell}</td>`;
+    };
+    const tbodyHtml = rows.length
+      ? rows.map((row, idx) => `<tr>${columns.map((c) => cellHtml(c, row, idx)).join('')}</tr>`).join('')
+      : `<tr class="te-empty"><td colspan="${columns.length}">데이터가 없습니다</td></tr>`;
+
+    const hasNo = columns.some((c) => c.key === '__no');
+    const titleConfig = columns.find((c) => c.key !== '__no') || null;
+    const bodyConfigs = columns.filter((c) => c !== titleConfig && c.key !== '__no');
+    const cardsHtml = rows.length
+      ? rows.map((row, idx) => {
+          const titleValue = titleConfig
+            ? (titleConfig.render ? titleConfig.render(row[titleConfig.key], row) : escapeHtml(row[titleConfig.key] ?? ''))
+            : '';
+          const bodyHtml = bodyConfigs.map((c) => {
+            const raw = row[c.key];
+            if (raw === undefined || raw === null || raw === '') return '';
+            const value = c.render ? c.render(raw, row) : escapeHtml(raw);
+            return `<div class="te-card-row"><span class="te-card-label">${escapeHtml(c.label)}</span><span class="te-card-value">${value}</span></div>`;
+          }).join('');
+          const noHtml = hasNo ? `<span class="te-card-no">${idx + 1}</span>` : '';
+          return `<div class="te-card"><div class="te-card-head">${noHtml}<span class="te-card-title">${titleValue}</span></div>${bodyHtml}</div>`;
+        }).join('')
+      : `<div class="te-card-empty">데이터가 없습니다</div>`;
+
+    return `
+      <div class="te-scroll">
+        <table class="te-table"><thead><tr>${theadHtml}</tr></thead><tbody>${tbodyHtml}</tbody></table>
+      </div>
+      <div class="te-card-list">${cardsHtml}</div>
+    `;
+  }
+
+  return { create, renderStaticTable };
 })();
 
 window.TableEngine = TableEngine;
