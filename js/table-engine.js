@@ -76,6 +76,10 @@ const TableEngine = (() => {
       return result;
     }
 
+    // activeCols 병합 시 "새 칼럼" 판단 기준으로 쓰기 위해, colOrder를
+    // 덮어쓰기 전(병합 전) 상태를 미리 기억해둔다.
+    const knownKeysBeforeMerge = colOrder[tableId] ? colOrder[tableId].slice() : null;
+
     if (!colOrder[tableId]) {
       colOrder[tableId] = allKeys.slice();
     } else {
@@ -85,7 +89,13 @@ const TableEngine = (() => {
     if (!activeCols[tableId]) {
       activeCols[tableId] = opts.defaultActiveCols || allKeys.slice();
     } else {
-      const newKeys = allKeys.filter((k) => !activeCols[tableId].includes(k));
+      // "새 칼럼"인지는 allKeys(전체 칼럼)가 아니라, 예전에 저장해둔
+      // 칼럼 순서(colOrder)에 이미 있었는지로 판단해야 한다. allKeys
+      // 기준으로 비교하면 사용자가 항목 설정에서 꺼둔 칼럼(존재는 하지만
+      // 활성 목록엔 없는 칼럼)까지 "새로 생긴 칼럼"으로 오인해서, 로그인·
+      // 새로고침할 때마다 꺼둔 칼럼이 다시 켜져버리는 버그가 있었다.
+      const knownKeys = knownKeysBeforeMerge || allKeys;
+      const newKeys = allKeys.filter((k) => !knownKeys.includes(k));
       activeCols[tableId] = activeCols[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
     }
 
