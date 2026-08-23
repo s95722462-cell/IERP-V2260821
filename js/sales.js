@@ -369,7 +369,11 @@ const SalesModule = (() => {
     try {
       docNo = editingDocNo || await genDocNo(counterPath(), 'S');
     } catch (err) {
-      alert('전표번호 채번 중 오류가 발생했습니다: ' + err.message);
+      if (err.code === 'resource-exhausted') {
+        alert('지금 저장 요청이 몰려서 전표번호를 받지 못했습니다. 자동으로 몇 차례 다시 시도했지만 실패했어요 — 잠시(1분 정도) 기다렸다가 다시 저장해주세요.');
+      } else {
+        alert('전표번호 채번 중 오류가 발생했습니다: ' + err.message);
+      }
       console.error('[채번 실패]', err);
       return false;
     }

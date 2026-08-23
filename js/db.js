@@ -104,13 +104,28 @@ async function genDocNo(counterCollectionPath, prefix) {
   const today = todayStr().replace(/-/g, '');
   const counterId = prefix + today;
   const ref = db.collection(counterCollectionPath).doc(counterId);
-  const seq = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const next = (snap.exists ? (snap.data().seq || 0) : 0) + 1;
-    tx.set(ref, { seq: next }, { merge: true });
-    return next;
-  });
-  return `${prefix}${today}-${String(seq).padStart(2, '0')}`;
+
+  const MAX_RETRIES = 3;
+  let lastErr = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const seq = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const next = (snap.exists ? (snap.data().seq || 0) : 0) + 1;
+        tx.set(ref, { seq: next }, { merge: true });
+        return next;
+      });
+      return `${prefix}${today}-${String(seq).padStart(2, '0')}`;
+    } catch (e) {
+      lastErr = e;
+      // 'resource-exhausted'(순간적으로 같은 카운터 문서에 요청이 몰린 경우)만
+      // 재시도한다. 그 외 오류(권한 문제 등)는 재시도해봐야 소용없으므로 바로 던진다.
+      if (e.code !== 'resource-exhausted' || attempt === MAX_RETRIES) break;
+      const waitMs = 1000 * Math.pow(2, attempt); // 1초 → 2초 → 4초
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
+  throw lastErr;
 }
 
 /**
