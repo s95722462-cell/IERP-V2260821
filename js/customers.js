@@ -26,8 +26,8 @@ const CustomersModule = (() => {
     const panel = LayoutShell.registerPanel('customers');
     panel.innerHTML = `
       <div class="card" id="cu-list-card">
-        <div class="card-title" style="display:flex;align-items:center">
-          🏢 거래처 목록
+        <div class="card-title card-title-action" style="display:flex;align-items:center">
+          거래처 목록
           <button class="ls-btn-primary" id="cu-add-btn" style="margin-left:auto;width:auto">+ 새 거래처 추가</button>
         </div>
       </div>
@@ -35,7 +35,7 @@ const CustomersModule = (() => {
       <div class="side-panel-bg" id="cu-panel-bg" style="display:none">
         <div class="side-panel">
           <div class="card-title" style="display:flex;align-items:center">
-            <span id="cu-panel-title">🏢 새 거래처 등록</span>
+            <span id="cu-panel-title">새 거래처 등록</span>
             <button id="cu-panel-close" style="margin-left:auto">✕</button>
           </div>
           <div class="form-grid" style="grid-template-columns:1fr">
@@ -124,7 +124,7 @@ const CustomersModule = (() => {
     document.getElementById('cu-addr').value = row?.addr || '';
     document.getElementById('cu-memo').value = row?.memo || '';
     editingId = row ? row.id : null;
-    document.getElementById('cu-panel-title').textContent = row ? '🏢 거래처 수정' : '🏢 새 거래처 등록';
+    document.getElementById('cu-panel-title').textContent = row ? '거래처 수정' : '새 거래처 등록';
     document.getElementById('cu-save-btn').textContent = row ? '수정 저장' : '저장';
   }
 

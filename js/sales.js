@@ -43,7 +43,7 @@ const SalesModule = (() => {
     const panel = LayoutShell.registerPanel('sales');
     panel.innerHTML = `
       <div class="card" id="sl-list-card">
-        <div class="card-title" style="display:flex;align-items:center">
+        <div class="card-title card-title-action" style="display:flex;align-items:center">
           매출 내역
           <button class="ls-btn-primary" id="sl-add-btn" style="margin-left:auto;width:auto">+ 새 매출 등록</button>
         </div>

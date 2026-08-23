@@ -34,7 +34,7 @@ const PurchaseModule = (() => {
     const panel = LayoutShell.registerPanel('purchase');
     panel.innerHTML = `
       <div class="card" id="pu-list-card">
-        <div class="card-title" style="display:flex;align-items:center">
+        <div class="card-title card-title-action" style="display:flex;align-items:center">
           매입 내역
           <button class="ls-btn-primary" id="pu-add-btn" style="margin-left:auto;width:auto">+ 새 매입 등록</button>
         </div>

@@ -22,7 +22,7 @@ const ProductsModule = (() => {
     const panel = LayoutShell.registerPanel('products');
     panel.innerHTML = `
       <div class="card" id="pr-list-card">
-        <div class="card-title" style="display:flex;align-items:center">
+        <div class="card-title card-title-action" style="display:flex;align-items:center">
           품목 목록
           <button class="ls-btn-primary" id="pr-add-btn" style="margin-left:auto;width:auto">+ 새 품목 추가</button>
         </div>
