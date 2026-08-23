@@ -522,6 +522,7 @@ const LayoutShell = (() => {
     if (!titleRow || !titleRow.classList.contains('card-title')) return;
 
     wrap.dataset.lsSettingsMerged = '1';
+    titleRow.classList.add('card-title-action'); // 모바일에서 세로로 쌓이도록 (등록 버튼 유무와 무관하게 항상 표시)
     if (titleRow.querySelector('.ls-btn-primary')) {
       settingsBtn.style.marginLeft = '8px'; // "+새 OO 등록" 버튼 바로 옆에 살짝 띄워서
     } else {
