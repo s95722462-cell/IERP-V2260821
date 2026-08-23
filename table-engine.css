@@ -23,6 +23,11 @@
   padding: 7px 14px; border: 1px solid var(--red); border-radius: var(--radius);
   background: var(--red-bg); color: var(--red); font-size: 13px; cursor: pointer; font-weight: 700;
 }
+.te-expand-btn {
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer;
+}
+.te-expand-btn:hover { background: var(--border); }
 .te-check-col { width: 32px; text-align: center; padding: 0 4px !important; }
 
 /* 표 자체는 항상 100%로 시작하되, 리사이즈 시작하는 순간 JS가 px 고정값으로 바꾼다.

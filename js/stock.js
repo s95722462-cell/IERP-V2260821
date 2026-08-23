@@ -20,7 +20,7 @@ const StockModule = (() => {
     const panel = LayoutShell.registerPanel('stock');
     panel.innerHTML = `
       <div class="card">
-        <div class="card-title">📦 재고현황 <span style="font-weight:400;font-size:12px;color:var(--text2)">— 매출 차감 / 매입 증가 자동 반영</span></div>
+        <div class="card-title">재고현황 <span style="font-weight:400;font-size:12px;color:var(--text2)">— 매출 차감 / 매입 증가 자동 반영</span></div>
         <div class="stock-kpis" id="stock-kpis"></div>
       </div>
       <div class="card" id="stock-list-card" style="margin-top:16px">
@@ -45,6 +45,8 @@ const StockModule = (() => {
         { key: 'status', label: '상태', render: renderStatus }
       ],
       searchFields: ['name', 'code', 'spec'],
+      collapsible: true,
+      collapsedHeight: 440,
       rowActions: (row) => `<button data-act="recalc" data-id="${row.id}" title="과거 매입·매출을 수정한 뒤, 이 품목의 FIFO 매출원가·재고금액을 처음부터 다시 계산합니다">FIFO 재계산</button>`
     });
 
@@ -66,9 +68,9 @@ const StockModule = (() => {
   }
 
   function renderStatus(value, row) {
-    if (row.current <= 0) return '<span style="color:var(--red)">⛔ 재고없음</span>';
-    if (row.safeStock > 0 && row.current <= row.safeStock) return '<span style="color:var(--amber)">⚠️ 재고부족</span>';
-    return '<span style="color:var(--green)">✅ 정상</span>';
+    if (row.current <= 0) return '<span style="color:var(--red)">재고없음</span>';
+    if (row.safeStock > 0 && row.current <= row.safeStock) return '<span style="color:var(--amber)">재고부족</span>';
+    return '<span style="color:var(--green)">정상</span>';
   }
 
   /** 등록된 품목 목록에 매출/매입 데이터를 매칭해 현재고를 계산합니다. */

@@ -93,14 +93,37 @@ const TableEngine = (() => {
       tableId, opts, rawData: [],
       searchText: '', dateFrom: '', dateTo: '',
       sortKey: null, sortDir: 'asc',
+      expanded: false,
       selectedIds: new Set()
     };
     instances[tableId] = state;
 
     buildDom(state);
+    applyCollapseState(state);
     return {
       render: (data) => { state.rawData = data; renderRows(state); }
     };
+  }
+
+  /** opts.collapsible인 표에서, 지금 펼침/접힘 상태에 맞춰 .te-scroll의
+   * 높이 제한을 걸거나 풀고, 토글 버튼 문구를 갱신한다. 품목 수가 많은
+   * 표(재고현황 등)에서 페이지 전체를 매번 스크롤하지 않도록, 평소엔
+   * 일정 높이로 접어두고 필요할 때만 "펼치기"로 전체를 볼 수 있게 한다. */
+  function applyCollapseState(state) {
+    if (!state.opts.collapsible || !state.rootEl) return;
+    const scrollEl = state.rootEl.querySelector('.te-scroll');
+    const btn = state.rootEl.querySelector('[data-role="expand-toggle"]');
+    if (!scrollEl) return;
+    const collapsedHeight = state.opts.collapsedHeight || 420;
+    if (state.expanded) {
+      scrollEl.style.maxHeight = '';
+      scrollEl.style.overflowY = '';
+      if (btn) btn.textContent = '접기 ▴';
+    } else {
+      scrollEl.style.maxHeight = collapsedHeight + 'px';
+      scrollEl.style.overflowY = 'auto';
+      if (btn) btn.textContent = '펼치기 ▾';
+    }
   }
 
   function buildDom(state) {
@@ -123,6 +146,9 @@ const TableEngine = (() => {
       toolbarHtml += `<button class="te-bulk-del-btn" data-role="bulk-delete" style="display:none">선택 삭제 (<span data-role="bulk-count">0</span>)</button>`;
     }
     toolbarHtml += `<button class="te-settings-btn" data-role="settings">항목 설정</button>`;
+    if (opts.collapsible) {
+      toolbarHtml += `<button class="te-expand-btn" data-role="expand-toggle" type="button">펼치기 ▾</button>`;
+    }
     toolbarHtml += '</div>';
 
     wrap.innerHTML = `
@@ -203,6 +229,14 @@ const TableEngine = (() => {
     if (dateTo) dateTo.addEventListener('change', () => { state.dateTo = dateTo.value; renderRows(state); });
 
     wrap.querySelector('[data-role="settings"]').addEventListener('click', () => openColSettings(state));
+
+    const expandBtn = wrap.querySelector('[data-role="expand-toggle"]');
+    if (expandBtn) {
+      expandBtn.addEventListener('click', () => {
+        state.expanded = !state.expanded;
+        applyCollapseState(state);
+      });
+    }
   }
 
   function getActiveConfigs(state) {
