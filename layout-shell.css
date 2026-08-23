@@ -159,28 +159,56 @@
 }
 .ls-theme-toggle:hover { background: var(--surface2); }
 
-/* ── 모바일: 사이드바 → 하단 네비게이션으로 전환 ── */
+/* 모바일 전용 요소 — 데스크톱에서는 항상 숨김 (기본값). #ls-app이 flex
+   컨테이너라 숨기지 않으면 불필요한 요소가 레이아웃에 끼어들게 된다 */
+.ls-mobile-fab, .ls-mobile-backdrop { display: none; }
+
+/* ── 모바일: 사이드바를 "+" 풍선 버튼으로 여닫는 시트 메뉴로 전환
+   (좌우 스와이프 대신 세로 목록 + 탭 방식이라 iOS Safari의 하단 고정바
+   가로 스크롤 문제를 아예 피해간다) ── */
 @media (max-width: 768px) {
   .ls-app { flex-direction: column; }
   .ls-sidebar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 100;
-    width: 100%; height: auto; flex-direction: row; align-items: center;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-    order: 2; /* 화면 하단에 고정 — 스크롤해도 항상 같은 자리에 보임 */
-    box-shadow: 0 -2px 10px rgba(0,0,0,.12);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 110;
+    width: 100%; height: auto; max-height: 70vh;
+    flex-direction: column; align-items: stretch;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top-left-radius: 14px; border-top-right-radius: 14px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.25);
+    transform: translateY(110%); transition: transform .22s ease;
+    overflow-y: auto;
   }
+  .ls-sidebar.mobile-open { transform: translateY(0); }
   .ls-nav-switch { display: none; } /* 회사 전환은 데스크톱 전용 — 모바일은 항상 모듈 메뉴만 표시 */
   .ls-logo { display: none; }
   .ls-sidebar-top { display: none; } /* 접기 토글은 데스크톱 전용 */
   .ls-sidebar-resize-handle { display: none; } /* 리사이즈도 데스크톱 전용 */
   .ls-sidebar.collapsed { width: 100%; } /* 모바일에서는 접힘 상태 무시 */
-  .ls-menu { flex-direction: row; overflow-x: auto; padding: 0; min-width: 0; -webkit-overflow-scrolling: touch; }
-  .ls-menu-item { flex-direction: column; gap: 2px; font-size: 10px; padding: 9px 10px; flex-shrink: 0; }
-  .ls-sidebar.collapsed .ls-menu-item { padding: 9px 10px; }
-  .ls-sidebar.collapsed .ls-menu-label { display: block; }
+  .ls-menu { flex-direction: column; gap: 2px; padding: 0; }
+  .ls-menu-item { flex-direction: row; justify-content: flex-start; gap: 10px; font-size: 15px; padding: 12px 10px; }
   .ls-menu-label { white-space: nowrap; }
   .ls-logout { display: none; } /* 모바일에서는 설정 화면 안에 로그아웃을 두는 것을 권장 */
   .ls-main { order: 1; }
-  /* 하단에 고정된 메뉴에 콘텐츠 마지막 줄이 가려지지 않도록 여유 공간 확보 */
-  .ls-content { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+
+  /* "+" 풍선 버튼 */
+  .ls-mobile-fab {
+    position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 111;
+    width: 56px; height: 56px; border: none; border-radius: 50%;
+    background: var(--accent); color: var(--accent-fg);
+    font-size: 28px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+    transition: transform .2s ease;
+  }
+  .ls-mobile-fab.open { transform: rotate(45deg); } /* +가 ×처럼 보이게 회전 */
+
+  /* 시트가 열려있을 때 뒤를 덮는 반투명 배경 (탭하면 닫힘) */
+  .ls-mobile-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 105;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .ls-mobile-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  /* 풍선 버튼이 콘텐츠를 가리지 않도록 여유 공간만 확보 (전체 바 높이는 더 이상 필요 없음) */
+  .ls-content { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
 }

@@ -112,6 +112,8 @@ const LayoutShell = (() => {
           </div>
           <div class="ls-content" id="ls-content"></div>
         </div>
+        <div class="ls-mobile-backdrop" id="ls-mobile-backdrop"></div>
+        <button class="ls-mobile-fab" id="ls-mobile-fab" title="메뉴">+</button>
       </div>
     `);
 
@@ -126,9 +128,32 @@ const LayoutShell = (() => {
         // 드래그로 순서를 옮긴 직후에는 클릭(=화면 전환)으로 취급하지 않는다.
         if (btn.dataset.justDragged === '1') { delete btn.dataset.justDragged; return; }
         navigate(btn.getAttribute('data-panel'));
+        if (window.innerWidth <= 768) closeMobileMenu(); // 모바일에서는 메뉴 선택 즉시 시트를 닫는다
       });
     });
     bindMenuDragReorder(menuEl);
+
+    // 모바일 전용 "+" 풍선 버튼: 평소엔 사이드바(메뉴)를 화면 아래에 숨겨두고,
+    // 이 버튼을 누르면 시트처럼 위로 올라오게 한다. iOS Safari에서 하단
+    // 고정바 안의 좌우 스와이프가 잘 안 먹는 문제를 완전히 피하기 위한 방식.
+    document.getElementById('ls-mobile-fab').addEventListener('click', () => {
+      const sidebar = document.getElementById('ls-sidebar');
+      if (sidebar.classList.contains('mobile-open')) closeMobileMenu();
+      else openMobileMenu();
+    });
+    document.getElementById('ls-mobile-backdrop').addEventListener('click', closeMobileMenu);
+  }
+
+  function openMobileMenu() {
+    document.getElementById('ls-sidebar').classList.add('mobile-open');
+    document.getElementById('ls-mobile-backdrop').classList.add('open');
+    document.getElementById('ls-mobile-fab').classList.add('open');
+  }
+
+  function closeMobileMenu() {
+    document.getElementById('ls-sidebar').classList.remove('mobile-open');
+    document.getElementById('ls-mobile-backdrop').classList.remove('open');
+    document.getElementById('ls-mobile-fab').classList.remove('open');
   }
 
   /** 사이드바 메뉴 항목을 마우스로 드래그해서 순서를 바꿀 수 있게 한다.
