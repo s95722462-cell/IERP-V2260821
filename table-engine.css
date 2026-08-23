@@ -80,7 +80,30 @@
   background: var(--accent); color: var(--accent-fg); font-weight: 700; cursor: pointer;
 }
 
-/* ── 모바일: 툴바를 검색 → 날짜범위 → 버튼 순으로 한 줄씩 깔끔하게 쌓음 ── */
+/* ── 카드뷰 (모바일에서 표 대신 표시) ── */
+.te-card-list { display: none; flex-direction: column; gap: 8px; }
+.te-card {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.te-card-clickable { cursor: pointer; }
+.te-card-clickable:active { background: var(--surface2); }
+.te-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.te-card-no { font-size: 11px; color: var(--text2); flex-shrink: 0; }
+.te-card-title { font-weight: 700; font-size: 14px; color: var(--text); word-break: break-all; }
+.te-card-row {
+  display: flex; justify-content: space-between; gap: 10px; font-size: 12px;
+  padding: 3px 0; border-bottom: 1px dashed var(--border);
+}
+.te-card-row:last-of-type { border-bottom: none; }
+.te-card-label { color: var(--text2); flex-shrink: 0; }
+.te-card-value { color: var(--text); text-align: right; word-break: break-all; }
+.te-card-actions { display: flex; gap: 6px; margin-top: 8px; }
+.te-card-actions button { flex: 1; }
+.te-card-empty { text-align: center; color: var(--text2); padding: 20px 10px; border: 1px solid var(--border); }
+
+/* ── 모바일: 툴바를 검색 → 날짜범위 → 버튼 순으로 한 줄씩 깔끔하게 쌓음,
+   표는 숨기고 카드뷰로 전환 ── */
 @media (max-width: 768px) {
   .te-toolbar { flex-direction: column; align-items: stretch; }
   .te-search { min-width: 0; width: 100%; }
@@ -88,4 +111,6 @@
   .te-date { flex: 1 1 0; min-width: 0; }
   .te-settings-btn { margin-left: 0 !important; width: 100% !important; text-align: center; }
   .te-bulk-del-btn { width: 100% !important; }
+  .te-scroll { display: none; }
+  .te-card-list { display: flex; }
 }

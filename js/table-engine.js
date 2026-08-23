@@ -148,6 +148,7 @@ const TableEngine = (() => {
           <tbody></tbody>
         </table>
       </div>
+      <div class="te-card-list" id="te-cards-${state.tableId}"></div>
       <div class="te-summary" data-role="summary"></div>
     `;
     opts.container.appendChild(wrap);
@@ -170,6 +171,24 @@ const TableEngine = (() => {
       const tr = e.target.closest('tr[data-row-id]');
       if (!tr) return;
       const id = tr.getAttribute('data-row-id');
+      if (id) state.opts.onRowClick(id);
+    });
+
+    // 카드뷰(모바일)에도 표(tbody)와 동일한 체크박스/행 클릭 동작을 붙인다.
+    const cardsEl = wrap.querySelector('.te-card-list');
+    cardsEl.addEventListener('click', (e) => {
+      const check = e.target.closest('.te-row-check');
+      if (check) {
+        const id = check.getAttribute('data-id');
+        if (check.checked) state.selectedIds.add(id); else state.selectedIds.delete(id);
+        updateBulkDeleteUi(state);
+        return;
+      }
+      if (!state.opts.onRowClick) return;
+      if (e.target.closest('.te-card-actions')) return;
+      const card = e.target.closest('.te-card[data-row-id]');
+      if (!card) return;
+      const id = card.getAttribute('data-row-id');
       if (id) state.opts.onRowClick(id);
     });
 
@@ -334,7 +353,57 @@ const TableEngine = (() => {
     }
 
     bindResizers(table, state.tableId);
+    renderCardList(state, configs, rows);
     if (state.opts.selectable) updateBulkDeleteUi(state);
+  }
+
+  /** 모바일 폭에서는 CSS가 .te-scroll(표)을 숨기고 이 카드 목록을 대신
+   * 보여준다. 표와 항상 동시에(같은 데이터로) 그려두고 CSS 미디어쿼리로
+   * 어느 쪽을 보일지만 전환하므로, 창 크기를 바꿔도 별도 JS 없이 바로
+   * 전환된다. 칼럼 순서 중 __no를 뺀 첫 번째 활성 칼럼을 카드 제목으로,
+   * 나머지를 "라벨: 값" 줄로 보여준다 (항목 설정에서 순서를 바꾸면
+   * 카드 제목도 그에 따라 바뀐다). */
+  function renderCardList(state, configs, rows) {
+    const cardsEl = state.rootEl.querySelector('.te-card-list');
+    if (!cardsEl) return;
+    if (!rows.length) {
+      cardsEl.innerHTML = `<div class="te-card-empty">데이터가 없습니다</div>`;
+      return;
+    }
+    const hasNo = configs.some((c) => c.key === '__no');
+    const titleConfig = configs.find((c) => c.key !== '__no') || null;
+    const bodyConfigs = configs.filter((c) => c !== titleConfig && c.key !== '__no');
+
+    cardsEl.innerHTML = rows.map((row, idx) => {
+      const rid = state.opts.rowId ? state.opts.rowId(row) : null;
+      const titleValue = titleConfig
+        ? (titleConfig.render ? titleConfig.render(row[titleConfig.key], row) : escapeHtml(row[titleConfig.key] ?? ''))
+        : '';
+      const bodyHtml = bodyConfigs.map((c) => {
+        const raw = row[c.key];
+        if (raw === undefined || raw === null || raw === '') return '';
+        const value = c.render ? c.render(raw, row) : escapeHtml(raw);
+        return `<div class="te-card-row"><span class="te-card-label">${escapeHtml(c.label)}</span><span class="te-card-value">${value}</span></div>`;
+      }).join('');
+      let checkboxHtml = '';
+      if (state.opts.selectable) {
+        const idStr = rid ? String(rid) : '';
+        const checked = idStr && state.selectedIds.has(idStr);
+        checkboxHtml = `<input type="checkbox" class="te-row-check" data-id="${escapeHtml(idStr)}" ${checked ? 'checked' : ''} ${idStr ? '' : 'disabled'}>`;
+      }
+      const noHtml = hasNo ? `<span class="te-card-no">${idx + 1}</span>` : '';
+      const actionsHtml = state.opts.rowActions ? `<div class="te-card-actions">${state.opts.rowActions(row)}</div>` : '';
+      return `
+        <div class="te-card${state.opts.onRowClick ? ' te-card-clickable' : ''}"${rid ? ` data-row-id="${escapeHtml(String(rid))}"` : ''}>
+          <div class="te-card-head">
+            ${checkboxHtml}${noHtml}
+            <span class="te-card-title">${titleValue}</span>
+          </div>
+          ${bodyHtml}
+          ${actionsHtml}
+        </div>
+      `;
+    }).join('');
   }
 
   /** "선택 삭제" 버튼의 표시 여부와 선택 개수를 갱신한다. */
