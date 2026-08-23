@@ -117,7 +117,7 @@ const LayoutShell = (() => {
 
     const menuEl = document.getElementById('ls-menu');
     menuEl.innerHTML = menuItems.map((m) => `
-      <button class="ls-menu-item" data-panel="${m.id}" title="${escapeHtml(m.label)}" draggable="true">
+      <button class="ls-menu-item" data-panel="${m.id}" title="${escapeHtml(m.label)}">
         <span class="ls-menu-label">${escapeHtml(m.label)}</span>
       </button>
     `).join('');
@@ -132,11 +132,15 @@ const LayoutShell = (() => {
   }
 
   /** 사이드바 메뉴 항목을 마우스로 드래그해서 순서를 바꿀 수 있게 한다.
-   * 바뀐 순서는 localStorage에 저장해서 다음 접속 때도 유지된다. */
+   * 바뀐 순서는 localStorage에 저장해서 다음 접속 때도 유지된다.
+   * draggable 속성 자체를 PC에서만 부여한다 — 모바일 하단바에 이 속성이
+   * 남아있으면 iOS Safari가 좌우 스와이프를 "드래그 시도"로 오해해서
+   * 정상적인 가로 스크롤을 막아버리는 문제가 있었다. */
   function bindMenuDragReorder(menuEl) {
     if (window.innerWidth <= 768) return; // 모바일 하단바는 가로 스와이프와 겹치므로 데스크톱에서만 지원
     let draggingEl = null;
     menuEl.querySelectorAll('.ls-menu-item').forEach((btn) => {
+      btn.draggable = true;
       btn.addEventListener('dragstart', () => {
         draggingEl = btn;
         btn.classList.add('dragging');

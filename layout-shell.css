@@ -165,7 +165,7 @@
   .ls-sidebar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 100;
     width: 100%; height: auto; flex-direction: row; align-items: center;
-    padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
     order: 2; /* 화면 하단에 고정 — 스크롤해도 항상 같은 자리에 보임 */
     box-shadow: 0 -2px 10px rgba(0,0,0,.12);
   }
@@ -175,12 +175,12 @@
   .ls-sidebar-resize-handle { display: none; } /* 리사이즈도 데스크톱 전용 */
   .ls-sidebar.collapsed { width: 100%; } /* 모바일에서는 접힘 상태 무시 */
   .ls-menu { flex-direction: row; overflow-x: auto; padding: 0; min-width: 0; -webkit-overflow-scrolling: touch; }
-  .ls-menu-item { flex-direction: column; gap: 2px; font-size: 10px; padding: 6px 10px; flex-shrink: 0; }
-  .ls-sidebar.collapsed .ls-menu-item { padding: 6px 10px; }
+  .ls-menu-item { flex-direction: column; gap: 2px; font-size: 10px; padding: 9px 10px; flex-shrink: 0; }
+  .ls-sidebar.collapsed .ls-menu-item { padding: 9px 10px; }
   .ls-sidebar.collapsed .ls-menu-label { display: block; }
   .ls-menu-label { white-space: nowrap; }
   .ls-logout { display: none; } /* 모바일에서는 설정 화면 안에 로그아웃을 두는 것을 권장 */
   .ls-main { order: 1; }
   /* 하단에 고정된 메뉴에 콘텐츠 마지막 줄이 가려지지 않도록 여유 공간 확보 */
-  .ls-content { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .ls-content { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
 }
