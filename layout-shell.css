@@ -142,8 +142,11 @@
 @media (max-width: 768px) {
   .ls-app { flex-direction: column; }
   .ls-sidebar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 100;
     width: 100%; height: auto; flex-direction: row; align-items: center;
-    padding: 8px 12px; order: 2; /* 화면 하단에 위치 */
+    padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
+    order: 2; /* 화면 하단에 고정 — 스크롤해도 항상 같은 자리에 보임 */
+    box-shadow: 0 -2px 10px rgba(0,0,0,.12);
   }
   .ls-logo { display: none; }
   .ls-sidebar-top { display: none; } /* 접기 토글은 데스크톱 전용 */
@@ -156,4 +159,6 @@
   .ls-menu-label { white-space: nowrap; }
   .ls-logout { display: none; } /* 모바일에서는 설정 화면 안에 로그아웃을 두는 것을 권장 */
   .ls-main { order: 1; }
+  /* 하단에 고정된 메뉴에 콘텐츠 마지막 줄이 가려지지 않도록 여유 공간 확보 */
+  .ls-content { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
 }
