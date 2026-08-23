@@ -23,19 +23,19 @@ const ProductsModule = (() => {
     panel.innerHTML = `
       <div class="card" id="pr-list-card">
         <div class="card-title" style="display:flex;align-items:center">
-          🔧 품목 목록
+          품목 목록
           <button class="ls-btn-primary" id="pr-add-btn" style="margin-left:auto;width:auto">+ 새 품목 추가</button>
         </div>
       </div>
 
       <details class="card" style="margin-top:16px">
-        <summary class="card-title" style="cursor:pointer">📄 엑셀 대량 업로드 / 관리</summary>
+        <summary class="card-title" style="cursor:pointer">엑셀 대량 업로드 / 관리</summary>
         <div class="btn-row" style="margin-top:10px">
-          <button id="pr-tmpl-btn">📄 엑셀 템플릿 다운로드</button>
-          <button id="pr-upload-btn">⬆️ 엑셀 업로드(대량 등록)</button>
-          <button id="pr-export-btn">⬇️ 엑셀 다운로드(현재 품목)</button>
-          <button id="pr-fix-btn" title="예전 엑셀 업로드로 등록됐지만 화면에 안 보이는 품목이 있으면 복구합니다">🔧 숨은 품목 복구</button>
-          <button id="pr-delete-all-btn" style="color:var(--red)" title="이 회사의 품목을 전부 삭제합니다 (되돌릴 수 없음)">🗑️ 전체 품목 일괄 삭제</button>
+          <button id="pr-tmpl-btn">엑셀 템플릿 다운로드</button>
+          <button id="pr-upload-btn">엑셀 업로드(대량 등록)</button>
+          <button id="pr-export-btn">엑셀 다운로드(현재 품목)</button>
+          <button id="pr-fix-btn" title="예전 엑셀 업로드로 등록됐지만 화면에 안 보이는 품목이 있으면 복구합니다">숨은 품목 복구</button>
+          <button id="pr-delete-all-btn" style="color:var(--red)" title="이 회사의 품목을 전부 삭제합니다 (되돌릴 수 없음)">전체 품목 일괄 삭제</button>
           <input type="file" id="pr-upload-input" accept=".xlsx,.xls,.csv" style="display:none">
         </div>
       </details>
@@ -43,7 +43,7 @@ const ProductsModule = (() => {
       <div class="side-panel-bg" id="pr-panel-bg" style="display:none">
         <div class="side-panel">
           <div class="card-title" style="display:flex;align-items:center">
-            <span id="pr-panel-title">🔧 새 품목 등록</span>
+            <span id="pr-panel-title">새 품목 등록</span>
             <button id="pr-panel-close" style="margin-left:auto">✕</button>
           </div>
           <div class="form-grid" style="grid-template-columns:1fr">
@@ -93,6 +93,8 @@ const ProductsModule = (() => {
         { key: 'memo', label: '메모' }
       ],
       searchFields: ['name', 'code', 'spec'],
+      collapsible: true,
+      collapsedHeight: 440,
       rowActions: (row) => `
         <button data-act="edit" data-id="${row.id}">수정</button>
         <button data-act="del" data-id="${row.id}">삭제</button>`
@@ -137,7 +139,7 @@ const ProductsModule = (() => {
     document.getElementById('pr-safestock').value = row?.safeStock ?? 0;
     document.getElementById('pr-memo').value = row?.memo || '';
     editingId = row ? row.id : null;
-    document.getElementById('pr-panel-title').textContent = row ? '🔧 품목 수정' : '🔧 새 품목 등록';
+    document.getElementById('pr-panel-title').textContent = row ? '품목 수정' : '새 품목 등록';
     document.getElementById('pr-save-btn').textContent = row ? '수정 저장' : '저장';
   }
 
