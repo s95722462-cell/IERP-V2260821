@@ -41,6 +41,7 @@
   box-shadow: 0 4px 20px rgba(0,0,0,.1);
 }
 .ls-login-box h1 { text-align: center; margin: 0 0 12px; font-size: 22px; }
+#ls-login-form { display: flex; flex-direction: column; gap: 10px; }
 .ls-login-box input {
   padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--bg); color: var(--text); font-size: 14px;

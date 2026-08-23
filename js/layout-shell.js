@@ -73,10 +73,12 @@ const LayoutShell = (() => {
       <div id="ls-login" class="ls-login" style="display:none">
         <div class="ls-login-box">
           <h1 id="ls-login-title">iERP</h1>
-          <input id="ls-login-id" placeholder="아이디" autocomplete="username">
-          <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
-          <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
-          <button id="ls-login-btn" class="ls-btn-primary">로그인</button>
+          <form id="ls-login-form">
+            <input id="ls-login-id" placeholder="아이디" autocomplete="username">
+            <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+            <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
+            <button id="ls-login-btn" class="ls-btn-primary" type="submit">로그인</button>
+          </form>
           <div id="ls-login-err" class="ls-err"></div>
         </div>
       </div>
@@ -108,8 +110,8 @@ const LayoutShell = (() => {
 
     const menuEl = document.getElementById('ls-menu');
     menuEl.innerHTML = menuItems.map((m) => `
-      <button class="ls-menu-item" data-panel="${m.id}">
-        <span class="ls-menu-icon">${m.icon || ''}</span><span class="ls-menu-label">${escapeHtml(m.label)}</span>
+      <button class="ls-menu-item" data-panel="${m.id}" title="${escapeHtml(m.label)}">
+        <span class="ls-menu-label">${escapeHtml(m.label)}</span>
       </button>
     `).join('');
     menuEl.querySelectorAll('.ls-menu-item').forEach((btn) => {
@@ -136,7 +138,8 @@ const LayoutShell = (() => {
     document.getElementById('ls-logout-btn').addEventListener('click', () => {
       if (onLogoutCb) onLogoutCb();
     });
-    document.getElementById('ls-login-btn').addEventListener('click', () => {
+    document.getElementById('ls-login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
       if (opts.onLoginSubmit) {
         opts.onLoginSubmit({
           username: document.getElementById('ls-login-id').value,
@@ -207,7 +210,7 @@ const LayoutShell = (() => {
   function renderThemeToggleIcon() {
     const btn = document.getElementById('ls-theme-toggle');
     if (!btn) return;
-    btn.textContent = getSavedTheme() === 'dark' ? '☀️' : '🌙';
+    btn.textContent = getSavedTheme() === 'dark' ? '라이트 모드' : '다크 모드';
   }
 
   /** 사이드바 접기 상태를 localStorage에서 읽는다. */

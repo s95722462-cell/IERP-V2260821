@@ -13,16 +13,18 @@ const SettingsModule = (() => {
     const panel = LayoutShell.registerPanel('settings');
     panel.innerHTML = `
       <div class="card">
-        <div class="card-title">👤 내 계정</div>
-        <div class="form-grid">
-          <div class="fg"><label>아이디</label><input id="st-uid" readonly style="background:var(--surface2)"></div>
-          <div class="fg"><label>새 비밀번호 (변경 시에만 입력)</label><input id="st-newpw" type="password"></div>
-        </div>
-        <button class="ls-btn-primary" id="st-pw-save" style="width:auto;margin-top:10px">비밀번호 변경</button>
+        <div class="card-title">내 계정</div>
+        <form id="st-account-form">
+          <div class="form-grid">
+            <div class="fg"><label>아이디</label><input id="st-uid" readonly style="background:var(--surface2)"></div>
+            <div class="fg"><label>새 비밀번호 (변경 시에만 입력)</label><input id="st-newpw" type="password" autocomplete="new-password"></div>
+          </div>
+          <button class="ls-btn-primary" id="st-pw-save" type="submit" style="width:auto;margin-top:10px">비밀번호 변경</button>
+        </form>
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="card-title">🏢 회사 관리 <span style="font-weight:400;font-size:12px;color:var(--text2)">(최대 5개)</span></div>
+        <div class="card-title">회사 관리 <span style="font-weight:400;font-size:12px;color:var(--text2)">(최대 5개)</span></div>
         <div id="st-company-list"></div>
         <div class="form-grid" style="margin-top:10px">
           <div class="fg"><label>새 회사명</label><input id="st-new-co-name" placeholder="(주)○○"></div>
@@ -31,12 +33,12 @@ const SettingsModule = (() => {
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="card-title">🎨 화면 설정</div>
+        <div class="card-title">화면 설정</div>
         <label class="ls-chk"><input type="checkbox" id="st-theme-toggle"> 다크 모드</label>
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="card-title">💾 데이터 내보내기</div>
+        <div class="card-title">데이터 내보내기</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:8px">현재 회사의 거래처·품목·매출·매입 데이터를 JSON 파일로 저장합니다. (백업용으로 주기적으로 받아두는 것을 권장합니다.)</div>
         <button id="st-export-btn">JSON으로 내보내기</button>
       </div>
@@ -45,7 +47,7 @@ const SettingsModule = (() => {
     const { currentUser } = getAuthState();
     if (currentUser) document.getElementById('st-uid').value = currentUser.id;
 
-    document.getElementById('st-pw-save').addEventListener('click', changePassword);
+    document.getElementById('st-account-form').addEventListener('submit', (e) => { e.preventDefault(); changePassword(); });
     document.getElementById('st-add-co').addEventListener('click', addCompany);
     document.getElementById('st-theme-toggle').addEventListener('change', toggleTheme);
     document.getElementById('st-export-btn').addEventListener('click', exportJson);
@@ -120,7 +122,7 @@ const SettingsModule = (() => {
     editingCoIdx = null;
     renderCompanyList();
     LayoutShell.renderCompanyTabs(companies, activeCoIdx);
-    alert('✅ 회사 정보가 저장되었습니다');
+    alert('회사 정보가 저장되었습니다');
   }
 
   async function changePassword() {
@@ -130,7 +132,7 @@ const SettingsModule = (() => {
     try {
       await firebase.auth().currentUser.updatePassword(pw);
       document.getElementById('st-newpw').value = '';
-      alert('✅ 비밀번호가 변경되었습니다');
+      alert('비밀번호가 변경되었습니다');
     } catch (e) {
       if (e.code === 'auth/requires-recent-login') {
         alert('보안을 위해 다시 로그인한 뒤 시도해 주세요');
