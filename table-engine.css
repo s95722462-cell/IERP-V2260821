@@ -86,7 +86,7 @@
   .te-toolbar { flex-direction: column; align-items: stretch; }
   .te-search { min-width: 0; width: 100%; }
   .te-date-range { width: 100%; }
-  .te-date { flex: 1; min-width: 0; }
-  .te-settings-btn { margin-left: 0; width: 100%; text-align: center; }
-  .te-bulk-del-btn { width: 100%; }
+  .te-date { flex: 1 1 0; min-width: 0; }
+  .te-settings-btn { margin-left: 0 !important; width: 100% !important; text-align: center; }
+  .te-bulk-del-btn { width: 100% !important; }
 }
