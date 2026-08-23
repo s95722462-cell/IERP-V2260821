@@ -45,7 +45,7 @@ const LayoutShell = (() => {
     // 여기서 바로잡는다).
     applyTheme(getSavedTheme());
 
-    menuItems = opts.menuItems;
+    menuItems = applySavedMenuOrder(opts.menuItems);
     onNavigateCb = opts.onNavigate;
     onCompanySwitchCb = opts.onCompanySwitch;
     onLogoutCb = opts.onLogout;
@@ -117,13 +117,62 @@ const LayoutShell = (() => {
 
     const menuEl = document.getElementById('ls-menu');
     menuEl.innerHTML = menuItems.map((m) => `
-      <button class="ls-menu-item" data-panel="${m.id}" title="${escapeHtml(m.label)}">
+      <button class="ls-menu-item" data-panel="${m.id}" title="${escapeHtml(m.label)}" draggable="true">
         <span class="ls-menu-label">${escapeHtml(m.label)}</span>
       </button>
     `).join('');
     menuEl.querySelectorAll('.ls-menu-item').forEach((btn) => {
-      btn.addEventListener('click', () => navigate(btn.getAttribute('data-panel')));
+      btn.addEventListener('click', () => {
+        // 드래그로 순서를 옮긴 직후에는 클릭(=화면 전환)으로 취급하지 않는다.
+        if (btn.dataset.justDragged === '1') { delete btn.dataset.justDragged; return; }
+        navigate(btn.getAttribute('data-panel'));
+      });
     });
+    bindMenuDragReorder(menuEl);
+  }
+
+  /** 사이드바 메뉴 항목을 마우스로 드래그해서 순서를 바꿀 수 있게 한다.
+   * 바뀐 순서는 localStorage에 저장해서 다음 접속 때도 유지된다. */
+  function bindMenuDragReorder(menuEl) {
+    if (window.innerWidth <= 768) return; // 모바일 하단바는 가로 스와이프와 겹치므로 데스크톱에서만 지원
+    let draggingEl = null;
+    menuEl.querySelectorAll('.ls-menu-item').forEach((btn) => {
+      btn.addEventListener('dragstart', () => {
+        draggingEl = btn;
+        btn.classList.add('dragging');
+      });
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+        btn.dataset.justDragged = '1'; // 드롭 직후 이어지는 click 이벤트를 무시하기 위한 표시
+        draggingEl = null;
+        saveMenuOrder(menuEl);
+      });
+      btn.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!draggingEl || draggingEl === btn) return;
+        const rect = btn.getBoundingClientRect();
+        const insertAfter = (e.clientY - rect.top) > rect.height / 2;
+        menuEl.insertBefore(draggingEl, insertAfter ? btn.nextSibling : btn);
+      });
+    });
+  }
+
+  /** 지금 DOM에 보이는 메뉴 순서를 읽어 localStorage에 저장한다. */
+  function saveMenuOrder(menuEl) {
+    const ids = Array.from(menuEl.querySelectorAll('.ls-menu-item')).map((b) => b.getAttribute('data-panel'));
+    localStorage.setItem('ls-menu-order', JSON.stringify(ids));
+  }
+
+  /** localStorage에 저장된 메뉴 순서를 authoritative 목록(main.js의
+   * MENU_ITEMS)에 맞춰 적용한다. 저장된 순서에 없는 새 항목(향후 메뉴
+   * 추가)은 원래 정의 순서 그대로 맨 뒤에 붙인다. */
+  function applySavedMenuOrder(items) {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem('ls-menu-order') || '[]'); } catch (e) { saved = []; }
+    const ids = items.map((m) => m.id);
+    const ordered = saved.filter((id) => ids.includes(id));
+    ids.forEach((id) => { if (!ordered.includes(id)) ordered.push(id); });
+    return ordered.map((id) => items.find((m) => m.id === id));
   }
 
   function bindStaticEvents(opts) {

@@ -82,12 +82,13 @@
   display: flex; align-items: center; gap: 8px;
   padding: 7px 10px; border: none; border-radius: var(--radius);
   background: transparent; color: color-mix(in srgb, var(--accent-fg) 80%, transparent);
-  font-size: 13px; text-align: left; cursor: pointer;
+  font-size: 13px; text-align: left; cursor: grab;
 }
 .ls-menu-item:hover { background: color-mix(in srgb, var(--accent-fg) 10%, transparent); }
 .ls-menu-item.active {
   background: var(--accent-fg); color: var(--accent); font-weight: 700;
 }
+.ls-menu-item.dragging { opacity: .4; }
 .ls-menu-icon { display: none; }
 .ls-logout {
   margin: 10px 8px 0; padding: 8px; border: 1px solid color-mix(in srgb, var(--accent-fg) 30%, transparent);
