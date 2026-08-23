@@ -92,6 +92,7 @@ const TableEngine = (() => {
     const state = {
       tableId, opts, rawData: [],
       searchText: '', dateFrom: '', dateTo: '',
+      sortKey: null, sortDir: 'asc',
       selectedIds: new Set()
     };
     instances[tableId] = state;
@@ -119,9 +120,9 @@ const TableEngine = (() => {
         <input type="date" class="te-date" data-role="date-to">`;
     }
     if (opts.selectable) {
-      toolbarHtml += `<button class="te-bulk-del-btn" data-role="bulk-delete" style="display:none">🗑️ 선택 삭제 (<span data-role="bulk-count">0</span>)</button>`;
+      toolbarHtml += `<button class="te-bulk-del-btn" data-role="bulk-delete" style="display:none">선택 삭제 (<span data-role="bulk-count">0</span>)</button>`;
     }
-    toolbarHtml += `<button class="te-settings-btn" data-role="settings">⚙️ 항목 설정</button>`;
+    toolbarHtml += `<button class="te-settings-btn" data-role="settings">항목 설정</button>`;
     toolbarHtml += '</div>';
 
     wrap.innerHTML = `
@@ -157,19 +158,34 @@ const TableEngine = (() => {
       if (id) state.opts.onRowClick(id);
     });
 
-    if (opts.selectable) {
-      // 헤더의 "전체 선택" 체크박스는 렌더링마다 새로 그려지므로, thead에
-      // 위임(delegation)으로 붙여서 매번 다시 붙일 필요가 없게 한다.
-      const theadEl = wrap.querySelector('thead');
-      theadEl.addEventListener('click', (e) => {
-        const master = e.target.closest('.te-check-all');
-        if (!master) return;
+    // 헤더 클릭 위임: "전체 선택" 체크박스(선택 가능한 표에서만)와
+    // 칼럼 헤더 클릭(정렬)을 여기서 함께 처리한다. 렌더링마다 헤더가
+    // 통째로 다시 그려지므로 위임 방식으로 한 번만 등록해둔다.
+    const theadEl = wrap.querySelector('thead');
+    theadEl.addEventListener('click', (e) => {
+      const master = e.target.closest('.te-check-all');
+      if (master) {
         const rows = state.opts.rowId ? filterData(state).map((r) => String(state.opts.rowId(r) || '')).filter(Boolean) : [];
         if (master.checked) rows.forEach((id) => state.selectedIds.add(id));
         else state.selectedIds.clear();
         renderRows(state); // 체크 상태를 각 행 체크박스에도 반영하기 위해 다시 그린다
-      });
+        return;
+      }
+      // 리사이즈 손잡이를 드래그하다 놓인 클릭은 정렬로 취급하지 않는다.
+      if (e.target.closest('.te-resizer')) return;
+      const th = e.target.closest('th.te-sortable');
+      if (!th) return;
+      const key = th.getAttribute('data-key');
+      if (state.sortKey === key) {
+        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortKey = key;
+        state.sortDir = 'asc';
+      }
+      renderRows(state);
+    });
 
+    if (opts.selectable) {
       wrap.querySelector('[data-role="bulk-delete"]').addEventListener('click', () => {
         if (!state.selectedIds.size) return;
         if (state.opts.onBulkDelete) state.opts.onBulkDelete(Array.from(state.selectedIds));
@@ -213,13 +229,34 @@ const TableEngine = (() => {
     return rows;
   }
 
+  /** 칼럼 헤더 클릭으로 지정된 정렬을 적용한다. 숫자 값은 숫자로,
+   * 그 외(날짜 문자열 YYYY-MM-DD, 거래처명, 규격 등)는 한글 로케일
+   * 기준 문자열 비교로 정렬한다. 빈 값은 항상 맨 뒤로 보낸다. */
+  function sortRows(state, rows) {
+    const { sortKey, sortDir } = state;
+    if (!sortKey) return rows;
+    const dir = sortDir === 'desc' ? -1 : 1;
+    return rows.slice().sort((a, b) => {
+      const va = a[sortKey], vb = b[sortKey];
+      const aEmpty = va === undefined || va === null || va === '';
+      const bEmpty = vb === undefined || vb === null || vb === '';
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      const na = Number(va), nb = Number(vb);
+      if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+      return String(va).localeCompare(String(vb), 'ko') * dir;
+    });
+  }
+
   function renderRows(state) {
     const table = document.getElementById(`te-table-${state.tableId}`);
     if (!table) return;
     const theadRow = table.querySelector('thead tr');
     const tbody = table.querySelector('tbody');
     const configs = getActiveConfigs(state);
-    const rows = filterData(state);
+    const rows = sortRows(state, filterData(state));
     // 검색어·기간 필터가 바뀔 때마다, 지금 화면에 실제로 보이는 행
     // 목록을 화면 모듈에도 알려준다 (일별현황의 "기간별 이익률" KPI처럼,
     // 필터링된 결과 기준으로 합계를 다시 계산해야 하는 화면에서 사용).
@@ -238,7 +275,12 @@ const TableEngine = (() => {
       const savedWidth = colWidths[state.tableId + '-' + c.key];
       const widthStyle = savedWidth ? `width:${savedWidth}px;min-width:${savedWidth}px;` : '';
       const alignStyle = c.align === 'right' ? 'text-align:right;' : '';
-      headHtml += `<th style="${widthStyle}${alignStyle}" data-key="${c.key}">${escapeHtml(c.label)}<div class="te-resizer"></div></th>`;
+      const sortable = c.key !== '__no';
+      let sortArrow = '';
+      if (sortable && state.sortKey === c.key) {
+        sortArrow = ` <span class="te-sort-arrow">${state.sortDir === 'desc' ? '▼' : '▲'}</span>`;
+      }
+      headHtml += `<th style="${widthStyle}${alignStyle}" data-key="${c.key}" class="${sortable ? 'te-sortable' : ''}">${escapeHtml(c.label)}${sortArrow}<div class="te-resizer"></div></th>`;
     });
     if (state.opts.rowActions) {
       const savedActWidth = colWidths[state.tableId + '-__actions'];

@@ -37,6 +37,9 @@
 }
 .te-table th.te-no-resize { width: 90px; }
 .te-table th.te-actions-col { width: 190px; }
+.te-table th.te-sortable { cursor: pointer; user-select: none; }
+.te-table th.te-sortable:hover { background: var(--border); }
+.te-sort-arrow { font-size: 10px; color: var(--accent); }
 .te-table td.te-actions-col {
   display: flex; flex-wrap: nowrap; gap: 4px; align-items: center;
 }
