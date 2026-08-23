@@ -92,7 +92,12 @@ button:hover { background: var(--border); }
   align-items: center;
 }
 .sl-item-row .ri-no { text-align: center; font-size: 12px; color: var(--text2); }
-.sl-items-head { font-size: 11px; color: var(--text2); font-weight: 700; padding: 0 2px 4px; }
+.sl-items-head {
+  font-size: 11px; color: var(--text2); font-weight: 700; gap: 0;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.sl-items-head > div { padding: 6px 8px; box-sizing: border-box; border-right: 1px solid var(--border); }
+.sl-items-head > div:last-child { border-right: none; }
 .sl-item-row { margin-bottom: 6px; }
 .sl-item-row input {
   width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
