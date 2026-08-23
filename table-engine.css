@@ -15,6 +15,7 @@
   line-height: 1.3; min-width: 200px; box-sizing: border-box;
 }
 .te-date { padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-family: inherit; line-height: 1.3; box-sizing: border-box; }
+.te-date-range { display: flex; align-items: center; gap: 6px; }
 .te-date-sep { color: var(--text2); }
 .te-settings-btn {
   margin-left: auto; padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius);
@@ -78,4 +79,14 @@
 .te-btn-primary {
   width: 100%; margin-top: 10px; padding: 7px 14px; border: none; border-radius: var(--radius);
   background: var(--accent); color: var(--accent-fg); font-weight: 700; cursor: pointer;
+}
+
+/* ── 모바일: 툴바를 검색 → 날짜범위 → 버튼 순으로 한 줄씩 깔끔하게 쌓음 ── */
+@media (max-width: 768px) {
+  .te-toolbar { flex-direction: column; align-items: stretch; }
+  .te-search { min-width: 0; width: 100%; }
+  .te-date-range { width: 100%; }
+  .te-date { flex: 1; min-width: 0; }
+  .te-settings-btn { margin-left: 0; width: 100%; text-align: center; }
+  .te-bulk-del-btn { width: 100%; }
 }

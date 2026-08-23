@@ -128,9 +128,11 @@ const TableEngine = (() => {
     }
     if (opts.dateFilter) {
       toolbarHtml += `
-        <input type="date" class="te-date" data-role="date-from">
-        <span class="te-date-sep">~</span>
-        <input type="date" class="te-date" data-role="date-to">`;
+        <div class="te-date-range">
+          <input type="date" class="te-date" data-role="date-from">
+          <span class="te-date-sep">~</span>
+          <input type="date" class="te-date" data-role="date-to">
+        </div>`;
     }
     if (opts.selectable) {
       toolbarHtml += `<button class="te-bulk-del-btn" data-role="bulk-delete" style="display:none">선택 삭제 (<span data-role="bulk-count">0</span>)</button>`;
