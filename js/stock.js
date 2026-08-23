@@ -45,8 +45,7 @@ const StockModule = (() => {
         { key: 'status', label: '상태', render: renderStatus }
       ],
       searchFields: ['name', 'code', 'spec'],
-      collapsible: true,
-      collapsedHeight: 440,
+      maxHeight: 440,
       rowActions: (row) => `<button data-act="recalc" data-id="${row.id}" title="과거 매입·매출을 수정한 뒤, 이 품목의 FIFO 매출원가·재고금액을 처음부터 다시 계산합니다">FIFO 재계산</button>`
     });
 

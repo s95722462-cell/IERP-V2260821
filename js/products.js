@@ -93,8 +93,7 @@ const ProductsModule = (() => {
         { key: 'memo', label: '메모' }
       ],
       searchFields: ['name', 'code', 'spec'],
-      collapsible: true,
-      collapsedHeight: 440,
+      maxHeight: 440,
       rowActions: (row) => `
         <button data-act="edit" data-id="${row.id}">수정</button>
         <button data-act="del" data-id="${row.id}">삭제</button>`
