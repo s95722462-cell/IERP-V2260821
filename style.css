@@ -80,6 +80,13 @@ button:hover { background: var(--border); }
 /* ── 알림 배너 ── */
 .alert-banner { padding: 8px 12px; background: var(--amber-bg); color: var(--amber); border-radius: var(--radius); margin-bottom: 10px; font-size: 13px; }
 
+/* ── 데이터 가져오기 진행 로그 ── */
+.di-log {
+  margin-top: 8px; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border);
+  font-size: 12px; color: var(--text2); white-space: pre-wrap; max-height: 160px; overflow-y: auto;
+  font-family: inherit; min-height: 20px;
+}
+
 /* ── 설정 화면 회사 목록 ── */
 .st-co-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .st-co-actions { display: flex; gap: 6px; }
@@ -110,6 +117,8 @@ button:hover { background: var(--border); }
   color: var(--red); cursor: pointer; font-size: 15px; padding: 6px 8px;
 }
 .sl-items-table .ri-del:hover { background: var(--red-bg); }
+.sl-item-row.sl-item-return td { background: var(--red-bg); }
+.sl-item-row.sl-item-return .ri-subtotal { color: var(--red); }
 .sl-add-row-btn { margin: 8px 0 10px; }
 .sl-doc-totals { text-align: right; font-size: 13px; color: var(--text2); }
 .sl-docno-link { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 400; padding: 0; text-decoration: underline; font-size: inherit; font-family: inherit; }
