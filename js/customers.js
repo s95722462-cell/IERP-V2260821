@@ -62,7 +62,7 @@ const CustomersModule = (() => {
     document.getElementById('cu-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'cu-panel-bg') closePanel();
     });
-    document.getElementById('cu-save-btn').addEventListener('click', async () => { await save(); closePanel(); });
+    document.getElementById('cu-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
     document.getElementById('cu-cancel-btn').addEventListener('click', closePanel);
 
     tableInstance = TableEngine.create('customers', {
@@ -135,7 +135,7 @@ const CustomersModule = (() => {
 
   async function save() {
     const name = document.getElementById('cu-name').value.trim();
-    if (!name) { alert('회사명을 입력하세요'); return; }
+    if (!name) { alert('회사명을 입력하세요'); return false; }
     const data = {
       name,
       bizno: document.getElementById('cu-bizno').value,
@@ -152,6 +152,7 @@ const CustomersModule = (() => {
     } else {
       await addDoc(path(), data);
     }
+    return true;
   }
 
   async function remove(id) {

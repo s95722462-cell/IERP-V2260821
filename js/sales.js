@@ -23,6 +23,7 @@
 
 const SalesModule = (() => {
   let cache = [];
+  let openDetailDocNo = null; // 지금 펼쳐져 있는 전표 상세의 docNo (실시간 갱신 시 다시 그리기 위함)
   let tableInstance = null;
   let editingDocNo = null;   // 수정 중인 전표번호 (null이면 신규 입력)
   let editingIds = [];       // 저장 시 지울 기존 문서 id들 (docNo 그룹 전체 또는 옛 낱개 레코드 1개)
@@ -178,6 +179,7 @@ const SalesModule = (() => {
       onData: (docs) => {
         cache = sortByDateThenDoc(docs);
         tableInstance.render(groupRows(cache));
+        if (openDetailDocNo) showDetailPanel(openDetailDocNo); // 열려있는 전표 상세도 최신 내용으로 갱신
         updateListeners.forEach((cb) => cb(cache));
       }
     });
@@ -500,6 +502,7 @@ const SalesModule = (() => {
     if (!docNo) return;
     const group = cache.filter((r) => r.docNo === docNo);
     if (!group.length) return;
+    openDetailDocNo = docNo;
     const totals = group.reduce((acc, r) => ({
       subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
     }), { subtotal: 0, vat: 0, total: 0 });
@@ -528,7 +531,7 @@ const SalesModule = (() => {
       </div>
     `;
     panel.style.display = 'block';
-    document.getElementById('sl-detail-close').addEventListener('click', () => { panel.style.display = 'none'; });
+    document.getElementById('sl-detail-close').addEventListener('click', () => { panel.style.display = 'none'; openDetailDocNo = null; });
     document.getElementById('sl-detail-print').addEventListener('click', () => InvoiceModule.generate({ docNo }));
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }

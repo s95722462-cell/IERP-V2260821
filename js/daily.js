@@ -16,6 +16,7 @@
 const DailyModule = (() => {
   let tableInstance = null;
   let subscribed = false;
+  let openDetailDocNo = null; // 지금 펼쳐져 있는 전표 상세의 docNo (실시간 갱신 시 다시 그리기 위함)
 
   function init() {
     const panel = LayoutShell.registerPanel('daily');
@@ -101,6 +102,7 @@ const DailyModule = (() => {
 
   function refresh() {
     tableInstance.render(groupRows(computeRawRows())); // render()가 내부적으로 필터를 적용하며 onFilterChange를 통해 renderKpis도 호출한다
+    if (openDetailDocNo) showDetailPanel(openDetailDocNo); // 열려있는 전표 상세도 최신 내용으로 갱신
   }
 
   /** 표에서 전표(행)를 클릭하면 표 바로 아래 카드에 상세 내역을 펼쳐 보여준다
@@ -112,6 +114,7 @@ const DailyModule = (() => {
     const source = isSale ? SalesModule.getCache() : PurchaseModule.getCache();
     const group = source.filter((r) => r.docNo === docNo);
     if (!group.length) return;
+    openDetailDocNo = docNo;
     const partyLabel = isSale ? group[0].buyer : group[0].vendor;
     const totals = group.reduce((acc, r) => ({
       subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
@@ -139,7 +142,7 @@ const DailyModule = (() => {
       </div>
     `;
     panel.style.display = 'block';
-    document.getElementById('daily-detail-close').addEventListener('click', () => { panel.style.display = 'none'; });
+    document.getElementById('daily-detail-close').addEventListener('click', () => { panel.style.display = 'none'; openDetailDocNo = null; });
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 

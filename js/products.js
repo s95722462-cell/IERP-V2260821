@@ -70,7 +70,7 @@ const ProductsModule = (() => {
     document.getElementById('pr-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pr-panel-bg') closePanel(); // 패널 바깥(어두운 배경) 클릭 시 닫기
     });
-    document.getElementById('pr-save-btn').addEventListener('click', async () => { await save(); closePanel(); });
+    document.getElementById('pr-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
     document.getElementById('pr-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('pr-tmpl-btn').addEventListener('click', downloadTemplate);
     document.getElementById('pr-export-btn').addEventListener('click', exportExcel);
@@ -149,7 +149,7 @@ const ProductsModule = (() => {
 
   async function save() {
     const name = document.getElementById('pr-name').value.trim();
-    if (!name) { alert('품목명을 입력하세요'); return; }
+    if (!name) { alert('품목명을 입력하세요'); return false; }
     const data = {
       code: document.getElementById('pr-code').value,
       name,
@@ -166,6 +166,7 @@ const ProductsModule = (() => {
     } else {
       await addDoc(path(), data);
     }
+    return true;
   }
 
   async function remove(id) {

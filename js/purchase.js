@@ -14,6 +14,7 @@
 
 const PurchaseModule = (() => {
   let cache = [];
+  let openDetailDocNo = null; // 지금 펼쳐져 있는 전표 상세의 docNo (실시간 갱신 시 다시 그리기 위함)
   let tableInstance = null;
   let editingDocNo = null;
   let editingIds = [];
@@ -150,6 +151,7 @@ const PurchaseModule = (() => {
       onData: (docs) => {
         cache = sortByDateThenDoc(docs);
         tableInstance.render(groupRows(cache));
+        if (openDetailDocNo) showDetailPanel(openDetailDocNo); // 열려있는 전표 상세도 최신 내용으로 갱신
         updateListeners.forEach((cb) => cb(cache));
       }
     });
@@ -443,6 +445,7 @@ const PurchaseModule = (() => {
     if (!docNo) return;
     const group = cache.filter((r) => r.docNo === docNo);
     if (!group.length) return;
+    openDetailDocNo = docNo;
     const totals = group.reduce((acc, r) => ({
       subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
     }), { subtotal: 0, vat: 0, total: 0 });
@@ -468,7 +471,7 @@ const PurchaseModule = (() => {
       </div>
     `;
     panel.style.display = 'block';
-    document.getElementById('pu-detail-close').addEventListener('click', () => { panel.style.display = 'none'; });
+    document.getElementById('pu-detail-close').addEventListener('click', () => { panel.style.display = 'none'; openDetailDocNo = null; });
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
