@@ -201,11 +201,12 @@ const PurchaseModule = (() => {
       <td><input class="ri-item" list="pu-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
       <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"></td>
       <td><input class="ri-qty" type="number" value="${data?.qty ?? 1}"></td>
-      <td><input class="ri-price" type="number" value="${data?.unitPrice ?? 0}"></td>
+      <td><input class="ri-price" type="text" inputmode="numeric" value="${(data?.unitPrice ?? 0).toLocaleString()}"></td>
       <td><span class="ri-subtotal">0</span></td>
       <td><button type="button" class="ri-del" title="이 줄 삭제">✕</button></td>
     `;
     container.appendChild(tr);
+    bindCommaInput(tr.querySelector('.ri-price'));
     recalcRow(tr);
     renumberRows();
   }
@@ -233,7 +234,7 @@ const PurchaseModule = (() => {
     if (product) {
       rowEl.querySelector('.ri-item').value = product.name;
       rowEl.querySelector('.ri-spec').value = product.spec || '';
-      rowEl.querySelector('.ri-price').value = product.price || 0;
+      rowEl.querySelector('.ri-price').value = (product.price || 0).toLocaleString();
     }
     recalcRow(rowEl);
   }

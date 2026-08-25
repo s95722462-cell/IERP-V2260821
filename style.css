@@ -33,6 +33,14 @@
 }
 
 * { box-sizing: border-box; }
+
+/* 숫자 입력창(수량/기준단가/초기재고/안전재고 등)의 위아래 화살표(스피너)를
+   전부 없앤다 — 그냥 숫자만 직접 입력하는 게 더 편하다는 요청에 따름 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 body {
   margin: 0; font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
   background: var(--bg); color: var(--text);

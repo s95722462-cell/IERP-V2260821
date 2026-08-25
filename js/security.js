@@ -48,6 +48,19 @@ function rawNum(value) {
 }
 
 /**
+ * 단가처럼 "숫자만 입력하는데 천 단위 콤마는 자동으로 붙어 보이면 좋은"
+ * 입력창에 붙이는 함수입니다. type="text" 입력창에 붙여서 쓰고,
+ * 실제 값을 읽을 때는 그대로 rawNum()에 넣으면 콤마는 알아서 무시됩니다.
+ * @param {HTMLInputElement} el
+ */
+function bindCommaInput(el) {
+  el.addEventListener('input', () => {
+    const digits = el.value.replace(/[^\d]/g, '');
+    el.value = digits ? Number(digits).toLocaleString() : '';
+  });
+}
+
+/**
  * 대략적인 이메일 형식 검증. 서버 측 검증(Firebase Auth 자체 검증)을
  * 대체하지 않으며, 사용자에게 즉각적인 입력 피드백을 주는 용도입니다.
  *
@@ -123,6 +136,7 @@ function applyTheme(theme) {
 // 다른 모듈에서 전역으로 사용할 수 있도록 window에 등록
 window.escapeHtml = escapeHtml;
 window.rawNum = rawNum;
+window.bindCommaInput = bindCommaInput;
 window.isValidEmail = isValidEmail;
 window.splitNameAndHint = splitNameAndHint;
 window.todayStr = todayStr;

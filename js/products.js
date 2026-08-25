@@ -51,7 +51,7 @@ const ProductsModule = (() => {
             <div class="fg"><label>품목명 *</label><input id="pr-name" placeholder="부품명/모델명"></div>
             <div class="fg"><label>규격/사양</label><input id="pr-spec"></div>
             <div class="fg"><label>제조사</label><input id="pr-maker"></div>
-            <div class="fg"><label>기준단가</label><input id="pr-price" type="number" value="0"></div>
+            <div class="fg"><label>기준단가</label><input id="pr-price" type="text" inputmode="numeric" value="0"></div>
             <div class="fg"><label>단위</label><input id="pr-unit" placeholder="EA/SET/BOX"></div>
             <div class="fg"><label>초기재고</label><input id="pr-initstock" type="number" value="0"></div>
             <div class="fg"><label>안전재고(경고기준)</label><input id="pr-safestock" type="number" value="0"></div>
@@ -66,6 +66,7 @@ const ProductsModule = (() => {
     `;
 
     document.getElementById('pr-add-btn').addEventListener('click', () => { fillForm(null); openPanel(); });
+    bindCommaInput(document.getElementById('pr-price'));
     document.getElementById('pr-panel-close').addEventListener('click', closePanel);
     document.getElementById('pr-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pr-panel-bg') closePanel(); // 패널 바깥(어두운 배경) 클릭 시 닫기
@@ -132,7 +133,7 @@ const ProductsModule = (() => {
     document.getElementById('pr-name').value = row?.name || '';
     document.getElementById('pr-spec').value = row?.spec || '';
     document.getElementById('pr-maker').value = row?.maker || '';
-    document.getElementById('pr-price').value = row?.price ?? 0;
+    document.getElementById('pr-price').value = (row?.price ?? 0).toLocaleString();
     document.getElementById('pr-unit').value = row?.unit || '';
     document.getElementById('pr-initstock').value = row?.initStock ?? 0;
     document.getElementById('pr-safestock').value = row?.safeStock ?? 0;
