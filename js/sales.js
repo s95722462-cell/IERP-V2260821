@@ -51,13 +51,16 @@ const SalesModule = (() => {
       </div>
       <div class="card" id="sl-detail-panel" style="margin-top:16px;display:none"></div>
       <details class="card" style="margin-top:16px">
-        <summary class="card-title" style="cursor:pointer">거래처·기간별 거래명세서 발행 (세금계산서 발행용 자료)</summary>
+        <summary class="card-title" style="cursor:pointer">거래처·기간별 매출 원장 (세금계산서 발행용 자료)</summary>
         <div class="form-grid" style="margin-top:10px">
           <div class="fg"><label>거래처</label><select id="sl-inv-buyer"><option value="">— 선택 —</option></select></div>
           <div class="fg"><label>시작일</label><input id="sl-inv-from" type="date"></div>
           <div class="fg"><label>종료일</label><input id="sl-inv-to" type="date"></div>
         </div>
-        <button class="ls-btn-primary" id="sl-inv-btn" style="width:auto;margin-top:8px">PDF 생성</button>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="ls-btn-primary" id="sl-inv-btn" style="width:auto">PDF 생성</button>
+          <button id="sl-inv-excel-btn" style="width:auto">📊 엑셀로 내보내기</button>
+        </div>
       </details>
 
       <div class="side-panel-bg" id="sl-panel-bg" style="display:none">
@@ -81,7 +84,7 @@ const SalesModule = (() => {
               <tr>
                 <th style="text-align:center">No.</th><th>품목명</th><th>규격</th>
                 <th style="text-align:right">수량</th><th style="text-align:right">단가</th>
-                <th style="text-align:right">공급가액</th><th></th>
+                <th style="text-align:right">공급가액</th><th style="text-align:center">반품</th><th></th>
               </tr>
             </thead>
             <tbody id="sl-items-container"></tbody>
@@ -118,6 +121,11 @@ const SalesModule = (() => {
     });
     itemsContainer.addEventListener('change', (e) => {
       if (e.target.classList.contains('ri-item')) onItemPick(e.target.closest('.sl-item-row'));
+      if (e.target.classList.contains('ri-return')) {
+        const rowEl = e.target.closest('.sl-item-row');
+        rowEl.classList.toggle('sl-item-return', e.target.checked);
+        recalcRow(rowEl);
+      }
     });
     itemsContainer.addEventListener('click', (e) => {
       const delBtn = e.target.closest('.ri-del');
@@ -126,6 +134,13 @@ const SalesModule = (() => {
 
     document.getElementById('sl-inv-btn').addEventListener('click', () => {
       InvoiceModule.generate({
+        buyerId: document.getElementById('sl-inv-buyer').value,
+        dateFrom: document.getElementById('sl-inv-from').value,
+        dateTo: document.getElementById('sl-inv-to').value
+      });
+    });
+    document.getElementById('sl-inv-excel-btn').addEventListener('click', () => {
+      InvoiceModule.exportExcel({
         buyerId: document.getElementById('sl-inv-buyer').value,
         dateFrom: document.getElementById('sl-inv-from').value,
         dateTo: document.getElementById('sl-inv-to').value
@@ -226,20 +241,16 @@ const SalesModule = (() => {
     const key = 'r' + (++rowSeq);
     const container = document.getElementById('sl-items-container');
     const tr = document.createElement('tr');
-    tr.className = 'sl-item-row';
+    tr.className = 'sl-item-row' + (data?.qty < 0 ? ' sl-item-return' : '');
     tr.setAttribute('data-rowkey', key);
     tr.innerHTML = `
       <td><span class="ri-no"></span></td>
       <td><input class="ri-item" list="sl-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
       <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"></td>
-<<<<<<< HEAD
       <td><input class="ri-qty" type="number" value="${Math.abs(data?.qty ?? 1)}"></td>
       <td><input class="ri-price" type="text" inputmode="numeric" value="${(data?.unitPrice ?? 0).toLocaleString()}"></td>
-=======
-      <td><input class="ri-qty" type="number" value="${data?.qty ?? 1}"></td>
-      <td><input class="ri-price" type="number" value="${data?.unitPrice ?? 0}"></td>
->>>>>>> parent of f0310a9 (12)
       <td><span class="ri-subtotal">0</span></td>
+      <td style="text-align:center"><input type="checkbox" class="ri-return" title="반품(매출취소) — 체크하면 수량·금액이 마이너스로 저장됩니다" ${data?.qty < 0 ? 'checked' : ''}></td>
       <td><button type="button" class="ri-del" title="이 줄 삭제">✕</button></td>
     `;
     container.appendChild(tr);
@@ -278,12 +289,14 @@ const SalesModule = (() => {
   }
 
   function rowValues(rowEl) {
-    const qty = rawNum(rowEl.querySelector('.ri-qty').value);
+    const isReturn = rowEl.querySelector('.ri-return')?.checked;
+    const rawQty = rawNum(rowEl.querySelector('.ri-qty').value);
+    const qty = isReturn ? -Math.abs(rawQty) : Math.abs(rawQty);
     const price = rawNum(rowEl.querySelector('.ri-price').value);
     const subtotal = qty * price;
     const vat = Math.round(subtotal * 0.1); // 항상 10% (통화 구분 없음 — 요구사항 확정 사항)
     const total = subtotal + vat;
-    return { qty, price, subtotal, vat, total };
+    return { qty, price, subtotal, vat, total, isReturn: !!isReturn };
   }
 
   function recalcRow(rowEl) {
@@ -379,9 +392,11 @@ const SalesModule = (() => {
 
     // 수정 중이면 기존 전표번호를 그대로 쓰고, 신규면 새로 채번한다
     // (옛 낱개 레코드를 수정하는 경우도 이번에 새 전표번호를 받아 정식 전표로 승격된다).
+    // 반품(매출취소) 줄이 하나라도 있으면 전표 전체를 G로 채번해 구분한다.
+    const isReturnDoc = itemRows.some((r) => r.isReturn);
     let docNo;
     try {
-      docNo = editingDocNo || await genDocNo(counterPath(), 'S');
+      docNo = editingDocNo || await genDocNo(counterPath(), isReturnDoc ? 'G' : 'S');
     } catch (err) {
       if (err.code === 'resource-exhausted') {
         alert('지금 저장 요청이 몰려서 전표번호를 받지 못했습니다. 자동으로 몇 차례 다시 시도했지만 실패했어요 — 잠시(1분 정도) 기다렸다가 다시 저장해주세요.');
@@ -404,6 +419,7 @@ const SalesModule = (() => {
         productId: product ? product.id : '',
         qty: r.qty, unitPrice: r.price,
         subtotal: r.subtotal, vat: r.vat, total: r.total,
+        isReturn: r.isReturn,
         invNo, memo
       };
 
@@ -411,6 +427,12 @@ const SalesModule = (() => {
       // 저장한다 (자유 입력 품목명이라 매칭 안 되면 원가 계산 생략).
       // 매입 뱃치의 남은 수량을 갱신하는 ops도 이 매출 저장과 같은
       // batch에 묶어서, 저장이 중간에 실패해도 반쪽만 반영되지 않게 한다.
+      // 주의: 반품(qty가 음수)인 경우 FifoEngine.consume은 아무 것도
+      // 소진하지 않는 그냥 통과(cost 0)로 동작한다 — 즉 반품 체크는
+      // 매출/부가세/합계 금액을 마이너스로 정확히 반영해주지만, 재고
+      // 수량·매입 뱃치를 자동으로 되돌려놓지는 않는다. 반품된 물건을
+      // 실제 재고로 다시 잡아야 하면 별도로 소량 매입을 등록하거나,
+      // 재고현황의 FIFO 재계산 기능과 함께 검토가 필요하다.
       if (product) {
         const fifo = FifoEngine.consume(product.id, r.qty);
         saleData.costOfGoods = fifo.costOfGoods;

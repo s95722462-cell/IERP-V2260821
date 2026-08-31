@@ -18,6 +18,53 @@
 
 const InvoiceModule = (() => {
   /**
+   * 지정한 거래처의, 지정한 기간 매출 내역(월 납품 내역 전체)을 모아
+   * 엑셀 파일 한 장으로 내보냅니다. "매출 원장"용 원본 데이터이며,
+   * 세부 서식(소계 줄 삽입, 강조 등)은 사용자가 엑셀에서 직접 정리하는
+   * 것을 전제로, 여기서는 누락 없이 정확한 원본 데이터만 내보냅니다.
+   * @param {{buyerId:string, dateFrom:string, dateTo:string}} params
+   */
+  function exportExcel({ buyerId, dateFrom, dateTo }) {
+    const buyer = CustomersModule.getCache().find((c) => c.id === buyerId);
+    if (!buyer) { alert('거래처를 선택하세요'); return; }
+
+    const items = SalesModule.getCache()
+      .filter((r) => r.buyerId === buyerId && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!items.length) { alert('선택한 기간에 해당 거래처의 매출 내역이 없습니다'); return; }
+
+    const totals = items.reduce((acc, it) => ({
+      subtotal: acc.subtotal + (it.subtotal || 0),
+      vat: acc.vat + (it.vat || 0),
+      total: acc.total + (it.total || 0)
+    }), { subtotal: 0, vat: 0, total: 0 });
+
+    const rows = items.map((it, idx) => ({
+      'No.': idx + 1,
+      '날짜': it.date,
+      '품목명': it.item,
+      '규격': it.spec || '',
+      '수량': it.qty || 0,
+      '단가': it.unitPrice || 0,
+      '공급가액': it.subtotal || 0,
+      '부가세': it.vat || 0,
+      '합계': it.total || 0,
+      '인보이스No.': it.invNo || '',
+      '비고': it.memo || ''
+    }));
+    // 맨 아래 합계 줄 추가 — 원장에서 바로 확인할 수 있게
+    rows.push({
+      'No.': '', '날짜': '', '품목명': `합계 (${buyer.name}, ${dateFrom || '전체'} ~ ${dateTo || '전체'})`,
+      '규격': '', '수량': '', '단가': '',
+      '공급가액': totals.subtotal, '부가세': totals.vat, '합계': totals.total,
+      '인보이스No.': '', '비고': ''
+    });
+
+    const filename = `매출원장_${buyer.name}_${dateFrom || ''}~${dateTo || ''}.xlsx`;
+    ExcelIO.download(filename, rows, ['No.', '날짜', '품목명', '규격', '수량', '단가', '공급가액', '부가세', '합계', '인보이스No.', '비고']);
+  }
+
+  /**
    * 지정한 거래처의, 지정한 기간 매출 내역을 모아 인쇄용 화면을 그리고
    * 브라우저 인쇄 다이얼로그를 띄웁니다. 사용자가 그 안에서 "PDF로 저장"을
    * 선택하면 실제 PDF 파일이 만들어집니다.
@@ -94,8 +141,10 @@ const InvoiceModule = (() => {
             <div class="inv-info-title">공급받는자</div>
             <div>${escapeHtml(buyer.name)}</div>
             <div>사업자번호: ${escapeHtml(buyer.bizno || '-')}</div>
+            <div>대표자: ${escapeHtml(buyer.ceo || '-')}</div>
             <div>주소: ${escapeHtml(buyer.addr || '-')}</div>
-            <div>연락처: ${escapeHtml(buyer.tel || '-')}</div>
+            <div>전화번호: ${escapeHtml(buyer.tel || '-')}</div>
+            <div>팩스번호: ${escapeHtml(buyer.fax || '-')}</div>
           </div>
           <div class="inv-info-box">
             <div class="inv-info-title">공급자</div>
@@ -135,6 +184,10 @@ const InvoiceModule = (() => {
           <div class="inv-total-final">합계: ${totals.total.toLocaleString()}</div>
         </div>
 
+        <div class="inv-sign-row">
+          <div>인수자: ______________________ (서명)</div>
+        </div>
+
         <div class="inv-footer">${escapeHtml(company.footer || '')}</div>
       </div>
     `;
@@ -152,7 +205,7 @@ const InvoiceModule = (() => {
     area.innerHTML = html;
   }
 
-  return { generate };
+  return { generate, exportExcel };
 })();
 
 window.InvoiceModule = InvoiceModule;
