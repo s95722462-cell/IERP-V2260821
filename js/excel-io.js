@@ -74,7 +74,36 @@ const ExcelIO = (() => {
     XLSX.writeFile(wb, filename);
   }
 
-  return { readFile, downloadTemplate, download };
+  /**
+   * 헤더 줄이 맨 위에 있지 않은 레거시 리포트 형식(예: 기존 ERP에서
+   * 뽑은 "OO명세서" 파일 - 위에 제목·조회조건 줄이 몇 줄 있고 그 아래에
+   * 실제 헤더가 나옴)을 읽을 때 쓴다. readFile()과 달리 첫 줄을 헤더로
+   * 가정하지 않고, 시트 전체를 "행의 배열"(각 행은 셀 값의 배열) 그대로
+   * 돌려준다 — 실제 헤더가 몇 번째 줄인지는 호출한 쪽이 알아서 찾는다.
+   * 날짜 칸은 문자열이 아니라 JS Date 객체로 파싱해서 돌려준다.
+   * @param {File} file
+   * @returns {Promise<Array[]>}
+   */
+  function readFileAOA(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+          const firstSheetName = wb.SheetNames[0];
+          const sheet = wb.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          resolve(rows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  return { readFile, readFileAOA, downloadTemplate, download };
 })();
 
 window.ExcelIO = ExcelIO;

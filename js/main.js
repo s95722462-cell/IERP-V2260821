@@ -27,19 +27,20 @@ const FIREBASE_CONFIG = {
 };
 
 const MENU_ITEMS = [
-  { id: 'dashboard', label: '대시보드', icon: '📊' },
-  { id: 'daily', label: '일별현황', icon: '📅' },
-  { id: 'sales', label: '매출장부', icon: '📈' },
-  { id: 'purchase', label: '매입장부', icon: '📥' },
-  { id: 'stock', label: '재고현황', icon: '📦' },
-  { id: 'customers', label: '거래처', icon: '🏢' },
-  { id: 'products', label: '품목', icon: '🔧' },
-  { id: 'settings', label: '설정', icon: '⚙️' }
+  { id: 'dashboard', label: '대시보드' },
+  { id: 'daily', label: '일별현황' },
+  { id: 'sales', label: '매출장부' },
+  { id: 'purchase', label: '매입장부' },
+  { id: 'stock', label: '재고현황' },
+  { id: 'customers', label: '거래처' },
+  { id: 'products', label: '품목' },
+  { id: 'dataimport', label: '데이터 가져오기' },
+  { id: 'settings', label: '설정' }
 ];
 
 const ALL_MODULES = [
   CustomersModule, ProductsModule, SalesModule, PurchaseModule,
-  StockModule, DailyModule, DashboardModule, SettingsModule
+  StockModule, DailyModule, DashboardModule, SettingsModule, DataImportModule
 ];
 
 function initApp() {

@@ -20,16 +20,16 @@ const DashboardModule = (() => {
     const panel = LayoutShell.registerPanel('dashboard');
     panel.innerHTML = `
       <div class="card">
-        <div class="card-title">📊 주요 비즈니스 지표</div>
+        <div class="card-title">주요 비즈니스 지표</div>
         <div class="stock-kpis" id="dash-kpis"></div>
       </div>
       <div class="dash-chart-row">
         <div class="card">
-          <div class="card-title">📈 월별 매출/매입 추이</div>
+          <div class="card-title">월별 매출/매입 추이</div>
           <div style="height:260px"><canvas id="dash-trend-chart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">🥧 거래처별 매출 비중 (TOP 5)</div>
+          <div class="card-title">거래처별 매출 비중 (TOP 5)</div>
           <div style="height:260px"><canvas id="dash-buyer-chart"></canvas></div>
         </div>
       </div>
