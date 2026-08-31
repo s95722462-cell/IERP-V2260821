@@ -64,11 +64,30 @@ const ExcelIO = (() => {
    * @param {string} filename - 확장자(.xlsx) 포함
    * @param {object[]} rows - 각 행 데이터 (키가 그대로 헤더가 됨)
    * @param {string[]} [headerOrder] - 칼럼 순서를 강제하고 싶을 때 지정
+   * @param {string[]} [numberFormatCols] - 천단위 콤마(#,##0) 서식을 적용할
+   *   칼럼명 목록 (headerOrder에 쓴 이름과 동일해야 함). 셀 값 자체는
+   *   그대로 숫자로 저장되고, 화면에 보이는 표시 방식만 바뀝니다 —
+   *   그래서 엑셀에서 계산식(합계 등)에 그대로 활용할 수 있습니다.
    */
-  function download(filename, rows, headerOrder) {
+  function download(filename, rows, headerOrder, numberFormatCols) {
     const ws = headerOrder
       ? XLSX.utils.json_to_sheet(rows, { header: headerOrder })
       : XLSX.utils.json_to_sheet(rows);
+
+    if (numberFormatCols && numberFormatCols.length) {
+      const headers = headerOrder || Object.keys(rows[0] || {});
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      numberFormatCols.forEach((colName) => {
+        const colIdx = headers.indexOf(colName);
+        if (colIdx === -1) return;
+        for (let r = range.s.r + 1; r <= range.e.r; r++) { // +1: 헤더 줄(0행)은 건너뜀
+          const cellRef = XLSX.utils.encode_cell({ r, c: colIdx });
+          const cell = ws[cellRef];
+          if (cell && cell.t === 'n') cell.z = '#,##0';
+        }
+      });
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     XLSX.writeFile(wb, filename);

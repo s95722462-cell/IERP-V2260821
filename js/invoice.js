@@ -61,7 +61,8 @@ const InvoiceModule = (() => {
     });
 
     const filename = `매출원장_${buyer.name}_${dateFrom || ''}~${dateTo || ''}.xlsx`;
-    ExcelIO.download(filename, rows, ['No.', '날짜', '품목명', '규격', '수량', '단가', '공급가액', '부가세', '합계', '인보이스No.', '비고']);
+    const headerOrder = ['No.', '날짜', '품목명', '규격', '수량', '단가', '공급가액', '부가세', '합계', '인보이스No.', '비고'];
+    ExcelIO.download(filename, rows, headerOrder, ['단가', '공급가액', '부가세', '합계']);
   }
 
   /**
