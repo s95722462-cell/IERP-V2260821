@@ -94,10 +94,8 @@ const InvoiceModule = (() => {
             <div class="inv-info-title">공급받는자</div>
             <div>${escapeHtml(buyer.name)}</div>
             <div>사업자번호: ${escapeHtml(buyer.bizno || '-')}</div>
-            <div>대표자: ${escapeHtml(buyer.ceo || '-')}</div>
             <div>주소: ${escapeHtml(buyer.addr || '-')}</div>
-            <div>전화번호: ${escapeHtml(buyer.tel || '-')}</div>
-            <div>팩스번호: ${escapeHtml(buyer.fax || '-')}</div>
+            <div>연락처: ${escapeHtml(buyer.tel || '-')}</div>
           </div>
           <div class="inv-info-box">
             <div class="inv-info-title">공급자</div>
@@ -135,10 +133,6 @@ const InvoiceModule = (() => {
           <div>공급가액: ${totals.subtotal.toLocaleString()}</div>
           <div>부가세: ${totals.vat.toLocaleString()}</div>
           <div class="inv-total-final">합계: ${totals.total.toLocaleString()}</div>
-        </div>
-
-        <div class="inv-sign-row">
-          <div>인수자: ______________________ (서명)</div>
         </div>
 
         <div class="inv-footer">${escapeHtml(company.footer || '')}</div>

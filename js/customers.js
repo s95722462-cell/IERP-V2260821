@@ -44,8 +44,7 @@ const CustomersModule = (() => {
             <div class="fg"><label>대표자</label><input id="cu-ceo"></div>
             <div class="fg"><label>업태</label><input id="cu-biztype" placeholder="제조업, 도소매 등"></div>
             <div class="fg"><label>종목</label><input id="cu-bizitem" placeholder="자동화 부품 등"></div>
-            <div class="fg"><label>전화번호</label><input id="cu-tel"></div>
-            <div class="fg"><label>팩스번호</label><input id="cu-fax"></div>
+            <div class="fg"><label>연락처</label><input id="cu-tel"></div>
             <div class="fg"><label>이메일</label><input id="cu-email"></div>
             <div class="fg"><label>주소</label><input id="cu-addr"></div>
             <div class="fg"><label>메모</label><input id="cu-memo"></div>
@@ -75,8 +74,7 @@ const CustomersModule = (() => {
         { key: 'ceo', label: '대표자' },
         { key: 'biztype', label: '업태' },
         { key: 'bizitem', label: '종목' },
-        { key: 'tel', label: '전화번호' },
-        { key: 'fax', label: '팩스번호' },
+        { key: 'tel', label: '연락처' },
         { key: 'email', label: '이메일' },
         { key: 'memo', label: '메모' }
       ],
@@ -122,7 +120,6 @@ const CustomersModule = (() => {
     document.getElementById('cu-biztype').value = row?.biztype || '';
     document.getElementById('cu-bizitem').value = row?.bizitem || '';
     document.getElementById('cu-tel').value = row?.tel || '';
-    document.getElementById('cu-fax').value = row?.fax || '';
     document.getElementById('cu-email').value = row?.email || '';
     document.getElementById('cu-addr').value = row?.addr || '';
     document.getElementById('cu-memo').value = row?.memo || '';
@@ -146,7 +143,6 @@ const CustomersModule = (() => {
       biztype: document.getElementById('cu-biztype').value,
       bizitem: document.getElementById('cu-bizitem').value,
       tel: document.getElementById('cu-tel').value,
-      fax: document.getElementById('cu-fax').value,
       email: document.getElementById('cu-email').value,
       addr: document.getElementById('cu-addr').value,
       memo: document.getElementById('cu-memo').value
