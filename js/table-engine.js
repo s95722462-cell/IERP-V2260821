@@ -99,9 +99,12 @@ const TableEngine = (() => {
       activeCols[tableId] = activeCols[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
     }
 
+    const nowYear = new Date().getFullYear();
     const state = {
       tableId, opts, rawData: [],
-      searchText: '', dateFrom: '', dateTo: '',
+      searchText: '',
+      dateFrom: opts.dateFilter ? `${nowYear}-01-01` : '',
+      dateTo: opts.dateFilter ? `${nowYear}-12-31` : '',
       sortKey: null, sortDir: 'asc',
       selectedIds: new Set()
     };
@@ -109,8 +112,9 @@ const TableEngine = (() => {
 
     buildDom(state);
     applyFixedHeight(state);
+    syncYearSelect(state);
     return {
-      render: (data) => { state.rawData = data; renderRows(state); }
+      render: (data) => { state.rawData = data; syncYearSelect(state); renderRows(state); }
     };
   }
 
@@ -139,6 +143,7 @@ const TableEngine = (() => {
     if (opts.dateFilter) {
       toolbarHtml += `
         <div class="te-date-range">
+          <select class="te-year" data-role="year"></select>
           <input type="date" class="te-date" data-role="date-from">
           <span class="te-date-sep">~</span>
           <input type="date" class="te-date" data-role="date-to">
@@ -241,12 +246,55 @@ const TableEngine = (() => {
     const searchInput = wrap.querySelector('[data-role="search"]');
     if (searchInput) searchInput.addEventListener('input', () => { state.searchText = searchInput.value.toLowerCase(); renderRows(state); });
 
+    const yearSelect = wrap.querySelector('[data-role="year"]');
     const dateFrom = wrap.querySelector('[data-role="date-from"]');
     const dateTo = wrap.querySelector('[data-role="date-to"]');
-    if (dateFrom) dateFrom.addEventListener('change', () => { state.dateFrom = dateFrom.value; renderRows(state); });
-    if (dateTo) dateTo.addEventListener('change', () => { state.dateTo = dateTo.value; renderRows(state); });
+    if (dateFrom) dateFrom.value = state.dateFrom;
+    if (dateTo) dateTo.value = state.dateTo;
+    if (dateFrom) dateFrom.addEventListener('change', () => { state.dateFrom = dateFrom.value; syncYearSelect(state); renderRows(state); });
+    if (dateTo) dateTo.addEventListener('change', () => { state.dateTo = dateTo.value; syncYearSelect(state); renderRows(state); });
+    if (yearSelect) {
+      yearSelect.addEventListener('change', () => {
+        const y = yearSelect.value;
+        if (y === '__all__') {
+          state.dateFrom = '';
+          state.dateTo = '';
+        } else if (y) {
+          state.dateFrom = `${y}-01-01`;
+          state.dateTo = `${y}-12-31`;
+        }
+        if (dateFrom) dateFrom.value = state.dateFrom;
+        if (dateTo) dateTo.value = state.dateTo;
+        renderRows(state);
+      });
+    }
 
     wrap.querySelector('[data-role="settings"]').addEventListener('click', () => openColSettings(state));
+  }
+
+  /** 실제 데이터에 존재하는 연도들로 연도 선택 드롭다운을 채우고,
+   * 지금 시작일~종료일이 "그 연도 1/1~12/31" 형태와 일치하면 그 연도를,
+   * 아니면 "직접 지정"을 선택 상태로 맞춘다. */
+  function syncYearSelect(state) {
+    if (!state.opts.dateFilter || !state.rootEl) return;
+    const yearSelect = state.rootEl.querySelector('[data-role="year"]');
+    if (!yearSelect) return;
+    const field = state.opts.dateField || 'date';
+
+    const years = Array.from(new Set(
+      state.rawData.map((r) => String(r[field] || '').slice(0, 4)).filter((y) => /^\d{4}$/.test(y))
+    )).sort((a, b) => b.localeCompare(a));
+    const nowYear = String(new Date().getFullYear());
+    if (!years.includes(nowYear)) years.unshift(nowYear);
+
+    const matchedYear = years.find((y) => state.dateFrom === `${y}-01-01` && state.dateTo === `${y}-12-31`);
+    const selected = matchedYear || (!state.dateFrom && !state.dateTo ? '__all__' : '');
+
+    yearSelect.innerHTML =
+      years.map((y) => `<option value="${y}">${y}년</option>`).join('') +
+      `<option value="__all__">전체 기간</option>` +
+      (selected === '' ? `<option value="" selected>직접 지정</option>` : '');
+    yearSelect.value = selected || '';
   }
 
   function getActiveConfigs(state) {
