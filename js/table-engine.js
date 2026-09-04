@@ -99,12 +99,18 @@ const TableEngine = (() => {
       activeCols[tableId] = activeCols[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
     }
 
-    const nowYear = new Date().getFullYear();
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const monthStart = `${y}-${m}-01`;
+    const todayStr = `${y}-${m}-${d}`;
+
     const state = {
       tableId, opts, rawData: [],
       searchText: '',
-      dateFrom: opts.dateFilter ? `${nowYear}-01-01` : '',
-      dateTo: opts.dateFilter ? `${nowYear}-12-31` : '',
+      dateFrom: opts.dateFilter ? monthStart : '',
+      dateTo: opts.dateFilter ? todayStr : '',
       sortKey: null, sortDir: 'asc',
       selectedIds: new Set()
     };
