@@ -78,6 +78,7 @@ const CustomersModule = (() => {
         { key: 'tel', label: '전화번호' },
         { key: 'fax', label: '팩스번호' },
         { key: 'email', label: '이메일' },
+        { key: 'addr', label: '주소' },
         { key: 'memo', label: '메모' }
       ],
       searchFields: ['name', 'ceo', 'bizno'],
