@@ -29,7 +29,15 @@
 
 /* 표 자체는 항상 100%로 시작하되, 리사이즈 시작하는 순간 JS가 px 고정값으로 바꾼다.
    그래서 여기서는 초기 폭만 지정하고, 개별 칼럼 폭을 강제하지 않는다. */
-.te-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.te-scroll {
+  overflow: auto; /* 가로+세로 스크롤 모두 이 영역 안에서 처리 */
+  max-height: 60vh; /* 표가 아무리 길어져도(예: 거래처 137개) 가로 스크롤바에 닿기 위해
+                        페이지 전체를 끝까지 내릴 필요가 없도록 높이를 제한 */
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.te-table thead th {
+  position: sticky; top: 0; z-index: 1; /* 세로 스크롤 중에도 칼럼 제목이 계속 보이게 */
+}
 .te-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
 .te-table th {
   position: relative; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 11px;
