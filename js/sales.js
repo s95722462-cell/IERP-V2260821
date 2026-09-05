@@ -160,13 +160,56 @@ const SalesModule = (() => {
       const dateTo = document.getElementById('sl-inv-to').value;
       const preview = document.getElementById('sl-inv-preview');
       const buyer = CustomersModule.getCache().find((c) => c.id === buyerId);
-      if (!buyer) { preview.textContent = '거래처를 먼저 선택하세요.'; return; }
-      const items = cache.filter((r) =>
-        r.buyerId === buyerId && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo)
-      );
-      if (!items.length) { preview.textContent = `${buyer.name} — 해당 기간에 매출 내역이 없습니다.`; return; }
-      const total = items.reduce((s, r) => s + (r.total || 0), 0);
-      preview.innerHTML = `<strong>${escapeHtml(buyer.name)}</strong> — ${items.length}건, 합계 ₩${total.toLocaleString()} (${escapeHtml(dateFrom || '전체')} ~ ${escapeHtml(dateTo || '전체')})`;
+      if (!buyer) { preview.innerHTML = '거래처를 먼저 선택하세요.'; return; }
+
+      const items = cache
+        .filter((r) => r.buyerId === buyerId && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo))
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      if (!items.length) { preview.innerHTML = `${escapeHtml(buyer.name)} — 해당 기간에 매출 내역이 없습니다.`; return; }
+
+      const totals = items.reduce((acc, r) => ({
+        subtotal: acc.subtotal + (r.subtotal || 0),
+        vat: acc.vat + (r.vat || 0),
+        total: acc.total + (r.total || 0)
+      }), { subtotal: 0, vat: 0, total: 0 });
+
+      preview.innerHTML = `
+        <div style="font-weight:700;margin-bottom:6px">
+          ${escapeHtml(buyer.name)} 매출 원장 — ${escapeHtml(dateFrom || '전체')} ~ ${escapeHtml(dateTo || '전체')} (${items.length}건)
+        </div>
+        <div class="te-scroll" style="max-height:none">
+          <table class="te-table">
+            <thead><tr>
+              <th>날짜</th><th>품목명</th><th>규격</th><th style="text-align:right">수량</th>
+              <th style="text-align:right">단가</th><th style="text-align:right">공급가액</th>
+              <th style="text-align:right">부가세</th><th style="text-align:right">합계</th><th>비고</th>
+            </tr></thead>
+            <tbody>
+              ${items.map((r) => `
+                <tr>
+                  <td>${escapeHtml(r.date || '')}</td>
+                  <td>${escapeHtml(r.item || '')}</td>
+                  <td>${escapeHtml(r.spec || '')}</td>
+                  <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
+                  <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
+                  <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
+                  <td style="text-align:right">${(r.vat || 0).toLocaleString()}</td>
+                  <td style="text-align:right">${(r.total || 0).toLocaleString()}</td>
+                  <td>${escapeHtml(r.memo || '')}</td>
+                </tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="font-weight:700;background:var(--surface2)">
+                <td colspan="5">합계</td>
+                <td style="text-align:right">${totals.subtotal.toLocaleString()}</td>
+                <td style="text-align:right">${totals.vat.toLocaleString()}</td>
+                <td style="text-align:right">${totals.total.toLocaleString()}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>`;
     });
 
     document.getElementById('sl-inv-btn').addEventListener('click', () => {
