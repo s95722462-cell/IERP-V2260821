@@ -24,6 +24,12 @@ const TableEngine = (() => {
   let activeCols = {};
   const instances = {}; // tableId -> instance
 
+  /** "YYYY-MM-DD" 형태의 오늘 날짜 문자열. 여러 함수에서 공통으로 사용. */
+  function getTodayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   function loadPrefs() {
     try { colWidths = JSON.parse(localStorage.getItem('te_col_widths') || '{}'); } catch (e) { colWidths = {}; }
     try { colOrder = JSON.parse(localStorage.getItem('te_col_order') || '{}'); } catch (e) { colOrder = {}; }
@@ -102,7 +108,7 @@ const TableEngine = (() => {
     // 기본 기간: 설정(SettingsModule)에 저장된 "현재 회계연도" 전체.
     // 그 연도가 올해면 미래 날짜까지 잡을 필요 없으니 오늘까지만, 지난 연도면 12/31까지.
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = getTodayStr();
     const fiscalYear = (typeof SettingsModule !== 'undefined' && SettingsModule.getFiscalYear)
       ? SettingsModule.getFiscalYear() : today.getFullYear();
     const yearStart = `${fiscalYear}-01-01`;
@@ -283,8 +289,9 @@ const TableEngine = (() => {
           state.dateFrom = '';
           state.dateTo = '';
         } else if (y) {
+          const isCurrentYear = y === String(new Date().getFullYear());
           state.dateFrom = `${y}-01-01`;
-          state.dateTo = `${y}-12-31`;
+          state.dateTo = isCurrentYear ? getTodayStr() : `${y}-12-31`;
         }
         if (dateFrom) dateFrom.value = state.dateFrom;
         if (dateTo) dateTo.value = state.dateTo;
@@ -310,7 +317,11 @@ const TableEngine = (() => {
     const nowYear = String(new Date().getFullYear());
     if (!years.includes(nowYear)) years.unshift(nowYear);
 
-    const matchedYear = years.find((y) => state.dateFrom === `${y}-01-01` && state.dateTo === `${y}-12-31`);
+    const todayStr = getTodayStr();
+    const matchedYear = years.find((y) =>
+      state.dateFrom === `${y}-01-01` &&
+      (state.dateTo === `${y}-12-31` || (y === nowYear && state.dateTo === todayStr))
+    );
     const selected = matchedYear || (!state.dateFrom && !state.dateTo ? '__all__' : '');
 
     yearSelect.innerHTML =
