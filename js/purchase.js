@@ -51,8 +51,10 @@ const PurchaseModule = (() => {
           </div>
           <div class="form-grid">
             <div class="fg"><label>날짜 *</label><input id="pu-date" type="date"></div>
-            <div class="fg"><label>공급업체 *</label>
-              <select id="pu-vendor"><option value="">— 선택 —</option></select>
+            <div class="fg"><label>공급업체 * (이름 입력해서 검색)</label>
+              <input id="pu-vendor-name" list="pu-vendor-list" placeholder="공급업체명 입력">
+              <datalist id="pu-vendor-list"></datalist>
+              <input type="hidden" id="pu-vendor">
             </div>
             <div class="fg"><label>인보이스No.</label><input id="pu-invno"></div>
             <div class="fg" style="grid-column:1/-1"><label>비고</label><input id="pu-memo"></div>
@@ -84,6 +86,7 @@ const PurchaseModule = (() => {
     addRow();
 
     document.getElementById('pu-add-btn').addEventListener('click', () => { resetForm(); openPanel(); });
+    CustomersModule.bindSearchableSelect('pu-vendor-name', 'pu-vendor', 'pu-vendor-list');
     document.getElementById('pu-panel-close').addEventListener('click', closePanel);
     document.getElementById('pu-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pu-panel-bg') closePanel();
@@ -169,14 +172,9 @@ const PurchaseModule = (() => {
     });
   }
 
-  /** 거래처 목록이 바뀔 때(CustomersModule 갱신 시) 다시 호출해 드롭다운을 최신화합니다. */
+  /** 거래처 목록이 바뀔 때(CustomersModule 갱신 시) 다시 호출해 검색 옵션을 최신화합니다. */
   function refreshVendorOptions() {
-    const sel = document.getElementById('pu-vendor');
-    const cur = sel.value;
-    const customers = CustomersModule.getCache();
-    sel.innerHTML = '<option value="">— 선택 —</option>' +
-      customers.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
-    sel.value = cur;
+    CustomersModule.refreshSearchableSelectOptions('pu-vendor-list');
   }
 
   /** 품목 목록이 바뀔 때(ProductsModule 갱신 시) 다시 호출해 자동완성을 최신화합니다. */
@@ -280,7 +278,7 @@ const PurchaseModule = (() => {
 
   function resetForm() {
     document.getElementById('pu-date').value = todayStr();
-    document.getElementById('pu-vendor').value = '';
+    CustomersModule.setSearchableSelectValue('pu-vendor-name', 'pu-vendor', '');
     document.getElementById('pu-invno').value = '';
     document.getElementById('pu-memo').value = '';
     document.getElementById('pu-items-container').innerHTML = '';
@@ -298,7 +296,7 @@ const PurchaseModule = (() => {
     const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
 
     document.getElementById('pu-date').value = row.date || '';
-    document.getElementById('pu-vendor').value = row.vendorId || '';
+    CustomersModule.setSearchableSelectValue('pu-vendor-name', 'pu-vendor', row.vendorId || '');
     document.getElementById('pu-invno').value = row.invNo || '';
     document.getElementById('pu-memo').value = row.memo || '';
 

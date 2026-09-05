@@ -171,7 +171,49 @@ const CustomersModule = (() => {
   /** 거래처 데이터가 바뀔 때마다 호출될 콜백을 등록합니다. */
   function onUpdate(cb) { updateListeners.push(cb); }
 
-  return { init, startListening, getCache, onUpdate };
+  // ── 검색되는 거래처 선택 (공통 부품) ──────────────────────────
+  // 여러 화면(매출 등록, 매출 원장, 매입 등록 등)에서 "거래처를 이름으로
+  // 검색해서 고르는" 입력칸이 똑같이 필요해서, 여기 한 번만 만들어두고
+  // 재사용합니다. <input list="datalistId"> + <datalist> 조합으로,
+  // 실제 선택된 거래처 id는 별도 hidden input에 저장합니다.
+
+  /**
+   * @param {string} nameInputId - 사용자가 이름을 입력/검색하는 input의 id
+   * @param {string} hiddenIdInputId - 실제 선택된 거래처 id를 담을 hidden input의 id
+   * @param {string} datalistId - datalist 요소의 id (nameInput의 list 속성과 일치해야 함)
+   */
+  function bindSearchableSelect(nameInputId, hiddenIdInputId, datalistId) {
+    const nameInput = document.getElementById(nameInputId);
+    const hiddenInput = document.getElementById(hiddenIdInputId);
+    if (!nameInput || !hiddenInput) return;
+    nameInput.addEventListener('input', () => {
+      const match = cache.find((c) => c.name === nameInput.value.trim());
+      hiddenInput.value = match ? match.id : '';
+    });
+  }
+
+  /** bindSearchableSelect로 만든 입력칸에, 거래처 id를 지정해 값을 채웁니다
+   * (등록 폼 초기화, 수정 모드 진입 시 사용). */
+  function setSearchableSelectValue(nameInputId, hiddenIdInputId, buyerId) {
+    const nameInput = document.getElementById(nameInputId);
+    const hiddenInput = document.getElementById(hiddenIdInputId);
+    if (!nameInput || !hiddenInput) return;
+    hiddenInput.value = buyerId || '';
+    const c = cache.find((x) => x.id === buyerId);
+    nameInput.value = c ? c.name : '';
+  }
+
+  /** 거래처 목록이 바뀔 때마다 datalist 옵션도 다시 채웁니다. */
+  function refreshSearchableSelectOptions(datalistId) {
+    const dl = document.getElementById(datalistId);
+    if (!dl) return;
+    dl.innerHTML = cache.map((c) => `<option value="${escapeHtml(c.name)}">`).join('');
+  }
+
+  return {
+    init, startListening, getCache, onUpdate,
+    bindSearchableSelect, setSearchableSelectValue, refreshSearchableSelectOptions
+  };
 })();
 
 window.CustomersModule = CustomersModule;

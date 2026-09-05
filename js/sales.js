@@ -53,14 +53,21 @@ const SalesModule = (() => {
       <details class="card" style="margin-top:16px">
         <summary class="card-title" style="cursor:pointer">거래처·기간별 매출 원장 (세금계산서 발행용 자료)</summary>
         <div class="form-grid" style="margin-top:10px">
-          <div class="fg"><label>거래처</label><select id="sl-inv-buyer"><option value="">— 선택 —</option></select></div>
+          <div class="fg"><label>거래처 (이름 입력해서 검색)</label>
+            <input id="sl-inv-buyer-name" list="sl-inv-buyer-list" placeholder="거래처명 입력">
+            <datalist id="sl-inv-buyer-list"></datalist>
+            <input type="hidden" id="sl-inv-buyer">
+          </div>
+          <div class="fg"><label>월 선택 (1일~말일 자동 채움)</label><input id="sl-inv-month" type="month"></div>
           <div class="fg"><label>시작일</label><input id="sl-inv-from" type="date"></div>
           <div class="fg"><label>종료일</label><input id="sl-inv-to" type="date"></div>
         </div>
         <div class="btn-row" style="margin-top:8px">
+          <button id="sl-inv-query-btn" style="width:auto">🔍 조회</button>
           <button class="ls-btn-primary" id="sl-inv-btn" style="width:auto">PDF 생성</button>
           <button id="sl-inv-excel-btn" style="width:auto">📊 엑셀로 내보내기</button>
         </div>
+        <div id="sl-inv-preview" style="margin-top:10px;font-size:13px;color:var(--text2)"></div>
       </details>
 
       <div class="side-panel-bg" id="sl-panel-bg" style="display:none">
@@ -72,8 +79,10 @@ const SalesModule = (() => {
           </div>
           <div class="form-grid">
             <div class="fg"><label>날짜 *</label><input id="sl-date" type="date"></div>
-            <div class="fg"><label>거래처 *</label>
-              <select id="sl-buyer"><option value="">— 선택 —</option></select>
+            <div class="fg"><label>거래처 * (이름 입력해서 검색)</label>
+              <input id="sl-buyer-name" list="sl-buyer-list" placeholder="거래처명 입력">
+              <datalist id="sl-buyer-list"></datalist>
+              <input type="hidden" id="sl-buyer">
             </div>
             <div class="fg"><label>인보이스No.</label><input id="sl-invno"></div>
             <div class="fg" style="grid-column:1/-1"><label>비고</label><input id="sl-memo"></div>
@@ -130,6 +139,34 @@ const SalesModule = (() => {
     itemsContainer.addEventListener('click', (e) => {
       const delBtn = e.target.closest('.ri-del');
       if (delBtn) removeRow(delBtn.closest('.sl-item-row'));
+    });
+
+    CustomersModule.bindSearchableSelect('sl-buyer-name', 'sl-buyer', 'sl-buyer-list');
+    CustomersModule.bindSearchableSelect('sl-inv-buyer-name', 'sl-inv-buyer', 'sl-inv-buyer-list');
+
+    document.getElementById('sl-inv-month').addEventListener('change', (e) => {
+      if (!e.target.value) return; // "YYYY-MM"
+      const [y, m] = e.target.value.split('-').map(Number);
+      const first = new Date(y, m - 1, 1);
+      const last = new Date(y, m, 0); // 다음 달 0일 = 이번 달 마지막날
+      const toStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      document.getElementById('sl-inv-from').value = toStr(first);
+      document.getElementById('sl-inv-to').value = toStr(last);
+    });
+
+    document.getElementById('sl-inv-query-btn').addEventListener('click', () => {
+      const buyerId = document.getElementById('sl-inv-buyer').value;
+      const dateFrom = document.getElementById('sl-inv-from').value;
+      const dateTo = document.getElementById('sl-inv-to').value;
+      const preview = document.getElementById('sl-inv-preview');
+      const buyer = CustomersModule.getCache().find((c) => c.id === buyerId);
+      if (!buyer) { preview.textContent = '거래처를 먼저 선택하세요.'; return; }
+      const items = cache.filter((r) =>
+        r.buyerId === buyerId && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo)
+      );
+      if (!items.length) { preview.textContent = `${buyer.name} — 해당 기간에 매출 내역이 없습니다.`; return; }
+      const total = items.reduce((s, r) => s + (r.total || 0), 0);
+      preview.innerHTML = `<strong>${escapeHtml(buyer.name)}</strong> — ${items.length}건, 합계 ₩${total.toLocaleString()} (${escapeHtml(dateFrom || '전체')} ~ ${escapeHtml(dateTo || '전체')})`;
     });
 
     document.getElementById('sl-inv-btn').addEventListener('click', () => {
@@ -215,14 +252,8 @@ const SalesModule = (() => {
 
   /** 거래처 목록이 바뀔 때(CustomersModule 갱신 시) 다시 호출해 드롭다운을 최신화합니다. */
   function refreshBuyerOptions() {
-    const options = '<option value="">— 선택 —</option>' +
-      CustomersModule.getCache().map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
-    ['sl-buyer', 'sl-inv-buyer'].forEach((id) => {
-      const sel = document.getElementById(id);
-      const cur = sel.value;
-      sel.innerHTML = options;
-      sel.value = cur;
-    });
+    CustomersModule.refreshSearchableSelectOptions('sl-buyer-list');
+    CustomersModule.refreshSearchableSelectOptions('sl-inv-buyer-list');
   }
 
   /** 품목 목록이 바뀔 때(ProductsModule 갱신 시) 다시 호출해 자동완성을 최신화합니다. */
@@ -331,7 +362,7 @@ const SalesModule = (() => {
 
   function resetForm() {
     document.getElementById('sl-date').value = todayStr();
-    document.getElementById('sl-buyer').value = '';
+    CustomersModule.setSearchableSelectValue('sl-buyer-name', 'sl-buyer', '');
     document.getElementById('sl-invno').value = '';
     document.getElementById('sl-memo').value = '';
     document.getElementById('sl-items-container').innerHTML = '';
@@ -350,7 +381,7 @@ const SalesModule = (() => {
     const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
 
     document.getElementById('sl-date').value = row.date || '';
-    document.getElementById('sl-buyer').value = row.buyerId || '';
+    CustomersModule.setSearchableSelectValue('sl-buyer-name', 'sl-buyer', row.buyerId || '');
     document.getElementById('sl-invno').value = row.invNo || '';
     document.getElementById('sl-memo').value = row.memo || '';
 
