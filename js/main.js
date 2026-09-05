@@ -29,8 +29,8 @@ const FIREBASE_CONFIG = {
 const MENU_ITEMS = [
   { id: 'dashboard', label: '대시보드' },
   { id: 'daily', label: '일별현황' },
-  { id: 'sales', label: '매출장부' },
-  { id: 'purchase', label: '매입장부' },
+  { id: 'sales', label: '매출관리' },
+  { id: 'purchase', label: '매입관리' },
   { id: 'stock', label: '재고현황' },
   { id: 'customers', label: '거래처' },
   { id: 'products', label: '품목' },
