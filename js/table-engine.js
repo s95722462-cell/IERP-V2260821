@@ -153,6 +153,7 @@ const TableEngine = (() => {
           <input type="date" class="te-date" data-role="date-from">
           <span class="te-date-sep">~</span>
           <input type="date" class="te-date" data-role="date-to">
+          <button class="te-query-btn" data-role="query">🔍 조회</button>
         </div>`;
     }
     if (opts.selectable) {
@@ -255,10 +256,24 @@ const TableEngine = (() => {
     const yearSelect = wrap.querySelector('[data-role="year"]');
     const dateFrom = wrap.querySelector('[data-role="date-from"]');
     const dateTo = wrap.querySelector('[data-role="date-to"]');
+    const queryBtn = wrap.querySelector('[data-role="query"]');
     if (dateFrom) dateFrom.value = state.dateFrom;
     if (dateTo) dateTo.value = state.dateTo;
-    if (dateFrom) dateFrom.addEventListener('change', () => { state.dateFrom = dateFrom.value; syncYearSelect(state); renderRows(state); });
-    if (dateTo) dateTo.addEventListener('change', () => { state.dateTo = dateTo.value; syncYearSelect(state); renderRows(state); });
+    // 날짜 입력은 바꾸는 즉시 반영하지 않고, "조회" 버튼을 눌러야 적용된다
+    // (시작일/종료일을 둘 다 고른 뒤 한 번에 조회하는 게 자연스럽고,
+    // 매번 다시 그려지지 않아 더 가볍다)
+    if (queryBtn) {
+      queryBtn.addEventListener('click', () => {
+        state.dateFrom = dateFrom ? dateFrom.value : '';
+        state.dateTo = dateTo ? dateTo.value : '';
+        syncYearSelect(state);
+        renderRows(state);
+      });
+    }
+    // Enter 키로도 조회되게 (날짜칸에서 바로 엔터 치는 사용자 습관 지원)
+    [dateFrom, dateTo].forEach((el) => {
+      if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') queryBtn?.click(); });
+    });
     if (yearSelect) {
       yearSelect.addEventListener('change', () => {
         const y = yearSelect.value;
@@ -271,7 +286,7 @@ const TableEngine = (() => {
         }
         if (dateFrom) dateFrom.value = state.dateFrom;
         if (dateTo) dateTo.value = state.dateTo;
-        renderRows(state);
+        renderRows(state); // 연도 선택은 한 번의 완결된 동작이라 바로 적용
       });
     }
 
