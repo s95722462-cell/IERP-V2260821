@@ -33,6 +33,14 @@ const SettingsModule = (() => {
       </div>
 
       <div class="card" style="margin-top:16px">
+        <div class="card-title">회계연도</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">일별현황·매출관리·매입관리 화면을 처음 열었을 때 기본으로 보여줄 연도입니다. 연도가 바뀌면 여기서 새해로 바꿔주세요.</div>
+        <div class="form-grid">
+          <div class="fg"><label>현재 회계연도</label><select id="st-fiscal-year"></select></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
         <div class="card-title">화면 설정</div>
         <label class="ls-chk"><input type="checkbox" id="st-theme-toggle"> 다크 모드</label>
       </div>
@@ -51,13 +59,41 @@ const SettingsModule = (() => {
     document.getElementById('st-add-co').addEventListener('click', addCompany);
     document.getElementById('st-theme-toggle').addEventListener('change', toggleTheme);
     document.getElementById('st-export-btn').addEventListener('click', exportJson);
+    document.getElementById('st-fiscal-year').addEventListener('change', saveFiscalYear);
 
     document.getElementById('st-theme-toggle').checked = getSavedTheme() === 'dark';
 
+    renderFiscalYearSelect();
     renderCompanyList();
   }
 
+  /** 최근 15년 ~ 내년까지를 선택지로 두고, 회사에 저장된 값(없으면 올해)을 선택 상태로 맞춘다. */
+  function renderFiscalYearSelect() {
+    const sel = document.getElementById('st-fiscal-year');
+    if (!sel) return;
+    const nowYear = new Date().getFullYear();
+    const years = [];
+    for (let y = nowYear + 1; y >= nowYear - 15; y--) years.push(y);
+    sel.innerHTML = years.map((y) => `<option value="${y}">${y}년</option>`).join('');
+    sel.value = getFiscalYear();
+  }
+
+  async function saveFiscalYear() {
+    const year = document.getElementById('st-fiscal-year').value;
+    companies[activeCoIdx].fiscalYear = year;
+    await saveUserMeta();
+    alert(`✅ 회계연도가 ${year}년으로 설정되었습니다. 화면을 새로고침하면 반영됩니다.`);
+  }
+
+  /** 지금 회사에 설정된 회계연도를 반환합니다 (없으면 올해). 다른 화면(table-engine.js)이
+   * 기간검색 기본값을 정할 때 이 함수를 사용합니다. */
+  function getFiscalYear() {
+    const y = companies[activeCoIdx]?.fiscalYear;
+    return y ? Number(y) : new Date().getFullYear();
+  }
+
   function renderCompanyList() {
+    renderFiscalYearSelect(); // 회사가 바뀌면(전환/추가/삭제) 그 회사의 회계연도도 같이 최신화
     const listEl = document.getElementById('st-company-list');
     listEl.innerHTML = companies.map((c, i) => `
       <div class="st-co-row">
@@ -214,7 +250,7 @@ const SettingsModule = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { init, renderCompanyList };
+  return { init, renderCompanyList, getFiscalYear };
 })();
 
 window.SettingsModule = SettingsModule;

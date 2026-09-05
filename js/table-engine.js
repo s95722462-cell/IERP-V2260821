@@ -14,7 +14,7 @@
 //      구조적으로 재발할 수 없게 만들어졌다.)
 //   2. 화면에 보이는 모든 값은 escapeHtml을 거친다 (커스텀 렌더러를
 //      쓰지 않는 한 기본 렌더러가 자동으로 처리한다).
-//   3. 기간 검색은 모든 표(일별현황/매출장부/매입장부 등)가 이 모듈
+//   3. 기간 검색은 모든 표(일별현황/매출관리/매입관리 등)가 이 모듈
 //      하나를 공유해서 쓴다 — 표마다 따로 만들지 않는다.
 // ══════════════════════════════════════════════════════════════
 
@@ -99,18 +99,20 @@ const TableEngine = (() => {
       activeCols[tableId] = activeCols[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
     }
 
+    // 기본 기간: 설정(SettingsModule)에 저장된 "현재 회계연도" 전체.
+    // 그 연도가 올해면 미래 날짜까지 잡을 필요 없으니 오늘까지만, 지난 연도면 12/31까지.
     const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    const monthStart = `${y}-${m}-01`;
-    const todayStr = `${y}-${m}-${d}`;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const fiscalYear = (typeof SettingsModule !== 'undefined' && SettingsModule.getFiscalYear)
+      ? SettingsModule.getFiscalYear() : today.getFullYear();
+    const yearStart = `${fiscalYear}-01-01`;
+    const yearEnd = fiscalYear >= today.getFullYear() ? todayStr : `${fiscalYear}-12-31`;
 
     const state = {
       tableId, opts, rawData: [],
       searchText: '',
-      dateFrom: opts.dateFilter ? monthStart : '',
-      dateTo: opts.dateFilter ? todayStr : '',
+      dateFrom: opts.dateFilter ? yearStart : '',
+      dateTo: opts.dateFilter ? yearEnd : '',
       sortKey: null, sortDir: 'asc',
       selectedIds: new Set()
     };
