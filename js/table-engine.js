@@ -105,20 +105,31 @@ const TableEngine = (() => {
       activeCols[tableId] = activeCols[tableId].filter((k) => allKeys.includes(k)).concat(newKeys);
     }
 
-    // 기본 기간: 설정(SettingsModule)에 저장된 "현재 회계연도" 전체.
-    // 그 연도가 올해면 미래 날짜까지 잡을 필요 없으니 오늘까지만, 지난 연도면 12/31까지.
+    // 기본 기간: opts.defaultRange로 표마다 다르게 지정할 수 있다.
+    //   'month'(기본값) — 이번 달 1일~오늘 (매출관리/매입관리처럼 실무 등록·확인용 화면)
+    //   'fiscalYear'    — 설정에 저장된 회계연도 전체, 올해면 오늘까지 (일별현황처럼 흐름을 보는 화면)
     const today = new Date();
     const todayStr = getTodayStr();
-    const fiscalYear = (typeof SettingsModule !== 'undefined' && SettingsModule.getFiscalYear)
-      ? SettingsModule.getFiscalYear() : today.getFullYear();
-    const yearStart = `${fiscalYear}-01-01`;
-    const yearEnd = fiscalYear >= today.getFullYear() ? todayStr : `${fiscalYear}-12-31`;
+    let defaultFrom = '';
+    let defaultTo = '';
+    if (opts.dateFilter) {
+      if (opts.defaultRange === 'fiscalYear') {
+        const fiscalYear = (typeof SettingsModule !== 'undefined' && SettingsModule.getFiscalYear)
+          ? SettingsModule.getFiscalYear() : today.getFullYear();
+        defaultFrom = `${fiscalYear}-01-01`;
+        defaultTo = fiscalYear >= today.getFullYear() ? todayStr : `${fiscalYear}-12-31`;
+      } else {
+        const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+        defaultFrom = monthStart;
+        defaultTo = todayStr;
+      }
+    }
 
     const state = {
       tableId, opts, rawData: [],
       searchText: '',
-      dateFrom: opts.dateFilter ? yearStart : '',
-      dateTo: opts.dateFilter ? yearEnd : '',
+      dateFrom: defaultFrom,
+      dateTo: defaultTo,
       sortKey: null, sortDir: 'asc',
       selectedIds: new Set()
     };
