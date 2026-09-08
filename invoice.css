@@ -57,7 +57,9 @@
 
 .inv-info-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .inv-info-box { flex: 1; border: 1px solid #333; padding: 8px 10px; }
-.inv-info-title { font-weight: 700; margin-bottom: 4px; }
+.inv-info-title { font-weight: 700; margin-bottom: 6px; }
+.inv-info-line { display: flex; gap: 12px; padding: 2px 0; }
+.inv-info-half { flex: 1; }
 
 .inv-meta-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; }
 
@@ -68,5 +70,7 @@
 
 .inv-totals { text-align: right; font-size: 12px; }
 .inv-total-final { font-weight: 700; font-size: 15px; margin-top: 4px; }
+
+.inv-sign-row { margin-top: 16px; text-align: right; font-size: 11px; }
 
 .inv-footer { margin-top: 20px; font-size: 9px; color: #555; }

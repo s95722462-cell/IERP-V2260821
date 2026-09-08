@@ -127,6 +127,19 @@ const InvoiceModule = (() => {
     window.print();
   }
 
+  /** 공급받는자/공급자 정보 박스 하나를 만듭니다. 짧은 항목(상호·대표자, 전화·팩스)은
+   * 한 줄에 나란히, 긴 항목(사업자번호·주소)은 한 줄 전체를 씁니다. */
+  function renderInfoBox(title, party) {
+    return `
+      <div class="inv-info-box">
+        <div class="inv-info-title">${escapeHtml(title)}</div>
+        <div class="inv-info-line"><span class="inv-info-half"><b>상호:</b> ${escapeHtml(party.company || party.name || '-')}</span><span class="inv-info-half"><b>대표자:</b> ${escapeHtml(party.ceo || '-')}</span></div>
+        <div class="inv-info-line"><b>사업자번호:</b> ${escapeHtml(party.bizno || '-')}</div>
+        <div class="inv-info-line"><b>주소:</b> ${escapeHtml(party.addr || '-')}</div>
+        <div class="inv-info-line"><span class="inv-info-half"><b>전화번호:</b> ${escapeHtml(party.tel || '-')}</span><span class="inv-info-half"><b>팩스번호:</b> ${escapeHtml(party.fax || '-')}</span></div>
+      </div>`;
+  }
+
   function buildBodyHtml(company, buyer, items, totals, docNo) {
     return `
       <div class="inv-doc">
@@ -138,23 +151,8 @@ const InvoiceModule = (() => {
         </div>
 
         <div class="inv-info-row">
-          <div class="inv-info-box">
-            <div class="inv-info-title">공급받는자</div>
-            <div>${escapeHtml(buyer.name)}</div>
-            <div>사업자번호: ${escapeHtml(buyer.bizno || '-')}</div>
-            <div>대표자: ${escapeHtml(buyer.ceo || '-')}</div>
-            <div>주소: ${escapeHtml(buyer.addr || '-')}</div>
-            <div>전화번호: ${escapeHtml(buyer.tel || '-')}</div>
-            <div>팩스번호: ${escapeHtml(buyer.fax || '-')}</div>
-          </div>
-          <div class="inv-info-box">
-            <div class="inv-info-title">공급자</div>
-            <div>${escapeHtml(company.company || '-')}</div>
-            <div>사업자번호: ${escapeHtml(company.bizno || '-')}</div>
-            <div>대표자: ${escapeHtml(company.ceo || '-')}</div>
-            <div>주소: ${escapeHtml(company.addr || '-')}</div>
-            <div>연락처: ${escapeHtml(company.tel || '-')}</div>
-          </div>
+          ${renderInfoBox('공급받는자', { company: buyer.name, ...buyer })}
+          ${renderInfoBox('공급자', company)}
         </div>
 
         <table class="inv-table">
