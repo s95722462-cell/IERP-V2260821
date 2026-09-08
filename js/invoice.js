@@ -133,8 +133,8 @@ const InvoiceModule = (() => {
     return `
       <div class="inv-info-box">
         <div class="inv-info-title">${escapeHtml(title)}</div>
-        <div class="inv-info-line-pair"><span class="inv-info-half"><b>상호:</b> ${escapeHtml(party.company || party.name || '-')}</span><span class="inv-info-half"><b>대표자:</b> ${escapeHtml(party.ceo || '-')}</span></div>
         <div class="inv-info-line"><b>사업자번호:</b> ${escapeHtml(party.bizno || '-')}</div>
+        <div class="inv-info-line-pair"><span class="inv-info-half"><b>상호:</b> ${escapeHtml(party.company || party.name || '-')}</span><span class="inv-info-half"><b>대표자:</b> ${escapeHtml(party.ceo || '-')}</span></div>
         <div class="inv-info-line-pair"><span class="inv-info-half"><b>전화번호:</b> ${escapeHtml(party.tel || '-')}</span><span class="inv-info-half"><b>팩스번호:</b> ${escapeHtml(party.fax || '-')}</span></div>
         <div class="inv-addr-line"><span class="inv-addr-label"><b>주소:</b></span><span class="inv-addr-value">${escapeHtml(party.addr || '-')}</span></div>
       </div>`;
