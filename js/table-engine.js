@@ -106,8 +106,8 @@ const TableEngine = (() => {
     }
 
     // 기본 기간: opts.defaultRange로 표마다 다르게 지정할 수 있다.
-    //   'month'(기본값) — 이번 달 1일~오늘 (매출관리/매입관리처럼 실무 등록·확인용 화면)
-    //   'fiscalYear'    — 설정에 저장된 회계연도 전체, 올해면 오늘까지 (일별현황처럼 흐름을 보는 화면)
+    //   'month'(기본값) — 이번 달 1일~오늘 (일별현황·매출관리·매입관리 모두 이 값을 씀)
+    //   'fiscalYear'    — 설정에 저장된 회계연도 전체, 올해면 오늘까지
     const today = new Date();
     const todayStr = getTodayStr();
     let defaultFrom = '';

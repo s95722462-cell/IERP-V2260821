@@ -48,7 +48,6 @@ const DailyModule = (() => {
       ],
       dateFilter: true,
       dateField: 'date',
-      defaultRange: 'fiscalYear',
       searchFields: ['party', 'item', 'docNo'],
       rowId: (row) => row.docNo || '',
       onRowClick: (docNo) => showDetailPanel(docNo),
