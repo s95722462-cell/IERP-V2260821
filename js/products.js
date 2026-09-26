@@ -88,7 +88,7 @@ const ProductsModule = (() => {
         { key: 'name', label: '품목명' },
         { key: 'spec', label: '규격' },
         { key: 'maker', label: '제조사' },
-        { key: 'price', label: '기준단가', align: 'right', render: (v) => '₩' + (v || 0).toLocaleString() },
+        { key: 'price', label: '기준단가', align: 'right', render: (v) => '₩' + fmtNum(v) },
         { key: 'unit', label: '단위' },
         { key: 'safeStock', label: '안전재고', align: 'right' },
         { key: 'memo', label: '메모' }

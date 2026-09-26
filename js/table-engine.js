@@ -385,7 +385,7 @@ const TableEngine = (() => {
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
       const na = Number(va), nb = Number(vb);
       if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
-      return String(va).localeCompare(String(vb), 'ko') * dir;
+      return String(va).localeCompare(String(vb), 'ko', { numeric: true }) * dir; // 전표No. '…-100'이 '…-99' 뒤로 가도록
     });
   }
 

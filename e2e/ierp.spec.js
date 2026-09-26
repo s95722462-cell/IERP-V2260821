@@ -27,7 +27,13 @@ test.beforeEach(async ({ page }) => {
       const rel = decodeURIComponent(new URL(url).pathname.slice(1)) || 'index.html';
       const file = path.join(APP_DIR, rel);
       if (!fs.existsSync(file)) return route.fulfill({ status: 404, body: '' });
-      return route.fulfill({ contentType: MIME[path.extname(file)] || 'application/octet-stream', body: fs.readFileSync(file) });
+      let body = fs.readFileSync(file);
+      // Firebase SDK는 mock으로 바꿔치기하므로 그 스크립트의 SRI 속성만 뗀다
+      // (xlsx·Chart.js는 실제 CDN 파일을 받아 SRI 검증을 그대로 거친다).
+      if (rel === 'index.html') {
+        body = body.toString('utf8').replace(/(firebasejs\/[^"]+")\s+integrity="[^"]+"\s+crossorigin="anonymous"/g, '$1');
+      }
+      return route.fulfill({ contentType: MIME[path.extname(file)] || 'application/octet-stream', body });
     }
     return route.continue(); // CDN libs (xlsx, chart.js)
   });
@@ -411,4 +417,166 @@ test('[회귀] 로그아웃하면 이전 계정 데이터가 화면·캐시에�
   await page.click('#ls-login-btn');
   await expect(page.locator('#ls-company-tabs')).toHaveText('다른회사');
   expect(await page.evaluate(() => document.getElementById('ls-content').innerHTML)).not.toContain('비밀거래처');
+});
+
+// ───────────── 2차 개선 회귀 테스트 ─────────────
+
+test('반품은 가장 최근 출고분 원가로 재고에 복귀하고, 반품 삭제 시 다시 빠진다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '공급사A');
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  await addPurchase(page, { vendor: '공급사A', date: today(), item: '센서 (S-100)', qty: 5, price: 1200 });
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 12, price: 2000 });
+  expect((await dump(page, 'purchases'))[0].remainingQty).toBe(3);
+
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 2, price: 2000, isReturn: true });
+  const ret = (await dump(page, 'sales')).find((s) => s.qty < 0);
+  expect(ret.docNo).toMatch(/^G/);
+  expect(ret.costOfGoods).toBe(-2400);
+  expect((await dump(page, 'purchases'))[0].remainingQty).toBe(5);
+  await nav(page, 'stock');
+  await expect(page.locator('#stock-kpis')).toContainText('₩6,000');
+
+  await nav(page, 'sales');
+  await page.locator('#sl-list-card tbody tr', { hasText: '-4,400' }).locator('button[data-act="del"]').click();
+  await expect.poll(async () => (await dump(page, 'purchases'))[0].remainingQty).toBe(3);
+  await nav(page, 'stock');
+  await expect(page.locator('#stock-kpis')).toContainText('₩3,600');
+});
+
+test('매입 단가를 수정하면 그 매입을 쓴 매출원가·재고금액이 자동 재계산된다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '공급사A');
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 0, init: 0 });
+  await addPurchase(page, { vendor: '공급사A', date: today(), item: '센서 (S-100)', qty: 5, price: 1000 });
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 3, price: 2000 });
+  expect((await dump(page, 'sales'))[0].costOfGoods).toBe(3000);
+
+  await nav(page, 'purchase');
+  await page.locator('#pu-list-card button[data-act="edit"]').first().click();
+  await page.locator('#pu-items-container .ri-price').first().fill('1500');
+  await page.click('#pu-save-btn');
+  await expect(page.locator('#pu-panel-bg')).toBeHidden();
+  await expect.poll(async () => (await dump(page, 'sales'))[0].costOfGoods).toBe(4500);
+  const pur = await dump(page, 'purchases');
+  expect(pur).toHaveLength(1);
+  expect(pur[0].remainingQty).toBe(2);
+  await nav(page, 'stock');
+  await expect(page.locator('#stock-kpis')).toContainText('₩3,000');
+});
+
+test('이미 출고된 매입을 삭제하면 경고 후 매출원가가 추정치로 재계산된다', async ({ page }) => {
+  const dialogs = await boot(page);
+  await addCustomer(page, '공급사A');
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 0, init: 0 });
+  await addPurchase(page, { vendor: '공급사A', date: today(), item: '센서 (S-100)', qty: 5, price: 1000 });
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 3, price: 2000 });
+  await nav(page, 'purchase');
+  await page.locator('#pu-list-card button[data-act="del"]').first().click();
+  await expect.poll(() => dialogs.some((d) => d.includes('3개가 이미 매출로 출고'))).toBe(true);
+  await expect.poll(async () => (await dump(page, 'sales'))[0].costEstimated).toBe(true);
+  expect(await dump(page, 'purchases')).toEqual([]);
+});
+
+test('FIFO 재계산은 값이 달라진 문서만 저장한다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  for (let i = 0; i < 3; i++) await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 1, price: 2000 });
+  await expect.poll(async () => (await dump(page, 'sales')).length).toBe(3);
+  const before = await page.evaluate(() => window.__mockFb.writes);
+  const res = await page.evaluate(() => FifoEngine.recalcProduct(ProductsModule.getCache()[0].id, { silent: true }));
+  expect(res).toEqual({ sales: 3, changedSales: 0, changedLots: 0 });
+  expect(await page.evaluate(() => window.__mockFb.writes)).toBe(before);
+});
+
+test('전표번호 100번 이상도 99번 뒤에 정렬된다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await expect.poll(() => page.evaluate(() => CustomersModule.getCache().length)).toBe(1);
+  const p = await coPath(page, 'sales');
+  await page.evaluate(async ([p, date]) => {
+    const b = CustomersModule.getCache()[0];
+    for (const n of ['100', '99', '101']) {
+      await setDoc(p, 'd' + n, { docNo: `S20260926-${n}`, date, buyerId: b.id, buyer: b.name, item: 'x', qty: 1, unitPrice: 1, subtotal: 1, vat: 0, total: 1 });
+    }
+  }, [p, today()]);
+  await nav(page, 'sales');
+  await expect(page.locator('#sl-list-card tbody tr')).toHaveCount(3);
+  const order = await page.locator('#sl-list-card tbody .sl-docno-link').allTextContents();
+  expect(order).toEqual(['S20260926-99', 'S20260926-100', 'S20260926-101']);
+});
+
+test('대시보드는 회계연도 매출·매입과 매출총이익을 보여준다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 2, price: 3000 });
+  const lastYear = `${new Date().getFullYear() - 1}-06-01`;
+  await addSale(page, { buyer: '고객B', date: lastYear, item: '센서 (S-100)', qty: 1, price: 50000 });
+  await nav(page, 'dashboard');
+  const kpis = page.locator('#dash-kpis');
+  await expect(kpis).toContainText('₩6,600');      // 올해 매출합계만 (6000 + VAT)
+  await expect(kpis).not.toContainText('₩61,600');
+  await expect(kpis).toContainText('매출총이익');
+  await expect(kpis).toContainText('₩4,000');      // 6000 - 2x1000
+  await expect(page.locator('#dash-fy-label')).toContainText(`${new Date().getFullYear()} 회계연도`);
+});
+
+test('숫자 칸에 문자열/HTML이 들어와도 실행되지 않고 이스케이프된다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await expect.poll(() => page.evaluate(() => CustomersModule.getCache().length)).toBe(1);
+  const p = await coPath(page, 'sales');
+  await page.evaluate(async ([p, date]) => {
+    const b = CustomersModule.getCache()[0];
+    const evil = '<img src=x onerror="window.__xss2=1">';
+    await setDoc(p, 'evil', { docNo: 'S20260926-01', date, buyerId: b.id, buyer: b.name, item: 'x', qty: 1, unitPrice: evil, subtotal: evil, vat: 0, total: 1 });
+  }, [p, today()]);
+  await nav(page, 'sales');
+  await expect(page.locator('#sl-list-card tbody')).toContainText('<img src=x');
+  await page.locator('#sl-list-card tbody tr').first().click(); // 전표 상세도 렌더
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__xss2)).toBeUndefined();
+});
+
+test('인터넷이 끊겨 캐시만 보이면 "오프라인", 다시 연결되면 "실시간 동기화 중"', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await page.evaluate(() => window.__mockFb.setOffline(true));
+  await expect(page.locator('#ls-sync-label')).toHaveText('오프라인');
+  await expect(page.locator('#cu-list-card tbody')).toContainText('고객B'); // 메타데이터 변화로 목록이 사라지지 않음
+  await page.evaluate(() => window.__mockFb.setOffline(false));
+  await expect(page.locator('#ls-sync-label')).toHaveText('실시간 동기화 중');
+});
+
+test('회사를 삭제하면 전표번호 기록(counters)도 함께 지워진다', async ({ page }) => {
+  await boot(page);
+  await nav(page, 'settings');
+  await page.fill('#st-new-co-name', '지울회사');
+  await page.click('#st-add-co');
+  await page.click('#st-company-list button[data-act="switch"]');
+  await expect(page.locator('#ls-company-tabs')).toHaveText('지울회사');
+  await addCustomer(page, '고객B');
+  await addSale(page, { buyer: '고객B', date: today(), item: '자유품목', qty: 1, price: 100 });
+  const counters = await coPath(page, 'counters');
+  expect((await page.evaluate((p) => window.__mockFb.dump(p), counters)).length).toBe(1);
+  await nav(page, 'settings');
+  await page.locator('.st-co-row', { hasText: '지울회사' }).locator('button[data-act="delete"]').click();
+  await expect(page.locator('#ls-company-tabs')).toHaveText('테스트상사');
+  await expect.poll(() => page.evaluate((p) => window.__mockFb.dump(p).length, counters)).toBe(0);
+});
+
+test('index.html의 CDN SRI 해시가 실제 CDN 파일과 일치한다', async () => {
+  const crypto = require('crypto');
+  const html = fs.readFileSync(path.join(APP_DIR, 'index.html'), 'utf8');
+  const tags = [...html.matchAll(/<script src="(https:[^"]+)" integrity="(sha384-[^"]+)"/g)];
+  expect(tags.length).toBe(5);
+  for (const [, url, integrity] of tags) {
+    const buf = Buffer.from(await (await fetch(url)).arrayBuffer());
+    expect(`sha384-${crypto.createHash('sha384').update(buf).digest('base64')}`, url).toBe(integrity);
+  }
 });

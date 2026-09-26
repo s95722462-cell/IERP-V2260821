@@ -34,9 +34,9 @@ const InvoiceModule = (() => {
     if (!items.length) { alert('선택한 기간에 해당 거래처의 매출 내역이 없습니다'); return; }
 
     const totals = items.reduce((acc, it) => ({
-      subtotal: acc.subtotal + (it.subtotal || 0),
-      vat: acc.vat + (it.vat || 0),
-      total: acc.total + (it.total || 0)
+      subtotal: acc.subtotal + rawNum(it.subtotal),
+      vat: acc.vat + rawNum(it.vat),
+      total: acc.total + rawNum(it.total)
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const rows = items.map((it, idx) => ({
@@ -91,9 +91,9 @@ const InvoiceModule = (() => {
     const company = companies[activeCoIdx];
     const totals = items.reduce((acc, it) => ({
       // 금액 필드가 빠진 옛 데이터가 섞여 있어도 합계가 NaN이 되지 않도록 0으로 본다
-      subtotal: acc.subtotal + (it.subtotal || 0),
-      vat: acc.vat + (it.vat || 0),
-      total: acc.total + (it.total || 0)
+      subtotal: acc.subtotal + rawNum(it.subtotal),
+      vat: acc.vat + rawNum(it.vat),
+      total: acc.total + rawNum(it.total)
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const bodyHtml = buildBodyHtml(company, buyer, items, totals, docNo);
@@ -169,11 +169,11 @@ const InvoiceModule = (() => {
                 <td style="text-align:center">${idx + 1}</td>
                 <td>${escapeHtml(it.item)}</td>
                 <td>${escapeHtml(it.spec || '')}</td>
-                <td style="text-align:right">${(it.qty || 0).toLocaleString()}</td>
-                <td style="text-align:right">${(it.unitPrice || 0).toLocaleString()}</td>
-                <td style="text-align:right">${(it.subtotal || 0).toLocaleString()}</td>
-                <td style="text-align:right">${(it.vat || 0).toLocaleString()}</td>
-                <td style="text-align:right">${(it.total || 0).toLocaleString()}</td>
+                <td style="text-align:right">${fmtNum(it.qty)}</td>
+                <td style="text-align:right">${fmtNum(it.unitPrice)}</td>
+                <td style="text-align:right">${fmtNum(it.subtotal)}</td>
+                <td style="text-align:right">${fmtNum(it.vat)}</td>
+                <td style="text-align:right">${fmtNum(it.total)}</td>
               </tr>`).join('')}
           </tbody>
         </table>

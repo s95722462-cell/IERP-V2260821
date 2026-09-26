@@ -40,7 +40,7 @@ const StockModule = (() => {
         { key: 'inQty', label: '입고(매입)', align: 'right' },
         { key: 'outQty', label: '출고(매출)', align: 'right' },
         { key: 'current', label: '현재고', align: 'right', render: renderCurrent },
-        { key: 'stockValue', label: '재고금액', align: 'right', render: (v) => '₩' + Math.round(v || 0).toLocaleString() },
+        { key: 'stockValue', label: '재고금액', align: 'right', render: (v) => '₩' + fmtNum(Math.round(rawNum(v))) },
         { key: 'safeStock', label: '안전재고', align: 'right' },
         { key: 'status', label: '상태', render: renderStatus }
       ],
@@ -63,7 +63,7 @@ const StockModule = (() => {
 
   function renderCurrent(value, row) {
     const color = row.current <= 0 ? 'var(--red)' : (row.safeStock > 0 && row.current <= row.safeStock ? 'var(--amber)' : 'inherit');
-    return `<span style="color:${color};font-weight:700">${(value || 0).toLocaleString()}</span>`;
+    return `<span style="color:${color};font-weight:700">${fmtNum(value)}</span>`;
   }
 
   function renderStatus(value, row) {
@@ -80,8 +80,8 @@ const StockModule = (() => {
 
     return products.map((p) => {
       const matchIn = (r) => (r.productId && r.productId === p.id) || (!r.productId && r.item === p.name && (r.spec || '') === (p.spec || ''));
-      const inQty = purchases.filter(matchIn).reduce((s, r) => s + (r.qty || 0), 0);
-      const outQty = sales.filter(matchIn).reduce((s, r) => s + (r.qty || 0), 0);
+      const inQty = purchases.filter(matchIn).reduce((s, r) => s + rawNum(r.qty), 0);
+      const outQty = sales.filter(matchIn).reduce((s, r) => s + rawNum(r.qty), 0);
       const current = (p.initStock || 0) + inQty - outQty;
       // 재고금액은 "현재고 × 기준단가"라는 단순 계산 대신, FIFO로 실제
       // 남아있는 매입 뱃치(+초기재고)의 원가를 그대로 합산한 실제

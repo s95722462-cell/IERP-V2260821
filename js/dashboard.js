@@ -20,7 +20,7 @@ const DashboardModule = (() => {
     const panel = LayoutShell.registerPanel('dashboard');
     panel.innerHTML = `
       <div class="card">
-        <div class="card-title">주요 비즈니스 지표</div>
+        <div class="card-title">주요 비즈니스 지표 <span id="dash-fy-label" style="font-weight:400;font-size:12px;color:var(--text2)"></span></div>
         <div class="stock-kpis" id="dash-kpis"></div>
       </div>
       <div class="dash-chart-row">
@@ -29,7 +29,7 @@ const DashboardModule = (() => {
           <div style="height:260px"><canvas id="dash-trend-chart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">거래처별 매출 비중 (TOP 5)</div>
+          <div class="card-title">거래처별 매출 비중 (TOP 5, 회계연도)</div>
           <div style="height:260px"><canvas id="dash-buyer-chart"></canvas></div>
         </div>
       </div>
@@ -48,21 +48,36 @@ const DashboardModule = (() => {
     const products = ProductsModule.getCache();
     const stock = StockModule.computeStock();
 
-    const salesTotal = sales.reduce((s, r) => s + (r.total || 0), 0);
-    const purchTotal = purchases.reduce((s, r) => s + (r.total || 0), 0);
+    // 매출·매입·이익 지표는 설정의 회계연도 기준으로 계산한다 (예전엔 전체 기간
+    // 합계에서 매입 합계를 뺀 값을 "손익"으로 보여줬는데, 부가세가 섞이고 기간
+    // 구분도 없어 실제 이익과 거리가 멀었다). 이익은 일별현황과 같은 정의:
+    // 매출 공급가액 합계 - FIFO 매출원가 합계.
+    const fy = String(SettingsModule.getFiscalYear());
+    const inFy = (r) => (r.date || '').startsWith(fy);
+    const fySales = sales.filter(inFy);
+    const fyPurchases = purchases.filter(inFy);
+
+    const salesTotal = fySales.reduce((s, r) => s + rawNum(r.total), 0);
+    const purchTotal = fyPurchases.reduce((s, r) => s + rawNum(r.total), 0);
+    const salesSubtotal = fySales.reduce((s, r) => s + rawNum(r.subtotal), 0);
+    const cogsTotal = fySales.reduce((s, r) => s + rawNum(r.costOfGoods), 0);
+    const grossProfit = salesSubtotal - cogsTotal;
+    const margin = salesSubtotal > 0 ? (grossProfit / salesSubtotal * 100) : 0;
+    const missingCost = fySales.filter((r) => r.costOfGoods === undefined || r.costOfGoods === null).length;
     const lowStock = stock.filter((r) => r.current <= 0 || (r.safeStock > 0 && r.current <= r.safeStock));
 
+    document.getElementById('dash-fy-label').textContent = `— ${fy} 회계연도`;
     document.getElementById('dash-kpis').innerHTML = `
       <div class="kpi"><div class="kpi-label">매출합계</div><div class="kpi-val" style="color:var(--red)">₩${salesTotal.toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">매입합계</div><div class="kpi-val" style="color:var(--blue)">₩${purchTotal.toLocaleString()}</div></div>
-      <div class="kpi"><div class="kpi-label">손익</div><div class="kpi-val">₩${(salesTotal - purchTotal).toLocaleString()}</div></div>
+      <div class="kpi"><div class="kpi-label">매출총이익 (이익률 ${margin.toFixed(1)}%)</div><div class="kpi-val" title="매출 공급가액 - FIFO 매출원가${missingCost ? ` / 원가 미계산 매출 ${missingCost}줄은 원가 0으로 계산됨` : ''}">₩${Math.round(grossProfit).toLocaleString()}${missingCost ? ' *' : ''}</div></div>
       <div class="kpi"><div class="kpi-label">거래처</div><div class="kpi-val">${customers.length}개</div></div>
       <div class="kpi"><div class="kpi-label">품목</div><div class="kpi-val">${products.length}개</div></div>
       <div class="kpi"><div class="kpi-label">재고부족 품목</div><div class="kpi-val" style="color:var(--amber)">${lowStock.length}개</div></div>
     `;
 
     renderTrendChart(sales, purchases);
-    renderBuyerChart(sales);
+    renderBuyerChart(fySales);
   }
 
   /** CSS 변수(:root/[data-theme=dark]에 정의된 실제 색상값)를 읽어온다.
@@ -83,7 +98,7 @@ const DashboardModule = (() => {
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
     const sumByMonth = (rows) => months.map((m) =>
-      rows.filter((r) => (r.date || '').startsWith(m)).reduce((s, r) => s + (r.total || 0), 0)
+      rows.filter((r) => (r.date || '').startsWith(m)).reduce((s, r) => s + rawNum(r.total), 0)
     );
 
     const ctx = document.getElementById('dash-trend-chart');
@@ -113,7 +128,7 @@ const DashboardModule = (() => {
   /** 매출 상위 5개 거래처의 비중을 도넛차트로 보여준다. */
   function renderBuyerChart(sales) {
     const byBuyer = {};
-    sales.forEach((r) => { byBuyer[r.buyer] = (byBuyer[r.buyer] || 0) + (r.total || 0); });
+    sales.forEach((r) => { byBuyer[r.buyer] = (byBuyer[r.buyer] || 0) + rawNum(r.total); });
     const top5 = Object.entries(byBuyer).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
     const ctx = document.getElementById('dash-buyer-chart');

@@ -44,7 +44,7 @@ const DailyModule = (() => {
         { key: 'item', label: '품목' },
         { key: 'spec', label: '규격' },
         { key: 'qty', label: '수량', align: 'right' },
-        { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + (v || 0).toLocaleString() }
+        { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + fmtNum(v) }
       ],
       dateFilter: true,
       dateField: 'date',
@@ -86,14 +86,14 @@ const DailyModule = (() => {
       const first = group[0];
       if (group.length === 1) return { ...first, __lineCount: 1 };
 
-      const subtotal = group.reduce((s, r) => s + (r.subtotal || 0), 0);
-      const total = group.reduce((s, r) => s + (r.total || 0), 0);
+      const subtotal = group.reduce((s, r) => s + rawNum(r.subtotal), 0);
+      const total = group.reduce((s, r) => s + rawNum(r.total), 0);
       const knownCost = group.filter((r) => r.costOfGoods !== undefined && r.costOfGoods !== null);
       return {
         id: first.id, date: first.date, type: first.type, party: first.party, docNo: first.docNo,
         item: first.item, spec: first.spec, qty: first.qty, total,
         subtotal,
-        costOfGoods: first.type === '매출' && knownCost.length ? knownCost.reduce((s, r) => s + r.costOfGoods, 0) : undefined,
+        costOfGoods: first.type === '매출' && knownCost.length ? knownCost.reduce((s, r) => s + rawNum(r.costOfGoods), 0) : undefined,
         costEstimated: group.some((r) => r.costEstimated),
         __missingCost: first.type === '매출' ? (group.length - knownCost.length) : 0,
         __lineCount: group.length
@@ -120,7 +120,7 @@ const DailyModule = (() => {
     openDetailDocNo = docNo;
     const partyLabel = isSale ? group[0].buyer : group[0].vendor;
     const totals = group.reduce((acc, r) => ({
-      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+      subtotal: acc.subtotal + rawNum(r.subtotal), vat: acc.vat + rawNum(r.vat), total: acc.total + rawNum(r.total)
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const panel = document.getElementById('daily-detail-panel');
@@ -136,9 +136,9 @@ const DailyModule = (() => {
         { key: '__no', label: 'No.', align: 'center' },
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
-        { key: 'qty', label: '수량', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() }
+        { key: 'qty', label: '수량', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => fmtNum(v) }
       ], group)}
       <div class="sl-doc-totals" style="margin-top:8px">
         공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
@@ -154,14 +154,14 @@ const DailyModule = (() => {
    * 콜백으로 필터가 바뀔 때마다 호출된다. */
   function renderKpis(rows) {
     const salesRows = rows.filter((r) => r.type === '매출');
-    const salesTotal = salesRows.reduce((s, r) => s + (r.total || 0), 0);
-    const purchTotal = rows.filter((r) => r.type === '매입').reduce((s, r) => s + (r.total || 0), 0);
+    const salesTotal = salesRows.reduce((s, r) => s + rawNum(r.total), 0);
+    const purchTotal = rows.filter((r) => r.type === '매입').reduce((s, r) => s + rawNum(r.total), 0);
 
     // 매출총이익 = 매출 공급가액 합계 - 매출원가(FIFO) 합계. 원가가
     // 아직 계산 안 된(옛 데이터 또는 미등록 품목) 줄은 원가 0으로 보고
     // 그만큼 이익이 과대평가될 수 있다는 걸 별도 표시로 알려준다.
-    const salesSubtotal = salesRows.reduce((s, r) => s + (r.subtotal || 0), 0);
-    const cogsTotal = salesRows.reduce((s, r) => s + (r.costOfGoods || 0), 0);
+    const salesSubtotal = salesRows.reduce((s, r) => s + rawNum(r.subtotal), 0);
+    const cogsTotal = salesRows.reduce((s, r) => s + rawNum(r.costOfGoods), 0);
     const missingCost = salesRows.reduce((s, r) => s + (r.__missingCost !== undefined ? r.__missingCost : (r.costOfGoods === undefined ? 1 : 0)), 0);
     const hasEstimate = salesRows.some((r) => r.costEstimated);
     const grossProfit = salesSubtotal - cogsTotal;
