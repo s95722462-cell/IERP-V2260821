@@ -34,7 +34,7 @@ const SettingsModule = (() => {
 
       <div class="card" style="margin-top:16px">
         <div class="card-title">회계연도</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">일별현황·매출관리·매입관리 화면을 처음 열었을 때 기본으로 보여줄 연도입니다. 연도가 바뀌면 여기서 새해로 바꿔주세요.</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">대시보드의 매출·매입·매출총이익을 계산하는 기준 연도입니다. (일별현황·매출관리·매입관리는 이번 달 1일~오늘이 기본이고, 표 위의 연도 선택으로 바꿔 볼 수 있습니다.) 연도가 바뀌면 여기서 새해로 바꿔주세요.</div>
         <div class="form-grid">
           <div class="fg"><label>현재 회계연도</label><select id="st-fiscal-year"></select></div>
         </div>
@@ -89,8 +89,8 @@ const SettingsModule = (() => {
     alert(`✅ 회계연도가 ${year}년으로 설정되었습니다. 화면을 새로고침하면 반영됩니다.`);
   }
 
-  /** 지금 회사에 설정된 회계연도를 반환합니다 (없으면 올해). 다른 화면(table-engine.js)이
-   * 기간검색 기본값을 정할 때 이 함수를 사용합니다. */
+  /** 지금 회사에 설정된 회계연도를 반환합니다 (없으면 올해). 다른 화면(dashboard.js, table-engine.js)이
+   * 기준 연도(대시보드 집계, defaultRange: 'fiscalYear'인 표의 기본 기간)를 정할 때 사용합니다. */
   function getFiscalYear() {
     const y = companies[activeCoIdx]?.fiscalYear;
     return y ? Number(y) : new Date().getFullYear();

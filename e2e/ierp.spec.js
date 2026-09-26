@@ -580,3 +580,25 @@ test('index.html의 CDN SRI 해시가 실제 CDN 파일과 일치한다', async 
     expect(`sha384-${crypto.createHash('sha384').update(buf).digest('base64')}`, url).toBe(integrity);
   }
 });
+
+test('일별현황은 기본으로 이번 달 1일~오늘만 보여준다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  const d = new Date();
+  const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  const prev = new Date(d.getFullYear(), d.getMonth(), 0); // 지난달 말일
+  const prevStr = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+  await addSale(page, { buyer: '고객B', date: today(), item: '이번달품목', qty: 1, price: 1000 });
+  await addSale(page, { buyer: '고객B', date: prevStr, item: '지난달품목', qty: 1, price: 50000 });
+
+  await nav(page, 'daily');
+  await expect(page.locator('#daily-list-card [data-role="date-from"]')).toHaveValue(monthStart);
+  await expect(page.locator('#daily-list-card [data-role="date-to"]')).toHaveValue(today());
+  await expect(page.locator('#daily-list-card tbody')).toContainText('이번달품목');
+  await expect(page.locator('#daily-list-card tbody')).not.toContainText('지난달품목');
+  await expect(page.locator('#daily-kpis')).toContainText('₩1,100');
+
+  // 연도 선택으로 넓혀 보면 지난달 데이터도 나온다
+  await page.selectOption('#daily-list-card [data-role="year"]', '__all__');
+  await expect(page.locator('#daily-list-card tbody')).toContainText('지난달품목');
+});
