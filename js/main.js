@@ -59,6 +59,7 @@ function initApp() {
     },
     onLogout: async () => {
       await doLogout();
+      clearAllModuleData();
       LayoutShell.showLoginScreen();
     },
     onLoginSubmit: async ({ username, password, keepLoggedIn }) => {
@@ -124,6 +125,21 @@ function restartAllListeners() {
   ALL_MODULES.forEach((m) => {
     if (typeof m.startListening === 'function') m.startListening();
   });
+}
+
+/**
+ * 로그아웃 직후 호출 — 각 화면의 캐시·표·열린 상세/인쇄 영역을 비운다.
+ * 이게 없으면 다른 계정으로 다시 로그인했을 때, 새 데이터가 도착하기 전까지
+ * 이전 계정의 거래처·매출 목록이 잠깐 그대로 보이는 문제가 있었다.
+ */
+function clearAllModuleData() {
+  ALL_MODULES.forEach((m) => {
+    if (typeof m.clearData === 'function') m.clearData();
+  });
+  const printArea = document.getElementById('invoice-print-area');
+  if (printArea) printArea.innerHTML = '';
+  LayoutShell.renderCompanyTabs(companies, activeCoIdx);
+  SettingsModule.renderCompanyList();
 }
 
 // 회사 전환/삭제 후 settings.js가 이 함수를 호출해 다시 연결하도록 되어 있음

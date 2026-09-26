@@ -483,6 +483,12 @@ const SalesModule = (() => {
 
     const ops = [];
     editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
+    // 수정이면 기존 줄들이 소진했던 뱃치를 먼저 되돌려 놓는다 — 안 그러면
+    // 아래에서 같은 수량을 또 소진해서 재고가 이중으로 차감된다.
+    // 로컬 캐시에도 즉시 반영해야 바로 아래 consume()이 복원된 수량을 본다.
+    const releaseOps = FifoEngine.release(cache.filter((r) => editingIds.includes(r.id)));
+    FifoEngine.applyOpsToLocalCache(releaseOps);
+    ops.push(...releaseOps);
     itemRows.forEach((r) => {
       const product = ProductsModule.findByNameSpec(r.item, r.spec);
       const saleId = genId();
@@ -540,7 +546,16 @@ const SalesModule = (() => {
     const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
     const label = row.docNo ? `전표 ${row.docNo}(품목 ${group.length}개)` : '이 매출 내역';
     if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
-    await batchWrite(group.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+    await deleteRowsReleasingFifo(group);
+  }
+
+  /** 매출 줄들을 삭제하면서, 그 줄들이 소진했던 FIFO 뱃치(매입 남은 수량·
+   * 초기재고)도 같은 batch로 되돌린다 (재고금액이 삭제 후에도 빠진 채로
+   * 남는 문제 방지). */
+  async function deleteRowsReleasingFifo(rows) {
+    const releaseOps = FifoEngine.release(rows);
+    await batchWrite(rows.map((r) => ({ type: 'delete', path: path(), id: r.id })).concat(releaseOps));
+    FifoEngine.applyOpsToLocalCache(releaseOps);
   }
 
   /** 전표 키(전표No. 또는 옛 낱개 레코드의 id) 하나를 실제 문서 묶음으로
@@ -561,7 +576,7 @@ const SalesModule = (() => {
     if (!allRows.length) return;
     if (!confirm(`선택한 ${selectedKeys.length}건(품목 ${allRows.length}줄)을 삭제하시겠습니까?`)) return;
     try {
-      await batchWrite(allRows.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+      await deleteRowsReleasingFifo(allRows);
     } catch (err) {
       alert('삭제 중 오류가 발생했습니다: ' + err.message);
       console.error('[일괄삭제 실패]', err);
@@ -653,7 +668,21 @@ const SalesModule = (() => {
     else InvoiceModule.generate({ buyerId: row.buyerId, dateFrom: row.date, dateTo: row.date });
   }
 
-  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, showDetailPanel };
+  /** 로그아웃 시 호출 — 이전 계정의 매출 목록·펼쳐둔 전표 상세가 남아 보이지 않도록 비운다. */
+  function clearData() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    closePanel();
+    cache = [];
+    openDetailDocNo = null;
+    const detail = document.getElementById('sl-detail-panel');
+    detail.style.display = 'none';
+    detail.innerHTML = '';
+    document.getElementById('sl-inv-preview').innerHTML = '';
+    tableInstance.render(cache);
+    updateListeners.forEach((cb) => cb(cache));
+  }
+
+  return { init, startListening, getCache, onUpdate, refreshBuyerOptions, refreshItemDatalist, showDetailPanel, clearData };
 })();
 
 window.SalesModule = SalesModule;

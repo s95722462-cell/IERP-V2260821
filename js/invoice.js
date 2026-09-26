@@ -90,9 +90,10 @@ const InvoiceModule = (() => {
 
     const company = companies[activeCoIdx];
     const totals = items.reduce((acc, it) => ({
-      subtotal: acc.subtotal + it.subtotal,
-      vat: acc.vat + it.vat,
-      total: acc.total + it.total
+      // 금액 필드가 빠진 옛 데이터가 섞여 있어도 합계가 NaN이 되지 않도록 0으로 본다
+      subtotal: acc.subtotal + (it.subtotal || 0),
+      vat: acc.vat + (it.vat || 0),
+      total: acc.total + (it.total || 0)
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const bodyHtml = buildBodyHtml(company, buyer, items, totals, docNo);

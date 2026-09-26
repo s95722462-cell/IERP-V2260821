@@ -114,6 +114,40 @@ const FifoEngine = (() => {
     });
   }
 
+  /**
+   * 매출 줄들이 저장 당시 소진했던 뱃치(costLots)를 원래대로 되돌리는 ops를
+   * 만든다. 매출을 수정(기존 줄 삭제 후 재저장)하거나 삭제할 때 같은 batch에
+   * 묶어서 커밋해야, 재고가 이중 차감되거나 삭제 후에도 빠진 채로 남지 않는다.
+   * 이미 삭제된 매입/품목을 가리키는 뱃치는 건너뛴다 (merge set으로 빈 문서가
+   * 새로 생기는 걸 막기 위함). costLots가 없는 옛 매출은 되돌릴 정보가 없어
+   * 아무 것도 하지 않는다 — 그런 경우는 재고현황의 "FIFO 재계산"으로 맞춘다.
+   * @returns {object[]} batchWrite ops
+   */
+  function release(saleRows) {
+    const purchaseQty = {};
+    const initQty = {};
+    saleRows.forEach((s) => (s.costLots || []).forEach((lot) => {
+      if (!(lot.qty > 0)) return;
+      if (lot.type === 'purchase') purchaseQty[lot.id] = (purchaseQty[lot.id] || 0) + lot.qty;
+      else if (lot.type === 'init') initQty[lot.id] = (initQty[lot.id] || 0) + lot.qty;
+    }));
+
+    const ops = [];
+    Object.entries(purchaseQty).forEach(([id, qty]) => {
+      const r = PurchaseModule.getCache().find((x) => x.id === id);
+      if (!r) return;
+      const cur = r.remainingQty !== undefined ? r.remainingQty : r.qty;
+      ops.push({ type: 'set', path: purchasesPath(), id, data: { remainingQty: Math.min(cur + qty, r.qty || 0) }, merge: true });
+    });
+    Object.entries(initQty).forEach(([id, qty]) => {
+      const p = ProductsModule.getCache().find((x) => x.id === id);
+      if (!p) return;
+      const cur = p.initStockRemaining !== undefined ? p.initStockRemaining : (p.initStock || 0);
+      ops.push({ type: 'set', path: productsPath(), id, data: { initStockRemaining: Math.min(cur + qty, p.initStock || 0) }, merge: true });
+    });
+    return ops;
+  }
+
   /** 품목 하나의 FIFO를 처음부터 다시 계산한다: 모든 매입 뱃치와 초기재고를
    * 원래 수량으로 리셋한 뒤, 그 품목이 들어간 모든 매출을 날짜 오래된
    * 순으로 다시 훑으며 소진시킨다. 과거 매입·매출을 수정한 뒤 눌러서
@@ -148,7 +182,7 @@ const FifoEngine = (() => {
     alert(`"${product.name}" 품목의 FIFO 재계산이 완료됐습니다 (매출 ${salesForProduct.length}건 반영)`);
   }
 
-  return { getLots, consume, applyOpsToLocalCache, recalcProduct };
+  return { getLots, consume, release, applyOpsToLocalCache, recalcProduct };
 })();
 
 window.FifoEngine = FifoEngine;

@@ -111,9 +111,11 @@ const DailyModule = (() => {
    * 합쳐서 보여주는 화면이라 전표번호 접두사(S/P)로 출처를 가려낸다). */
   function showDetailPanel(docNo) {
     if (!docNo) return;
-    const isSale = docNo.startsWith('S');
-    const source = isSale ? SalesModule.getCache() : PurchaseModule.getCache();
-    const group = source.filter((r) => r.docNo === docNo);
+    // 접두사(S/G=매출·반품, P=매입)로 추측하지 않고 실제로 그 전표가 있는
+    // 쪽을 찾는다 — 예전엔 'S'만 매출로 봐서 반품(G) 전표 상세가 안 열렸다.
+    const saleGroup = SalesModule.getCache().filter((r) => r.docNo === docNo);
+    const isSale = saleGroup.length > 0;
+    const group = isSale ? saleGroup : PurchaseModule.getCache().filter((r) => r.docNo === docNo);
     if (!group.length) return;
     openDetailDocNo = docNo;
     const partyLabel = isSale ? group[0].buyer : group[0].vendor;
@@ -185,7 +187,16 @@ const DailyModule = (() => {
     refresh();
   }
 
-  return { init, startListening };
+  /** 로그아웃 시 호출 — 표 자체는 매출/매입 모듈이 비워지면서 onUpdate로
+   * 같이 비워지므로, 여기선 펼쳐둔 전표 상세만 닫는다. */
+  function clearData() {
+    openDetailDocNo = null;
+    const detail = document.getElementById('daily-detail-panel');
+    detail.style.display = 'none';
+    detail.innerHTML = '';
+  }
+
+  return { init, startListening, clearData };
 })();
 
 window.DailyModule = DailyModule;

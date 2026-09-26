@@ -342,7 +342,16 @@ const ProductsModule = (() => {
     return cache.find((p) => p.name === name && (p.spec || '') === (spec || ''));
   }
 
-  return { init, startListening, getCache, onUpdate, findByNameSpec };
+  /** 로그아웃 시 호출 — 이전 계정의 품목 목록이 남아 보이지 않도록 비운다. */
+  function clearData() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    closePanel();
+    cache = [];
+    tableInstance.render(cache);
+    updateListeners.forEach((cb) => cb(cache));
+  }
+
+  return { init, startListening, getCache, onUpdate, findByNameSpec, clearData };
 })();
 
 window.ProductsModule = ProductsModule;
