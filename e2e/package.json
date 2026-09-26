@@ -1,0 +1,12 @@
+{
+  "name": "ierp-e2e",
+  "private": true,
+  "description": "iERP 2.0 E2E tests — runs the app against an in-memory Firebase mock (never touches the real project)",
+  "scripts": {
+    "test": "playwright test",
+    "install-browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

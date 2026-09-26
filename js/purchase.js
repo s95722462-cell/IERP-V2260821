@@ -480,7 +480,20 @@ const PurchaseModule = (() => {
   /** 매입 데이터가 바뀔 때마다 호출될 콜백을 등록합니다. */
   function onUpdate(cb) { updateListeners.push(cb); }
 
-  return { init, startListening, getCache, onUpdate, refreshVendorOptions, refreshItemDatalist, showDetailPanel };
+  /** 로그아웃 시 호출 — 이전 계정의 매입 목록·펼쳐둔 전표 상세가 남아 보이지 않도록 비운다. */
+  function clearData() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    closePanel();
+    cache = [];
+    openDetailDocNo = null;
+    const detail = document.getElementById('pu-detail-panel');
+    detail.style.display = 'none';
+    detail.innerHTML = '';
+    tableInstance.render(cache);
+    updateListeners.forEach((cb) => cb(cache));
+  }
+
+  return { init, startListening, getCache, onUpdate, refreshVendorOptions, refreshItemDatalist, showDetailPanel, clearData };
 })();
 
 window.PurchaseModule = PurchaseModule;

@@ -139,7 +139,7 @@ const TableEngine = (() => {
     applyFixedHeight(state);
     syncYearSelect(state);
     return {
-      render: (data) => { state.rawData = data; syncYearSelect(state); renderRows(state); }
+      render: (data) => { state.rawData = data; pruneSelection(state); syncYearSelect(state); renderRows(state); }
     };
   }
 
@@ -270,7 +270,7 @@ const TableEngine = (() => {
     }
 
     const searchInput = wrap.querySelector('[data-role="search"]');
-    if (searchInput) searchInput.addEventListener('input', () => { state.searchText = searchInput.value.toLowerCase(); renderRows(state); });
+    if (searchInput) searchInput.addEventListener('input', () => { state.searchText = searchInput.value.toLowerCase(); clearSelection(state); renderRows(state); });
 
     const yearSelect = wrap.querySelector('[data-role="year"]');
     const dateFrom = wrap.querySelector('[data-role="date-from"]');
@@ -286,6 +286,7 @@ const TableEngine = (() => {
         state.dateFrom = dateFrom ? dateFrom.value : '';
         state.dateTo = dateTo ? dateTo.value : '';
         syncYearSelect(state);
+        clearSelection(state);
         renderRows(state);
       });
     }
@@ -306,6 +307,7 @@ const TableEngine = (() => {
         }
         if (dateFrom) dateFrom.value = state.dateFrom;
         if (dateTo) dateTo.value = state.dateTo;
+        clearSelection(state);
         renderRows(state); // 연도 선택은 한 번의 완결된 동작이라 바로 적용
       });
     }
@@ -507,6 +509,23 @@ const TableEngine = (() => {
         </div>
       `;
     }).join('');
+  }
+
+  /** 검색어·기간이 바뀌면 선택을 비운다 — 안 그러면 화면에서 사라진(필터로
+   * 가려진) 행이 선택된 채 남아 있다가 "선택 삭제" 때 보이지 않는 전표까지
+   * 같이 지워지는 사고가 날 수 있다. */
+  function clearSelection(state) {
+    if (!state.selectedIds.size) return;
+    state.selectedIds.clear();
+    updateBulkDeleteUi(state);
+  }
+
+  /** 새 데이터가 들어오면(실시간 갱신·회사 전환·로그아웃) 더 이상 존재하지
+   * 않는 행의 선택을 정리한다. */
+  function pruneSelection(state) {
+    if (!state.selectedIds.size || !state.opts.rowId) return;
+    const alive = new Set(state.rawData.map((r) => String(state.opts.rowId(r) || '')));
+    state.selectedIds.forEach((id) => { if (!alive.has(id)) state.selectedIds.delete(id); });
   }
 
   /** "선택 삭제" 버튼의 표시 여부와 선택 개수를 갱신한다. */

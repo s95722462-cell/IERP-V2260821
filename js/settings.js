@@ -46,19 +46,23 @@ const SettingsModule = (() => {
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="card-title">데이터 내보내기</div>
+        <div class="card-title">데이터 백업 / 복원</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:8px">현재 회사의 거래처·품목·매출·매입 데이터를 JSON 파일로 저장합니다. (백업용으로 주기적으로 받아두는 것을 권장합니다.)</div>
-        <button id="st-export-btn">JSON으로 내보내기</button>
+        <div class="btn-row">
+          <button id="st-export-btn">JSON으로 내보내기</button>
+          <button id="st-restore-btn">JSON에서 복원</button>
+          <input type="file" id="st-restore-file" accept=".json" style="display:none">
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:8px">⚠️ 복원하면 현재 회사의 거래처·품목·매출·매입 데이터가 백업 파일 내용으로 전부 교체됩니다(되돌릴 수 없음).</div>
       </div>
     `;
-
-    const { currentUser } = getAuthState();
-    if (currentUser) document.getElementById('st-uid').value = currentUser.id;
 
     document.getElementById('st-account-form').addEventListener('submit', (e) => { e.preventDefault(); changePassword(); });
     document.getElementById('st-add-co').addEventListener('click', addCompany);
     document.getElementById('st-theme-toggle').addEventListener('change', toggleTheme);
     document.getElementById('st-export-btn').addEventListener('click', exportJson);
+    document.getElementById('st-restore-btn').addEventListener('click', () => document.getElementById('st-restore-file').click());
+    document.getElementById('st-restore-file').addEventListener('change', handleRestoreFile);
     document.getElementById('st-fiscal-year').addEventListener('change', saveFiscalYear);
 
     document.getElementById('st-theme-toggle').checked = getSavedTheme() === 'dark';
@@ -94,6 +98,10 @@ const SettingsModule = (() => {
 
   function renderCompanyList() {
     renderFiscalYearSelect(); // 회사가 바뀌면(전환/추가/삭제) 그 회사의 회계연도도 같이 최신화
+    // 아이디 칸은 init() 시점엔 아직 로그인 확인 전이라 비어 있으므로, 로그인
+    // 직후(main.js의 afterLoginSuccess)에 불리는 이 함수에서 채운다.
+    const { currentUser } = getAuthState();
+    document.getElementById('st-uid').value = currentUser ? currentUser.id : '';
     const listEl = document.getElementById('st-company-list');
     listEl.innerHTML = companies.map((c, i) => `
       <div class="st-co-row">
@@ -232,7 +240,8 @@ const SettingsModule = (() => {
     LayoutShell.renderThemeToggleIcon();
   }
 
-  function exportJson() {
+  /** @param {string} [filename] - 생략하면 `iERP_backup_날짜.json` */
+  function exportJson(filename) {
     const data = {
       exportedAt: new Date().toISOString(),
       company: companies[activeCoIdx],
@@ -245,9 +254,111 @@ const SettingsModule = (() => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `iERP_backup_${todayStr()}.json`;
+    a.download = (typeof filename === 'string' && filename) || `iERP_backup_${todayStr()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  const RESTORE_COLLECTIONS = ['customers', 'products', 'sales', 'purchases'];
+  const RESTORE_LABELS = { customers: '거래처', products: '품목', sales: '매출', purchases: '매입' };
+
+  /** exportJson()이 저장한 createdAt(순수 JSON 객체 또는 문자열)을 다시 Firestore
+   * Timestamp로 되살린다. customers/products 목록은 orderBy('createdAt')로 조회하는데
+   * (customers.js/products.js), Firestore는 그 필드가 없거나 Timestamp 타입이 아니면
+   * 조회 결과에서 문서를 통째로 빠뜨린다 — 예전에 이 문제로 목록에서 문서가 사라지는
+   * 사고가 있었어서(products.js의 createdAt 복구 함수 참고) 복원 시에도 반드시 지켜야 한다. */
+  function toFirestoreTimestamp(v) {
+    if (v && typeof v === 'object' && typeof v.seconds === 'number') {
+      return new firebase.firestore.Timestamp(v.seconds, v.nanoseconds || 0);
+    }
+    return firebase.firestore.FieldValue.serverTimestamp();
+  }
+
+  async function handleRestoreFile(e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // 같은 파일을 다시 선택해도 change 이벤트가 나도록 초기화
+    if (!file) return;
+
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch (err) {
+      alert('올바른 JSON 백업 파일이 아닙니다: ' + err.message);
+      return;
+    }
+    if (!RESTORE_COLLECTIONS.every((k) => Array.isArray(data[k]))) {
+      alert('백업 파일 형식이 올바르지 않습니다 (거래처·품목·매출·매입 목록을 찾을 수 없습니다).');
+      return;
+    }
+
+    const co = companies[activeCoIdx];
+    const counts = RESTORE_COLLECTIONS.map((k) => `${RESTORE_LABELS[k]} ${data[k].length}건`).join(' / ');
+    const exportedAt = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : '날짜 미상';
+    const ok = confirm(
+      `"${co.company}" 회사의 현재 거래처·품목·매출·매입 데이터를 모두 지우고,\n` +
+      `이 백업 파일(${exportedAt}에 내보낸 파일)의 내용으로 되돌립니다.\n\n${counts}\n\n` +
+      `복원을 시작하기 전에 현재 데이터를 백업 파일(iERP_before_restore_...json)로\n` +
+      `자동으로 먼저 내려받습니다. 계속하시겠습니까?`
+    );
+    if (!ok) return;
+
+    // 복원은 "기존 데이터 전부 삭제 → 백업 내용 쓰기" 순서라, 중간에 네트워크가
+    // 끊기면 데이터가 비어버릴 수 있다. 그때 되살릴 수 있도록 지우기 직전의
+    // 현재 상태를 반드시 먼저 파일로 받아둔다.
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    exportJson(`iERP_before_restore_${stamp}.json`);
+
+    const btn = document.getElementById('st-restore-btn');
+    btn.disabled = true;
+    btn.textContent = '복원 중...';
+    try {
+      const { currentUser } = getAuthState();
+      const companyId = curCompanyId();
+
+      // 1) 현재 회사의 기존 데이터를 전부 삭제한다 (백업 시점 상태로 완전히 되돌리기 위함)
+      for (const kind of RESTORE_COLLECTIONS) {
+        const colPath = `users/${currentUser.safeId}/companies/${companyId}/${kind}`;
+        const snap = await db.collection(colPath).get();
+        const delOps = snap.docs.map((d) => ({ type: 'delete', path: colPath, id: d.id }));
+        if (delOps.length) await batchWrite(delOps);
+      }
+
+      // 2) 백업 내용을 원래 문서 ID 그대로 다시 쓴다 (매출/매입의 productId·buyerId·
+      // vendorId가 거래처/품목 문서 ID를 참조하므로, ID를 유지해야 연결이 깨지지 않는다)
+      const ops = [];
+      ['customers', 'products'].forEach((kind) => {
+        const colPath = `users/${currentUser.safeId}/companies/${companyId}/${kind}`;
+        data[kind].forEach((row) => {
+          const { id, createdAt, ...rest } = row;
+          ops.push({ type: 'set', path: colPath, id: id || genId(), data: { ...rest, createdAt: toFirestoreTimestamp(createdAt) } });
+        });
+      });
+      ['sales', 'purchases'].forEach((kind) => {
+        const colPath = `users/${currentUser.safeId}/companies/${companyId}/${kind}`;
+        data[kind].forEach((row) => {
+          const { id, ...rest } = row;
+          ops.push({ type: 'set', path: colPath, id: id || genId(), data: rest });
+        });
+      });
+      if (ops.length) await batchWrite(ops);
+
+      // 3) 회사 정보(사업자번호 등)도 백업 시점 값으로 되돌린다 (현재 회사의 id는 유지)
+      if (data.company && typeof data.company === 'object') {
+        const { id, ...companyRest } = data.company;
+        Object.assign(companies[activeCoIdx], companyRest);
+        await saveUserMeta();
+        renderCompanyList();
+        LayoutShell.renderCompanyTabs(companies, activeCoIdx);
+      }
+
+      alert('복원이 완료되었습니다. 화면이 잠시 후 자동으로 갱신됩니다.');
+    } catch (err) {
+      alert('복원 중 오류가 발생했습니다: ' + err.message);
+      console.error('[백업 복원 실패]', err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'JSON에서 복원';
+    }
   }
 
   return { init, renderCompanyList, getFiscalYear };
