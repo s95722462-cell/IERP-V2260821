@@ -35,6 +35,21 @@ function escapeHtml(value) {
 }
 
 /**
+ * 금액·수량 칸을 화면(innerHTML)에 넣을 때 쓰는 표시 함수. 숫자면 천 단위
+ * 콤마를 붙이고, 숫자가 아닌 값(옛 데이터·엑셀 가져오기·백업 복원으로 문자열이
+ * 들어온 경우)은 escapeHtml을 거쳐 그대로 보여준다. 예전엔 `(v || 0).toLocaleString()`
+ * 을 바로 넣어서, 값이 문자열이면 이스케이프 없이 HTML로 해석될 수 있었다.
+ * @param {*} value
+ * @param {string} [emptyText='0'] - 값이 없을 때 표시할 문자열
+ * @returns {string}
+ */
+function fmtNum(value, emptyText = '0') {
+  if (typeof value === 'number') return Number.isFinite(value) ? value.toLocaleString() : emptyText;
+  if (value === null || value === undefined || value === '') return emptyText;
+  return escapeHtml(String(value));
+}
+
+/**
  * 콤마·공백이 섞인 숫자 문자열을 안전한 숫자로 변환합니다.
  * 값이 없거나 숫자로 변환할 수 없으면 0을 반환합니다 (NaN이 계산식에
  * 섞여 화면에 "NaN"이 표시되는 사고를 방지).
@@ -136,6 +151,7 @@ function applyTheme(theme) {
 // 다른 모듈에서 전역으로 사용할 수 있도록 window에 등록
 window.escapeHtml = escapeHtml;
 window.rawNum = rawNum;
+window.fmtNum = fmtNum;
 window.bindCommaInput = bindCommaInput;
 window.isValidEmail = isValidEmail;
 window.splitNameAndHint = splitNameAndHint;

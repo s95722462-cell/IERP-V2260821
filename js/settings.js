@@ -220,7 +220,8 @@ const SettingsModule = (() => {
     // db.batch()를 직접 썼다면 컬렉션 하나가 500개를 넘는 순간(예:
     // 품목 엑셀 대량 업로드 이후) 삭제가 조용히 실패했을 것이다.
     const { currentUser } = getAuthState();
-    for (const col of ['customers', 'products', 'sales', 'purchases']) {
+    // counters(전표번호 채번 기록)도 함께 지운다 — 예전엔 빠져 있어서 회사를 지워도 남아 있었다.
+    for (const col of ['customers', 'products', 'sales', 'purchases', 'counters']) {
       const colPath = `users/${currentUser.safeId}/companies/${removedId}/${col}`;
       const snap = await db.collection(colPath).get();
       const ops = snap.docs.map((d) => ({ type: 'delete', path: colPath, id: d.id }));

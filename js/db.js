@@ -183,6 +183,17 @@ const DbEngine = (() => {
   function stopAll() {
     activeUnsubscribers.forEach((u) => u());
     activeUnsubscribers = [];
+    setStatus('connecting'); // 다음 로그인 때 재연결 감시가 다시 동작하도록 초기 상태로
+  }
+
+  // 리스너별로 "지금 서버가 아니라 로컬 캐시 데이터를 보고 있는지"를 기억해두고,
+  // 하나라도 캐시 상태면 '오프라인'으로 표시한다. 예전엔 첫 응답만 오면 인터넷이
+  // 끊겨 캐시만 보고 있어도 계속 "실시간 동기화 중"으로 표시됐다.
+  const fromCacheByListener = new Map();
+  let listenerSeq = 0;
+  function recomputeStatus() {
+    if (!fromCacheByListener.size) return;
+    setStatus(Array.from(fromCacheByListener.values()).some(Boolean) ? 'offline' : 'synced');
   }
 
   /**
@@ -197,18 +208,29 @@ const DbEngine = (() => {
     let query = db.collection(path);
     if (orderBy) query = query.orderBy(orderBy.field, orderBy.direction || 'desc');
 
-    const unsub = query.onSnapshot(
+    const key = ++listenerSeq;
+    let first = true;
+    const rawUnsub = query.onSnapshot(
+      { includeMetadataChanges: true }, // 온라인↔오프라인 전환도 알림 받기 위함
       (snap) => {
-        setStatus('synced');
+        fromCacheByListener.set(key, !!(snap.metadata && snap.metadata.fromCache));
+        recomputeStatus();
+        // includeMetadataChanges 때문에 "문서는 그대로고 연결 상태만 바뀐" 스냅샷도
+        // 오는데, 그때까지 화면을 통째로 다시 그릴 필요는 없다 (docChanges()는
+        // 기본적으로 메타데이터만 바뀐 경우를 포함하지 않는다).
+        if (!first && snap.docChanges().length === 0) return;
+        first = false;
         onData(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       },
       (err) => {
         // 원인을 반드시 콘솔에 남긴다 — 1.0에서 이 로그가 없어서
         // "왜 안 되는지" 알아내는 데 하루 이상 걸렸던 적이 있다.
         console.error(`[DbEngine] "${path}" 구독 실패:`, err.code, err.message);
+        fromCacheByListener.delete(key);
         setStatus('offline');
       }
     );
+    const unsub = () => { fromCacheByListener.delete(key); rawUnsub(); };
     activeUnsubscribers.push(unsub);
     return unsub;
   }

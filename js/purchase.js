@@ -119,10 +119,10 @@ const PurchaseModule = (() => {
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
         { key: 'qty', label: '수량', align: 'right' },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (typeof v === 'number') ? v.toLocaleString() : (v || '') },
-        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'vat', label: '부가세', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + (v || 0).toLocaleString() },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => fmtNum(v, '') },
+        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'vat', label: '부가세', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + fmtNum(v) },
         { key: 'invNo', label: '인보이스No.' },
         { key: 'memo', label: '비고' }
       ],
@@ -168,7 +168,7 @@ const PurchaseModule = (() => {
     return docs.slice().sort((a, b) => {
       const d = (b.date || '').localeCompare(a.date || '');
       if (d !== 0) return d;
-      return (a.docNo || a.id).localeCompare(b.docNo || b.id);
+      return (a.docNo || a.id).localeCompare(b.docNo || b.id, undefined, { numeric: true }); // numeric: 'S…-100'이 'S…-99' 뒤로 가도록
     });
   }
 
@@ -198,8 +198,8 @@ const PurchaseModule = (() => {
       <td><span class="ri-no"></span></td>
       <td><input class="ri-item" list="pu-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
       <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"></td>
-      <td><input class="ri-qty" type="number" value="${data?.qty ?? 1}"></td>
-      <td><input class="ri-price" type="text" inputmode="numeric" value="${(data?.unitPrice ?? 0).toLocaleString()}"></td>
+      <td><input class="ri-qty" type="number" value="${rawNum(data?.qty ?? 1)}"></td>
+      <td><input class="ri-price" type="text" inputmode="numeric" value="${fmtNum(data?.unitPrice ?? 0)}"></td>
       <td><span class="ri-subtotal">0</span></td>
       <td><button type="button" class="ri-del" title="이 줄 삭제">✕</button></td>
     `;
@@ -349,33 +349,81 @@ const PurchaseModule = (() => {
       return false;
     }
 
+    const removedIds = editingIds.slice();
+    const removedProductIds = cache.filter((r) => removedIds.includes(r.id)).map((r) => r.productId);
     const ops = [];
-    editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
+    const addedRows = [];
+    removedIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
     itemRows.forEach((r) => {
       const product = ProductsModule.findByNameSpec(r.item, r.spec);
-      ops.push({
-        type: 'set', path: path(), id: genId(),
-        data: {
-          docNo, date, vendorId,
-          vendor: vendor ? vendor.name : '',
-          item: r.item, spec: r.spec,
-          productId: product ? product.id : '',
-          qty: r.qty, unitPrice: r.price,
-          remainingQty: r.qty,
-          subtotal: r.subtotal, vat: r.vat, total: r.total,
-          invNo, memo
-        }
-      });
+      const id = genId();
+      const data = {
+        docNo, date, vendorId,
+        vendor: vendor ? vendor.name : '',
+        item: r.item, spec: r.spec,
+        productId: product ? product.id : '',
+        qty: r.qty, unitPrice: r.price,
+        remainingQty: r.qty,
+        subtotal: r.subtotal, vat: r.vat, total: r.total,
+        invNo, memo
+      };
+      ops.push({ type: 'set', path: path(), id, data });
+      addedRows.push({ id, ...data });
     });
 
     try {
       await batchWrite(ops);
-      return true;
     } catch (err) {
       alert('저장 중 오류가 발생했습니다: ' + err.message);
       console.error('[저장 실패]', err);
       return false;
     }
+    await applyAndRecalc(removedIds, addedRows, removedProductIds.concat(addedRows.map((r) => r.productId)));
+    return true;
+  }
+
+  /**
+   * 매입을 저장·수정·삭제한 직후, 연결된 품목의 FIFO를 자동으로 다시 계산한다.
+   * 매입 수정은 문서를 새 id로 다시 만들면서 남은 수량(remainingQty)이 원래
+   * 수량으로 돌아가고, 삭제는 이미 팔린 뱃치를 통째로 없애며, 과거 날짜로 넣은
+   * 매입은 FIFO 순서를 바꾼다 — 셋 다 그대로 두면 재고금액·매출원가가 틀어진다.
+   * 실시간 리스너를 기다리지 않도록 로컬 캐시를 먼저 방금 저장한 내용으로 맞추고,
+   * recalcProduct는 값이 실제로 달라진 문서만 저장한다.
+   */
+  async function applyAndRecalc(removedIds, addedRows, productIds) {
+    cache = cache.filter((r) => !removedIds.includes(r.id)).concat(addedRows);
+    const ids = Array.from(new Set(productIds.filter(Boolean)));
+    const failed = [];
+    for (const pid of ids) {
+      try {
+        await FifoEngine.recalcProduct(pid, { silent: true });
+      } catch (err) {
+        failed.push(pid);
+        console.error('[FIFO 자동 재계산 실패]', pid, err);
+      }
+    }
+    if (failed.length) {
+      alert(`저장은 완료됐지만 품목 ${failed.length}개의 재고 재계산에 실패했습니다. 재고현황에서 해당 품목의 "FIFO 재계산"을 눌러주세요.`);
+    }
+  }
+
+  /** 삭제하려는 매입 줄 중 이미 매출로 출고된 수량의 합계 (삭제 경고용). */
+  function soldQtyOf(rows) {
+    return rows.reduce((s, r) => s + Math.max(0, (r.qty || 0) - (r.remainingQty !== undefined ? r.remainingQty : r.qty || 0)), 0);
+  }
+
+  function deleteConfirmText(label, rows) {
+    const sold = soldQtyOf(rows);
+    return `${label}을(를) 삭제하시겠습니까?` + (sold > 0
+      ? `
+
+⚠️ 이 매입 중 ${sold.toLocaleString()}개가 이미 매출로 출고됐습니다. 삭제하면 관련 품목의 매출원가·재고금액을 자동으로 다시 계산합니다.`
+      : '');
+  }
+
+  async function deleteRows(rows) {
+    await batchWrite(rows.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+    await applyAndRecalc(rows.map((r) => r.id), [], rows.map((r) => r.productId));
   }
 
   async function remove(id) {
@@ -383,8 +431,8 @@ const PurchaseModule = (() => {
     if (!row) return;
     const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
     const label = row.docNo ? `전표 ${row.docNo}(품목 ${group.length}개)` : '이 매입 내역';
-    if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
-    await batchWrite(group.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+    if (!confirm(deleteConfirmText(label, group))) return;
+    await deleteRows(group);
   }
 
   /** 전표 키(전표No. 또는 옛 낱개 레코드의 id) 하나를 실제 문서 묶음으로
@@ -402,9 +450,9 @@ const PurchaseModule = (() => {
     if (!selectedKeys.length) return;
     const allRows = selectedKeys.flatMap(resolveGroupByKey);
     if (!allRows.length) return;
-    if (!confirm(`선택한 ${selectedKeys.length}건(품목 ${allRows.length}줄)을 삭제하시겠습니까?`)) return;
+    if (!confirm(deleteConfirmText(`선택한 ${selectedKeys.length}건(품목 ${allRows.length}줄)`, allRows))) return;
     try {
-      await batchWrite(allRows.map((r) => ({ type: 'delete', path: path(), id: r.id })));
+      await deleteRows(allRows);
     } catch (err) {
       alert('삭제 중 오류가 발생했습니다: ' + err.message);
       console.error('[일괄삭제 실패]', err);
@@ -426,7 +474,7 @@ const PurchaseModule = (() => {
       if (group.length === 1) return group[0];
       const first = group[0];
       const totals = group.reduce((acc, r) => ({
-        subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+        subtotal: acc.subtotal + rawNum(r.subtotal), vat: acc.vat + rawNum(r.vat), total: acc.total + rawNum(r.total)
       }), { subtotal: 0, vat: 0, total: 0 });
       return {
         id: first.id, docNo: first.docNo, date: first.date, vendor: first.vendor,
@@ -446,7 +494,7 @@ const PurchaseModule = (() => {
     if (!group.length) return;
     openDetailDocNo = docNo;
     const totals = group.reduce((acc, r) => ({
-      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+      subtotal: acc.subtotal + rawNum(r.subtotal), vat: acc.vat + rawNum(r.vat), total: acc.total + rawNum(r.total)
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const panel = document.getElementById('pu-detail-panel');
@@ -461,9 +509,9 @@ const PurchaseModule = (() => {
         { key: '__no', label: 'No.', align: 'center' },
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
-        { key: 'qty', label: '수량', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() }
+        { key: 'qty', label: '수량', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => fmtNum(v) }
       ], group)}
       <div class="sl-doc-totals" style="margin-top:8px">
         공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}

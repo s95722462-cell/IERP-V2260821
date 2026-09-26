@@ -58,6 +58,7 @@ function initApp() {
       restartAllListeners();
     },
     onLogout: async () => {
+      stopWatchdog();
       await doLogout();
       clearAllModuleData();
       LayoutShell.showLoginScreen();
@@ -70,16 +71,11 @@ function initApp() {
       } catch (e) {
         LayoutShell.setLoginError(e.message);
       }
-    },
-    onRegisterSubmit: async ({ username, password, company }) => {
-      LayoutShell.setRegisterError('');
-      try {
-        await doRegister({ username, password, company });
-        afterLoginSuccess();
-      } catch (e) {
-        LayoutShell.setRegisterError(e.message);
-      }
     }
+    // 회원가입 화면은 두지 않는다 (운영 중인 ERP에 누구나 계정을 만들 수 있게
+    // 열어둘 이유가 없음). 계정이 더 필요하면 auth.js의 doRegister()를 쓴다.
+    // 예전엔 여기에 onRegisterSubmit이 있었지만 가입 폼도, 그 콜백이 부르던
+    // LayoutShell.setRegisterError도 존재하지 않는 죽은 코드였다.
   });
 
   // 각 화면의 DOM/이벤트를 먼저 전부 그려 넣는다 (아직 데이터 연결 전)
@@ -115,9 +111,18 @@ function afterLoginSuccess() {
   LayoutShell.renderCompanyTabs(companies, activeCoIdx);
   SettingsModule.renderCompanyList();
 
-  DbEngine.startReconnectWatchdog(() => {
+  // 재연결 감시는 항상 하나만 돌게 한다 — 예전엔 로그아웃→로그인을 반복할
+  // 때마다 감시 타이머가 하나씩 더 쌓였다.
+  stopWatchdog();
+  stopWatchdogFn = DbEngine.startReconnectWatchdog(() => {
     restartAllListeners();
   });
+}
+
+let stopWatchdogFn = null;
+function stopWatchdog() {
+  if (stopWatchdogFn) stopWatchdogFn();
+  stopWatchdogFn = null;
 }
 
 /** 로그인 직후, 회사 전환 시 호출 — 모든 화면의 실시간 구독을 다시 건다. */

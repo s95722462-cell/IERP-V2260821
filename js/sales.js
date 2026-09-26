@@ -169,9 +169,9 @@ const SalesModule = (() => {
       if (!items.length) { preview.innerHTML = `${escapeHtml(buyer.name)} — 해당 기간에 매출 내역이 없습니다.`; return; }
 
       const totals = items.reduce((acc, r) => ({
-        subtotal: acc.subtotal + (r.subtotal || 0),
-        vat: acc.vat + (r.vat || 0),
-        total: acc.total + (r.total || 0)
+        subtotal: acc.subtotal + rawNum(r.subtotal),
+        vat: acc.vat + rawNum(r.vat),
+        total: acc.total + rawNum(r.total)
       }), { subtotal: 0, vat: 0, total: 0 });
 
       preview.innerHTML = `
@@ -191,11 +191,11 @@ const SalesModule = (() => {
                   <td>${escapeHtml(r.date || '')}</td>
                   <td>${escapeHtml(r.item || '')}</td>
                   <td>${escapeHtml(r.spec || '')}</td>
-                  <td style="text-align:right">${(r.qty || 0).toLocaleString()}</td>
-                  <td style="text-align:right">${(r.unitPrice || 0).toLocaleString()}</td>
-                  <td style="text-align:right">${(r.subtotal || 0).toLocaleString()}</td>
-                  <td style="text-align:right">${(r.vat || 0).toLocaleString()}</td>
-                  <td style="text-align:right">${(r.total || 0).toLocaleString()}</td>
+                  <td style="text-align:right">${fmtNum(r.qty)}</td>
+                  <td style="text-align:right">${fmtNum(r.unitPrice)}</td>
+                  <td style="text-align:right">${fmtNum(r.subtotal)}</td>
+                  <td style="text-align:right">${fmtNum(r.vat)}</td>
+                  <td style="text-align:right">${fmtNum(r.total)}</td>
                   <td>${escapeHtml(r.memo || '')}</td>
                 </tr>`).join('')}
             </tbody>
@@ -237,10 +237,10 @@ const SalesModule = (() => {
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
         { key: 'qty', label: '수량', align: 'right' },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (typeof v === 'number') ? v.toLocaleString() : (v || '') },
-        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'vat', label: '부가세', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + (v || 0).toLocaleString() },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => fmtNum(v, '') },
+        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'vat', label: '부가세', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'total', label: '합계', align: 'right', render: (v) => '₩' + fmtNum(v) },
         { key: 'invNo', label: '인보이스No.' },
         { key: 'memo', label: '비고' }
       ],
@@ -289,7 +289,7 @@ const SalesModule = (() => {
     return docs.slice().sort((a, b) => {
       const d = (b.date || '').localeCompare(a.date || '');
       if (d !== 0) return d;
-      return (a.docNo || a.id).localeCompare(b.docNo || b.id);
+      return (a.docNo || a.id).localeCompare(b.docNo || b.id, undefined, { numeric: true }); // numeric: 'S…-100'이 'S…-99' 뒤로 가도록
     });
   }
 
@@ -321,8 +321,8 @@ const SalesModule = (() => {
       <td><span class="ri-no"></span></td>
       <td><input class="ri-item" list="sl-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
       <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"></td>
-      <td><input class="ri-qty" type="number" value="${Math.abs(data?.qty ?? 1)}"></td>
-      <td><input class="ri-price" type="text" inputmode="numeric" value="${(data?.unitPrice ?? 0).toLocaleString()}"></td>
+      <td><input class="ri-qty" type="number" value="${Math.abs(rawNum(data?.qty ?? 1))}"></td>
+      <td><input class="ri-price" type="text" inputmode="numeric" value="${fmtNum(data?.unitPrice ?? 0)}"></td>
       <td><span class="ri-subtotal">0</span></td>
       <td style="text-align:center"><input type="checkbox" class="ri-return" title="반품(매출취소) — 체크하면 수량·금액이 마이너스로 저장됩니다" ${data?.qty < 0 ? 'checked' : ''}></td>
       <td><button type="button" class="ri-del" title="이 줄 삭제">✕</button></td>
@@ -507,12 +507,9 @@ const SalesModule = (() => {
       // 저장한다 (자유 입력 품목명이라 매칭 안 되면 원가 계산 생략).
       // 매입 뱃치의 남은 수량을 갱신하는 ops도 이 매출 저장과 같은
       // batch에 묶어서, 저장이 중간에 실패해도 반쪽만 반영되지 않게 한다.
-      // 주의: 반품(qty가 음수)인 경우 FifoEngine.consume은 아무 것도
-      // 소진하지 않는 그냥 통과(cost 0)로 동작한다 — 즉 반품 체크는
-      // 매출/부가세/합계 금액을 마이너스로 정확히 반영해주지만, 재고
-      // 수량·매입 뱃치를 자동으로 되돌려놓지는 않는다. 반품된 물건을
-      // 실제 재고로 다시 잡아야 하면 별도로 소량 매입을 등록하거나,
-      // 재고현황의 FIFO 재계산 기능과 함께 검토가 필요하다.
+      // 반품(qty가 음수)이면 FifoEngine.consume이 가장 최근에 출고된
+      // 뱃치로 수량을 되돌리고(나갈 때의 원가 그대로), 매출원가는
+      // 마이너스로 기록된다 — 재고 수량과 재고금액이 함께 복귀한다.
       if (product) {
         const fifo = FifoEngine.consume(product.id, r.qty);
         saleData.costOfGoods = fifo.costOfGoods;
@@ -600,7 +597,7 @@ const SalesModule = (() => {
       if (group.length === 1) return group[0];
       const first = group[0];
       const totals = group.reduce((acc, r) => ({
-        subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+        subtotal: acc.subtotal + rawNum(r.subtotal), vat: acc.vat + rawNum(r.vat), total: acc.total + rawNum(r.total)
       }), { subtotal: 0, vat: 0, total: 0 });
       return {
         id: first.id, docNo: first.docNo, date: first.date, buyer: first.buyer,
@@ -621,7 +618,7 @@ const SalesModule = (() => {
     if (!group.length) return;
     openDetailDocNo = docNo;
     const totals = group.reduce((acc, r) => ({
-      subtotal: acc.subtotal + (r.subtotal || 0), vat: acc.vat + (r.vat || 0), total: acc.total + (r.total || 0)
+      subtotal: acc.subtotal + rawNum(r.subtotal), vat: acc.vat + rawNum(r.vat), total: acc.total + rawNum(r.total)
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const panel = document.getElementById('sl-detail-panel');
@@ -636,9 +633,9 @@ const SalesModule = (() => {
         { key: '__no', label: 'No.', align: 'center' },
         { key: 'item', label: '품목명' },
         { key: 'spec', label: '규격' },
-        { key: 'qty', label: '수량', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => (v || 0).toLocaleString() },
-        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => (v || 0).toLocaleString() }
+        { key: 'qty', label: '수량', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'unitPrice', label: '단가', align: 'right', render: (v) => fmtNum(v) },
+        { key: 'subtotal', label: '공급가액', align: 'right', render: (v) => fmtNum(v) }
       ], group)}
       <div class="sl-doc-totals" style="margin-top:8px">
         공급가액 ${totals.subtotal.toLocaleString()} + 부가세(10%) ${totals.vat.toLocaleString()} = 합계 ${totals.total.toLocaleString()}
