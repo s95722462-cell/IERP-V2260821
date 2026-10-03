@@ -277,7 +277,92 @@ const FifoEngine = (() => {
     return { sales: salesForProduct.length, changedSales: saleUpdates.length, changedLots: lotOps.length };
   }
 
-  return { getLots, consume, release, applyOpsToLocalCache, recalcProduct };
+  /**
+   * 매출 저장·삭제처럼 FIFO 뱃치를 건드리는 쓰기를 Firestore 트랜잭션으로
+   * 커밋한다. consume()/release()는 브라우저의 로컬 캐시를 보고 계산하는데,
+   * 두 기기에서 거의 동시에 같은 품목을 팔면 둘 다 "아직 안 팔린" 같은 뱃치를
+   * 보고 각자 차감해서, 나중 저장이 앞 저장의 차감을 덮어써 재고가 어긋났다.
+   * 여기서는 트랜잭션 안에서 관련 뱃치 문서를 서버에서 새로 읽어 로컬 캐시에
+   * 덮어쓴 뒤 build()로 ops를 만든다. 그 사이 다른 기기가 같은 문서를 바꾸면
+   * Firestore가 트랜잭션 전체를 자동으로 다시 실행하므로(매번 다시 읽고 다시
+   * 계산) 같은 재고를 두 번 차감하는 일이 없다.
+   *
+   * 읽는 문서: 되돌릴 매출 문서들(삭제·수정 대상 — 서버 기준 costLots 사용),
+   * 그 costLots가 가리키는 뱃치, 이번에 소진할 품목의 품목 문서(초기재고)와
+   * 남은 수량이 있는 매입 뱃치(반품 품목은 복귀 자리를 찾아야 해서 전부).
+   *
+   * @param {object} p
+   * @param {string[]} [p.releaseSaleIds] - 삭제하면서 뱃치를 되돌릴 매출 문서 id
+   * @param {{id:string, allLots?:boolean}[]} [p.products] - 이번에 소진/복귀할 품목
+   * @param {(freshSales: object[]) => object[]} p.build - 캐시가 서버 값으로
+   *   맞춰진 상태에서 ops를 만든다. freshSales는 서버에 아직 남아 있던 되돌릴
+   *   매출 문서들. 트랜잭션 재시도 때마다 다시 호출되므로 부작용 없이 ops만 만들 것
+   *   (applyOpsToLocalCache 호출은 괜찮다 — 재시도 때 서버 값으로 다시 덮어쓴다).
+   * @returns {Promise<object[]>} 실제로 커밋된 ops
+   */
+  async function commitTransaction({ releaseSaleIds = [], products = [], build }) {
+    const sp = salesPath(), pp = purchasesPath(), prp = productsPath();
+    const purchaseCache = PurchaseModule.getCache();
+    const productCache = ProductsModule.getCache();
+
+    // 실패하면 로컬 캐시를 원래대로 돌려놓기 위해 지금 값을 기억해둔다
+    const backupPurchases = purchaseCache.map((r) => [r, r.qty, r.remainingQty]);
+    const backupProducts = productCache.map((p) => [p, p.initStock, p.initStockRemaining]);
+
+    try {
+      return await db.runTransaction(async (tx) => {
+        const saleSnaps = await Promise.all(releaseSaleIds.map((id) => tx.get(db.collection(sp).doc(id))));
+        const freshSales = saleSnaps.filter((s) => s.exists).map((s) => ({ id: s.id, ...s.data() }));
+
+        const purchaseIds = new Set();
+        const productIds = new Set();
+        freshSales.forEach((s) => (s.costLots || []).forEach((lot) => {
+          if (lot.type === 'purchase') purchaseIds.add(lot.id);
+          else if (lot.type === 'init') productIds.add(lot.id);
+        }));
+        products.forEach(({ id, allLots }) => {
+          productIds.add(id);
+          purchaseCache
+            .filter((r) => r.productId === id && (allLots || (r.remainingQty !== undefined ? r.remainingQty : r.qty) > 0))
+            .forEach((r) => purchaseIds.add(r.id));
+        });
+
+        const [purchaseSnaps, productSnaps] = await Promise.all([
+          Promise.all(Array.from(purchaseIds).map((id) => tx.get(db.collection(pp).doc(id)))),
+          Promise.all(Array.from(productIds).map((id) => tx.get(db.collection(prp).doc(id))))
+        ]);
+
+        // 서버 값으로 로컬 캐시를 맞춘다. 서버에서 이미 지워진 문서는 기억해뒀다가
+        // 그 문서를 향한 merge set을 버린다 (빈 문서가 새로 생기는 걸 막기 위함).
+        const missing = new Set();
+        purchaseSnaps.forEach((s) => {
+          if (!s.exists) { missing.add(pp + '/' + s.id); return; }
+          const row = purchaseCache.find((r) => r.id === s.id);
+          if (row) { const d = s.data(); row.qty = d.qty; row.remainingQty = d.remainingQty; }
+        });
+        productSnaps.forEach((s) => {
+          if (!s.exists) { missing.add(prp + '/' + s.id); return; }
+          const p = productCache.find((r) => r.id === s.id);
+          if (p) { const d = s.data(); p.initStock = d.initStock; p.initStockRemaining = d.initStockRemaining; }
+        });
+
+        const ops = build(freshSales).filter((op) => !(op.type === 'set' && missing.has(op.path + '/' + op.id)));
+        if (ops.length > 500) throw new Error(`한 번에 저장할 문서가 너무 많습니다 (${ops.length}개, 최대 500개)`);
+        ops.forEach((op) => {
+          const ref = db.collection(op.path).doc(op.id);
+          if (op.type === 'delete') tx.delete(ref);
+          else tx.set(ref, op.data, { merge: !!op.merge });
+        });
+        return ops;
+      });
+    } catch (err) {
+      backupPurchases.forEach(([r, qty, rem]) => { r.qty = qty; r.remainingQty = rem; });
+      backupProducts.forEach(([p, init, rem]) => { p.initStock = init; p.initStockRemaining = rem; });
+      throw err;
+    }
+  }
+
+  return { getLots, consume, release, applyOpsToLocalCache, recalcProduct, commitTransaction };
 })();
 
 window.FifoEngine = FifoEngine;

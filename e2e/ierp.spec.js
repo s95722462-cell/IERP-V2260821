@@ -606,16 +606,11 @@ test('일별현황은 기본으로 이번 달 1일~오늘만 보여준다', asyn
 test('[회귀] 저장이 느릴 때 저장 버튼을 연달아 눌러도 매출이 한 번만 저장된다', async ({ page }) => {
   await boot(page);
   await addCustomer(page, '고객C');
-  // 네트워크 지연 흉내: batch 커밋을 1.5초 늦춘다
+  // 네트워크 지연 흉내: 트랜잭션(전표번호 채번·매출 저장)을 1.5초씩 늦춘다
   await page.evaluate(() => {
     const fs = firebase.firestore();
-    const origBatch = fs.batch.bind(fs);
-    fs.batch = () => {
-      const b = origBatch();
-      const commit = b.commit.bind(b);
-      b.commit = async () => { await new Promise((r) => setTimeout(r, 1500)); return commit(); };
-      return b;
-    };
+    const origTx = fs.runTransaction.bind(fs);
+    fs.runTransaction = async (fn) => { await new Promise((r) => setTimeout(r, 1500)); return origTx(fn); };
   });
   await nav(page, 'sales');
   await page.click('#sl-add-btn');
@@ -629,4 +624,42 @@ test('[회귀] 저장이 느릴 때 저장 버튼을 연달아 눌러도 매출�
   await expect(page.locator('#sl-save-btn')).toBeEnabled();
   const sales = await dump(page, 'sales');
   expect(sales.filter((s) => s.item === '중복방지품목')).toHaveLength(1);
+});
+
+test('[회귀] 다른 기기가 같은 재고를 먼저 팔면, 서버 최신 수량으로 다시 계산해 이중 차감하지 않는다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  // 이 기기가 저장을 커밋하기 직전에, 다른 기기가 같은 초기재고에서 3개를 팔았다고 흉내낸다
+  await page.evaluate((p) => {
+    window.__mockFb.beforeTxCommit = async (keys) => {
+      if (!keys.some((k) => k.startsWith(p + '/'))) return false; // 전표번호 채번 트랜잭션은 건너뜀
+      const id = window.__mockFb.dump(p)[0].id;
+      await firebase.firestore().collection(p).doc(id).set({ initStockRemaining: 7 }, { merge: true });
+    };
+  }, await coPath(page, 'products'));
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 4, price: 2000 });
+  expect(await page.evaluate(() => window.__mockFb.txRetries)).toBeGreaterThan(0);
+  expect((await dump(page, 'products'))[0].initStockRemaining, '10 - 3(다른 기기) - 4(이 기기)').toBe(3);
+  expect((await dump(page, 'sales'))[0]).toMatchObject({ costOfGoods: 4000, costEstimated: false });
+});
+
+test('[회귀] 다른 기기가 이미 지운 매출을 또 지워도 재고가 이중 복원되지 않는다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 4, price: 2000 });
+  expect((await dump(page, 'products'))[0].initStockRemaining).toBe(6);
+  // 삭제를 커밋하기 직전: 다른 기기가 이 매출을 지워 4개를 되돌린 뒤(10) 5개를 새로 팔았다(5)
+  await page.evaluate(([sp, pp]) => {
+    window.__mockFb.beforeTxCommit = async () => {
+      const fs = firebase.firestore();
+      await fs.collection(sp).doc(window.__mockFb.dump(sp)[0].id).delete();
+      await fs.collection(pp).doc(window.__mockFb.dump(pp)[0].id).set({ initStockRemaining: 5 }, { merge: true });
+    };
+  }, [await coPath(page, 'sales'), await coPath(page, 'products')]);
+  await nav(page, 'sales');
+  await page.locator('#sl-list-card button[data-act="del"]').first().click();
+  await expect(page.locator('#sl-list-card tbody')).toContainText('데이터가 없습니다');
+  expect((await dump(page, 'products'))[0].initStockRemaining, '이미 복원된 4개를 또 더하면 9가 됨').toBe(5);
 });

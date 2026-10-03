@@ -10,6 +10,7 @@
   let seq = 0;
   let offline = false;
   let writeCount = 0;
+  const versions = new Map(); // "path/id" → 쓰기 횟수 (트랜잭션 충돌 감지용)
 
   class Timestamp {
     constructor(seconds, nanoseconds) { this.seconds = seconds; this.nanoseconds = nanoseconds || 0; }
@@ -98,6 +99,7 @@
     const resolved = resolve(data);
     const base = merge && c.has(id) ? c.get(id) : {};
     writeCount++;
+    versions.set(path + '/' + id, (versions.get(path + '/' + id) || 0) + 1);
     const next = { ...base, ...resolved };
     Object.keys(next).forEach((k) => { if (next[k] === DELETE) delete next[k]; });
     c.set(id, next);
@@ -105,7 +107,7 @@
 
   function docRef(path, id) {
     return {
-      id,
+      id, __key: path + '/' + id,
       async get() {
         checkPerm(path, id);
         const d = col(path).get(id);
@@ -117,7 +119,7 @@
         if (!col(path).has(id)) { const e = new Error('No document to update'); e.code = 'not-found'; throw e; }
         writeSet(path, id, data, true); notify(path);
       },
-      async delete() { checkPerm(path, id); writeCount++; col(path).delete(id); notify(path); }
+      async delete() { checkPerm(path, id); writeCount++; versions.set(path + '/' + id, (versions.get(path + '/' + id) || 0) + 1); col(path).delete(id); notify(path); }
     };
   }
 
@@ -145,15 +147,28 @@
 
   const firestoreInstance = {
     collection: (path) => query(path, null),
+    // 실제 Firestore처럼 낙관적 동시성 제어: 트랜잭션에서 읽은 문서가 커밋 전에
+    // 다른 쪽에서 바뀌었으면 fn을 처음부터 다시 실행한다 (최대 5회).
+    // __mockFb.beforeTxCommit 훅으로 "커밋 직전 다른 기기의 쓰기"를 흉내낼 수 있다.
     async runTransaction(fn) {
-      const touched = [];
-      const tx = {
-        get: (ref) => ref.get(),
-        set: (ref, data, opts) => { touched.push(() => ref.set(data, opts)); }
-      };
-      const r = await fn(tx);
-      for (const t of touched) await t();
-      return r;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const touched = [];
+        const readVers = new Map();
+        const tx = {
+          get: (ref) => { readVers.set(ref.__key, versions.get(ref.__key) || 0); return ref.get(); },
+          set: (ref, data, opts) => { touched.push(() => ref.set(data, opts)); },
+          delete: (ref) => { touched.push(() => ref.delete()); }
+        };
+        const r = await fn(tx);
+        const hook = window.__mockFb.beforeTxCommit;
+        // 훅이 false를 돌려주면 "이 트랜잭션은 대상 아님"으로 보고 다음 트랜잭션까지 남겨둔다
+        if (hook && (await hook(Array.from(readVers.keys()))) !== false) window.__mockFb.beforeTxCommit = null;
+        const conflict = Array.from(readVers).some(([k, v]) => (versions.get(k) || 0) !== v);
+        if (conflict) { window.__mockFb.txRetries++; continue; }
+        for (const t of touched) await t();
+        return r;
+      }
+      const e = new Error('Transaction failed: too much contention'); e.code = 'aborted'; throw e;
     },
     batch() {
       const ops = [];
@@ -196,7 +211,7 @@
 
   window.firebase = { initializeApp: () => ({}), auth: authFn, firestore: firestoreFn };
   window.__mockFb = {
-    store, pwChanges: 0,
+    store, pwChanges: 0, txRetries: 0, beforeTxCommit: null,
     dump(path) { return Array.from(col(path).entries()).map(([id, d]) => ({ id, ...clone(d) })); },
     paths() { return Array.from(store.keys()); },
     get writes() { return writeCount; },

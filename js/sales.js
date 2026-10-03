@@ -481,53 +481,61 @@ const SalesModule = (() => {
       return false;
     }
 
-    const ops = [];
-    editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
-    // 수정이면 기존 줄들이 소진했던 뱃치를 먼저 되돌려 놓는다 — 안 그러면
-    // 아래에서 같은 수량을 또 소진해서 재고가 이중으로 차감된다.
-    // 로컬 캐시에도 즉시 반영해야 바로 아래 consume()이 복원된 수량을 본다.
-    const releaseOps = FifoEngine.release(cache.filter((r) => editingIds.includes(r.id)));
-    FifoEngine.applyOpsToLocalCache(releaseOps);
-    ops.push(...releaseOps);
-    itemRows.forEach((r) => {
-      const product = ProductsModule.findByNameSpec(r.item, r.spec);
-      const saleId = genId();
-      const saleData = {
-        docNo, date, buyerId,
-        buyer: buyer ? buyer.name : '',
-        item: r.item, spec: r.spec,
-        productId: product ? product.id : '',
-        qty: r.qty, unitPrice: r.price,
-        subtotal: r.subtotal, vat: r.vat, total: r.total,
-        isReturn: r.isReturn,
-        invNo, memo
-      };
+    // FIFO 계산과 저장을 하나의 트랜잭션으로 묶는다 — 다른 기기에서 같은 품목을
+    // 거의 동시에 팔아도, 서버의 최신 뱃치 수량을 보고 계산하도록
+    // (FifoEngine.commitTransaction 주석 참고). build()는 트랜잭션이 재시도될
+    // 때마다 다시 불려서 서버 값 기준으로 처음부터 다시 계산한다.
+    const lines = itemRows.map((r) => ({ r, product: ProductsModule.findByNameSpec(r.item, r.spec) }));
+    const build = (freshEditingRows) => {
+      const ops = [];
+      editingIds.forEach((id) => ops.push({ type: 'delete', path: path(), id }));
+      // 수정이면 기존 줄들이 소진했던 뱃치를 먼저 되돌려 놓는다 — 안 그러면
+      // 아래에서 같은 수량을 또 소진해서 재고가 이중으로 차감된다.
+      // 로컬 캐시에도 즉시 반영해야 바로 아래 consume()이 복원된 수량을 본다.
+      const releaseOps = FifoEngine.release(freshEditingRows);
+      FifoEngine.applyOpsToLocalCache(releaseOps);
+      ops.push(...releaseOps);
+      lines.forEach(({ r, product }) => {
+        const saleId = genId();
+        const saleData = {
+          docNo, date, buyerId,
+          buyer: buyer ? buyer.name : '',
+          item: r.item, spec: r.spec,
+          productId: product ? product.id : '',
+          qty: r.qty, unitPrice: r.price,
+          subtotal: r.subtotal, vat: r.vat, total: r.total,
+          isReturn: r.isReturn,
+          invNo, memo
+        };
 
-      // 등록된 품목과 정확히 매칭되면 FIFO로 매출원가를 계산해 같이
-      // 저장한다 (자유 입력 품목명이라 매칭 안 되면 원가 계산 생략).
-      // 매입 뱃치의 남은 수량을 갱신하는 ops도 이 매출 저장과 같은
-      // batch에 묶어서, 저장이 중간에 실패해도 반쪽만 반영되지 않게 한다.
-      // 반품(qty가 음수)이면 FifoEngine.consume이 가장 최근에 출고된
-      // 뱃치로 수량을 되돌리고(나갈 때의 원가 그대로), 매출원가는
-      // 마이너스로 기록된다 — 재고 수량과 재고금액이 함께 복귀한다.
-      if (product) {
-        const fifo = FifoEngine.consume(product.id, r.qty);
-        saleData.costOfGoods = fifo.costOfGoods;
-        saleData.costLots = fifo.costLots;
-        saleData.costEstimated = fifo.estimated;
-        ops.push(...fifo.ops);
-        // 한 전표 안에 같은 품목이 여러 줄로 나뉘어 있을 때, 다음 줄
-        // 계산에서 이번 줄이 방금 깎은 재고가 바로 반영되도록 로컬
-        // 캐시에도 즉시 적용해둔다 (실제 Firestore 반영은 이 함수
-        // 마지막의 batchWrite(ops) 한 번으로 묶어서 한다).
-        FifoEngine.applyOpsToLocalCache(fifo.ops);
-      }
+        // 등록된 품목과 정확히 매칭되면 FIFO로 매출원가를 계산해 같이
+        // 저장한다 (자유 입력 품목명이라 매칭 안 되면 원가 계산 생략).
+        // 반품(qty가 음수)이면 FifoEngine.consume이 가장 최근에 출고된
+        // 뱃치로 수량을 되돌리고(나갈 때의 원가 그대로), 매출원가는
+        // 마이너스로 기록된다 — 재고 수량과 재고금액이 함께 복귀한다.
+        if (product) {
+          const fifo = FifoEngine.consume(product.id, r.qty);
+          saleData.costOfGoods = fifo.costOfGoods;
+          saleData.costLots = fifo.costLots;
+          saleData.costEstimated = fifo.estimated;
+          ops.push(...fifo.ops);
+          // 한 전표 안에 같은 품목이 여러 줄로 나뉘어 있을 때, 다음 줄
+          // 계산에서 이번 줄이 방금 깎은 재고가 바로 반영되도록 로컬
+          // 캐시에도 즉시 적용해둔다.
+          FifoEngine.applyOpsToLocalCache(fifo.ops);
+        }
 
-      ops.push({ type: 'set', path: path(), id: saleId, data: saleData });
-    });
+        ops.push({ type: 'set', path: path(), id: saleId, data: saleData });
+      });
+      return ops;
+    };
 
     try {
-      await batchWrite(ops);
+      await FifoEngine.commitTransaction({
+        releaseSaleIds: editingIds,
+        products: lines.filter((l) => l.product).map((l) => ({ id: l.product.id, allLots: l.r.qty < 0 })),
+        build
+      });
       return true;
     } catch (err) {
       alert('저장 중 오류가 발생했습니다: ' + err.message);
@@ -543,16 +551,32 @@ const SalesModule = (() => {
     const group = row.docNo ? cache.filter((r) => r.docNo === row.docNo) : [row];
     const label = row.docNo ? `전표 ${row.docNo}(품목 ${group.length}개)` : '이 매출 내역';
     if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
-    await deleteRowsReleasingFifo(group);
+    try {
+      await deleteRowsReleasingFifo(group);
+    } catch (err) {
+      alert('삭제 중 오류가 발생했습니다: ' + err.message);
+      console.error('[삭제 실패]', err);
+    }
   }
 
   /** 매출 줄들을 삭제하면서, 그 줄들이 소진했던 FIFO 뱃치(매입 남은 수량·
-   * 초기재고)도 같은 batch로 되돌린다 (재고금액이 삭제 후에도 빠진 채로
-   * 남는 문제 방지). */
+   * 초기재고)도 같은 트랜잭션으로 되돌린다 (재고금액이 삭제 후에도 빠진 채로
+   * 남는 문제 방지). 서버의 최신 뱃치 수량 기준으로 되돌리고, 다른 기기에서
+   * 이미 지운 매출은 되돌리지 않는다 (이중 복원 방지).
+   * 트랜잭션은 문서 500개 한도가 있어서, 대량 선택삭제는 매출 100줄씩 나눠 커밋한다. */
   async function deleteRowsReleasingFifo(rows) {
-    const releaseOps = FifoEngine.release(rows);
-    await batchWrite(rows.map((r) => ({ type: 'delete', path: path(), id: r.id })).concat(releaseOps));
-    FifoEngine.applyOpsToLocalCache(releaseOps);
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      const ids = rows.slice(i, i + CHUNK_SIZE).map((r) => r.id);
+      await FifoEngine.commitTransaction({
+        releaseSaleIds: ids,
+        build: (freshRows) => {
+          const releaseOps = FifoEngine.release(freshRows);
+          FifoEngine.applyOpsToLocalCache(releaseOps);
+          return ids.map((id) => ({ type: 'delete', path: path(), id })).concat(releaseOps);
+        }
+      });
+    }
   }
 
   /** 전표 키(전표No. 또는 옛 낱개 레코드의 id) 하나를 실제 문서 묶음으로
