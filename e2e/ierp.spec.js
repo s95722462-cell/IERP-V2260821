@@ -663,3 +663,35 @@ test('[회귀] 다른 기기가 이미 지운 매출을 또 지워도 재고가 
   await expect(page.locator('#sl-list-card tbody')).toContainText('데이터가 없습니다');
   expect((await dump(page, 'products'))[0].initStockRemaining, '이미 복원된 4개를 또 더하면 9가 됨').toBe(5);
 });
+
+test('하루 첫 접속 시 백업 파일을 자동으로 받고, 같은 날 다시 접속하면 받지 않는다', async ({ page }) => {
+  await boot(page); // 빈 회사로 로그인 — 백업할 데이터가 없으니 자동 백업도 없어야 함
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+
+  // 다시 접속한 것처럼 자동 백업을 예약한다
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 15000 }),
+    page.evaluate(() => SettingsModule.scheduleAutoBackup())
+  ]);
+  expect(download.suggestedFilename()).toBe(`iERP_auto_테스트상사_${today()}.json`);
+  const backup = JSON.parse(fs.readFileSync(await download.path(), 'utf8'));
+  expect(backup.customers.map((c) => c.name)).toEqual(['고객B']);
+  expect(backup.products).toHaveLength(1);
+  await nav(page, 'settings');
+  await expect(page.locator('#st-auto-backup-info')).toContainText(today());
+
+  // 같은 날 또 접속하면 받지 않는다
+  let again = false;
+  page.on('download', () => { again = true; });
+  await page.evaluate(() => SettingsModule.scheduleAutoBackup());
+  await page.waitForTimeout(5000);
+  expect(again).toBe(false);
+
+  // 설정에서 끄면 다음 날이 되어도 받지 않는다
+  await page.locator('#st-auto-backup').uncheck();
+  await page.evaluate(() => { Object.keys(localStorage).filter((k) => k.startsWith('iERP_autoBackup_')).forEach((k) => localStorage.removeItem(k)); });
+  await page.evaluate(() => SettingsModule.scheduleAutoBackup());
+  await page.waitForTimeout(5000);
+  expect(again).toBe(false);
+});

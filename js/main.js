@@ -130,6 +130,8 @@ function restartAllListeners() {
   ALL_MODULES.forEach((m) => {
     if (typeof m.startListening === 'function') m.startListening();
   });
+  // 데이터가 다 도착하면 오늘 첫 접속인 경우 백업 파일을 자동으로 내려받는다
+  SettingsModule.scheduleAutoBackup();
 }
 
 /**

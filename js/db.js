@@ -288,7 +288,17 @@ const DbEngine = (() => {
     return () => clearInterval(timer);
   }
 
-  return { onStatusChange, setStatus, getStatus, stopAll, listen, startReconnectWatchdog };
+  /** 지금 연결된 모든 리스너가 서버에서 첫 데이터를 받았는지 (캐시 아님).
+   * 'synced' 상태는 응답이 온 리스너만 보고 판단하므로, 아직 응답이 없는
+   * 리스너가 있어도 synced일 수 있다 — 자동 백업처럼 "전부 다 받은 뒤"가
+   * 중요한 곳은 이걸로 확인한다. */
+  function isFullyLoaded() {
+    return activeUnsubscribers.length > 0
+      && fromCacheByListener.size === activeUnsubscribers.length
+      && !Array.from(fromCacheByListener.values()).some(Boolean);
+  }
+
+  return { onStatusChange, setStatus, getStatus, stopAll, listen, startReconnectWatchdog, isFullyLoaded };
 })();
 
 // 다른 모듈에서 전역으로 사용
