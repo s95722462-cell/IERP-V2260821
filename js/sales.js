@@ -118,7 +118,7 @@ const SalesModule = (() => {
     document.getElementById('sl-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'sl-panel-bg') closePanel();
     });
-    document.getElementById('sl-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
+    bindSaveButton(document.getElementById('sl-save-btn'), save, closePanel);
     document.getElementById('sl-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('sl-add-row-btn').addEventListener('click', () => addRow());
 

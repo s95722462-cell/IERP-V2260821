@@ -71,7 +71,7 @@ const ProductsModule = (() => {
     document.getElementById('pr-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pr-panel-bg') closePanel(); // 패널 바깥(어두운 배경) 클릭 시 닫기
     });
-    document.getElementById('pr-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
+    bindSaveButton(document.getElementById('pr-save-btn'), save, closePanel);
     document.getElementById('pr-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('pr-tmpl-btn').addEventListener('click', downloadTemplate);
     document.getElementById('pr-export-btn').addEventListener('click', exportExcel);
