@@ -242,9 +242,11 @@ const DbEngine = (() => {
 
     const key = ++listenerSeq;
     let first = true;
+    let active = true; // 해제 직후 뒤늦게 도착한 스냅샷이 상태를 되살리지 않게
     const rawUnsub = query.onSnapshot(
       { includeMetadataChanges: true }, // 온라인↔오프라인 전환도 알림 받기 위함
       (snap) => {
+        if (!active) return;
         fromCacheByListener.set(key, !!(snap.metadata && snap.metadata.fromCache));
         recomputeStatus();
         // includeMetadataChanges 때문에 "문서는 그대로고 연결 상태만 바뀐" 스냅샷도
@@ -262,7 +264,14 @@ const DbEngine = (() => {
         setStatus('offline');
       }
     );
-    const unsub = () => { fromCacheByListener.delete(key); rawUnsub(); };
+    // 화면 모듈이 자기 리스너를 직접 해제하고 다시 걸 때(회사 전환·재연결),
+    // 목록에서도 빼야 isFullyLoaded()가 이미 해제된 리스너를 기다리지 않는다
+    const unsub = () => {
+      active = false;
+      fromCacheByListener.delete(key);
+      activeUnsubscribers = activeUnsubscribers.filter((u) => u !== unsub);
+      rawUnsub();
+    };
     activeUnsubscribers.push(unsub);
     return unsub;
   }

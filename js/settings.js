@@ -283,6 +283,8 @@ const SettingsModule = (() => {
   function isAutoBackupOn() { return storageGet(AUTO_BACKUP_OFF_KEY) !== '1'; }
 
   function renderAutoBackupInfo() {
+    const chk = document.getElementById('st-auto-backup');
+    if (chk) chk.checked = isAutoBackupOn();
     const el = document.getElementById('st-auto-backup-info');
     if (!el) return;
     const { currentUser } = getAuthState();
