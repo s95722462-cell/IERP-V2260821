@@ -242,9 +242,11 @@ const DbEngine = (() => {
 
     const key = ++listenerSeq;
     let first = true;
+    let active = true; // 해제 직후 뒤늦게 도착한 스냅샷이 상태를 되살리지 않게
     const rawUnsub = query.onSnapshot(
       { includeMetadataChanges: true }, // 온라인↔오프라인 전환도 알림 받기 위함
       (snap) => {
+        if (!active) return;
         fromCacheByListener.set(key, !!(snap.metadata && snap.metadata.fromCache));
         recomputeStatus();
         // includeMetadataChanges 때문에 "문서는 그대로고 연결 상태만 바뀐" 스냅샷도
@@ -262,7 +264,14 @@ const DbEngine = (() => {
         setStatus('offline');
       }
     );
-    const unsub = () => { fromCacheByListener.delete(key); rawUnsub(); };
+    // 화면 모듈이 자기 리스너를 직접 해제하고 다시 걸 때(회사 전환·재연결),
+    // 목록에서도 빼야 isFullyLoaded()가 이미 해제된 리스너를 기다리지 않는다
+    const unsub = () => {
+      active = false;
+      fromCacheByListener.delete(key);
+      activeUnsubscribers = activeUnsubscribers.filter((u) => u !== unsub);
+      rawUnsub();
+    };
     activeUnsubscribers.push(unsub);
     return unsub;
   }
@@ -288,7 +297,17 @@ const DbEngine = (() => {
     return () => clearInterval(timer);
   }
 
-  return { onStatusChange, setStatus, getStatus, stopAll, listen, startReconnectWatchdog };
+  /** 지금 연결된 모든 리스너가 서버에서 첫 데이터를 받았는지 (캐시 아님).
+   * 'synced' 상태는 응답이 온 리스너만 보고 판단하므로, 아직 응답이 없는
+   * 리스너가 있어도 synced일 수 있다 — 자동 백업처럼 "전부 다 받은 뒤"가
+   * 중요한 곳은 이걸로 확인한다. */
+  function isFullyLoaded() {
+    return activeUnsubscribers.length > 0
+      && fromCacheByListener.size === activeUnsubscribers.length
+      && !Array.from(fromCacheByListener.values()).some(Boolean);
+  }
+
+  return { onStatusChange, setStatus, getStatus, stopAll, listen, startReconnectWatchdog, isFullyLoaded };
 })();
 
 // 다른 모듈에서 전역으로 사용

@@ -54,6 +54,8 @@ const SettingsModule = (() => {
           <input type="file" id="st-restore-file" accept=".json" style="display:none">
         </div>
         <div style="font-size:12px;color:var(--text2);margin-top:8px">⚠️ 복원하면 현재 회사의 거래처·품목·매출·매입 데이터가 백업 파일 내용으로 전부 교체됩니다(되돌릴 수 없음).</div>
+        <label class="ls-chk" style="margin-top:12px"><input type="checkbox" id="st-auto-backup"> 매일 처음 접속할 때 자동으로 백업 파일 내려받기 (이 브라우저)</label>
+        <div id="st-auto-backup-info" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
       </div>
     `;
 
@@ -66,6 +68,10 @@ const SettingsModule = (() => {
     document.getElementById('st-fiscal-year').addEventListener('change', saveFiscalYear);
 
     document.getElementById('st-theme-toggle').checked = getSavedTheme() === 'dark';
+    document.getElementById('st-auto-backup').checked = isAutoBackupOn();
+    document.getElementById('st-auto-backup').addEventListener('change', (e) => {
+      storageSet(AUTO_BACKUP_OFF_KEY, e.target.checked ? null : '1');
+    });
 
     renderFiscalYearSelect();
     renderCompanyList();
@@ -260,6 +266,64 @@ const SettingsModule = (() => {
     URL.revokeObjectURL(url);
   }
 
+  // ── 자동 백업 ──────────────────────────────────────────────
+  // 서버 쪽 정기 백업(Cloud Functions)은 유료 요금제가 필요해서, 대신 하루 중
+  // 처음 접속했을 때 브라우저가 JSON 백업 파일을 PC로 자동으로 내려받는다.
+  // Firebase 쪽에 사고가 나도 PC에 사본이 남는다. "오늘 받았는지"는 계정·회사별로
+  // 이 브라우저의 localStorage에 기억한다 (다른 PC에서는 그 PC대로 따로 받는다).
+  const AUTO_BACKUP_OFF_KEY = 'iERP_autoBackupOff';
+  const autoBackupKey = () => `iERP_autoBackup_${getAuthState().currentUser.safeId}_${curCompanyId()}`;
+  let autoBackupTimer = null;
+
+  // localStorage는 사생활 보호 모드 등에서 예외가 날 수 있어 항상 감싼다
+  function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function storageSet(key, value) {
+    try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch (e) { /* 무시 */ }
+  }
+  function isAutoBackupOn() { return storageGet(AUTO_BACKUP_OFF_KEY) !== '1'; }
+
+  function renderAutoBackupInfo() {
+    const chk = document.getElementById('st-auto-backup');
+    if (chk) chk.checked = isAutoBackupOn();
+    const el = document.getElementById('st-auto-backup-info');
+    if (!el) return;
+    const { currentUser } = getAuthState();
+    const last = currentUser && curCompanyId() ? storageGet(autoBackupKey()) : null;
+    el.textContent = last ? `이 회사의 마지막 자동 백업: ${last} (다운로드 폴더의 iERP_auto_...json)` : '';
+  }
+
+  /**
+   * 로그인·회사 전환 직후 호출한다. 모든 데이터가 서버에서 도착할 때까지
+   * 기다렸다가(최대 1분), 오늘 이 회사를 아직 백업하지 않았으면 내려받는다.
+   */
+  function scheduleAutoBackup() {
+    clearInterval(autoBackupTimer);
+    renderAutoBackupInfo();
+    if (!isAutoBackupOn()) return;
+    let waited = 0;
+    autoBackupTimer = setInterval(() => {
+      waited += 2000;
+      if (waited > 60000) { clearInterval(autoBackupTimer); return; }
+      const { currentUser } = getAuthState();
+      if (!currentUser || !curCompanyId() || !DbEngine.isFullyLoaded()) return;
+      clearInterval(autoBackupTimer);
+      runAutoBackupIfDue();
+    }, 2000);
+  }
+
+  /** 데이터가 하나도 없으면(새 회사) 받지 않고 날짜도 기록하지 않는다. */
+  function runAutoBackupIfDue() {
+    const today = todayStr();
+    if (storageGet(autoBackupKey()) === today) return;
+    const total = CustomersModule.getCache().length + ProductsModule.getCache().length
+      + SalesModule.getCache().length + PurchaseModule.getCache().length;
+    if (!total) return;
+    const coName = String(companies[activeCoIdx]?.company || 'company').replace(/[\\/:*?"<>|\s]+/g, '_');
+    exportJson(`iERP_auto_${coName}_${today}.json`);
+    storageSet(autoBackupKey(), today);
+    renderAutoBackupInfo();
+  }
+
   const RESTORE_COLLECTIONS = ['customers', 'products', 'sales', 'purchases'];
   const RESTORE_LABELS = { customers: '거래처', products: '품목', sales: '매출', purchases: '매입' };
 
@@ -362,7 +426,7 @@ const SettingsModule = (() => {
     }
   }
 
-  return { init, renderCompanyList, getFiscalYear };
+  return { init, renderCompanyList, getFiscalYear, scheduleAutoBackup };
 })();
 
 window.SettingsModule = SettingsModule;
