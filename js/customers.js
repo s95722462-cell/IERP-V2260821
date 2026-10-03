@@ -63,7 +63,7 @@ const CustomersModule = (() => {
     document.getElementById('cu-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'cu-panel-bg') closePanel();
     });
-    document.getElementById('cu-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
+    bindSaveButton(document.getElementById('cu-save-btn'), save, closePanel);
     document.getElementById('cu-cancel-btn').addEventListener('click', closePanel);
 
     tableInstance = TableEngine.create('customers', {

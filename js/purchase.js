@@ -91,7 +91,7 @@ const PurchaseModule = (() => {
     document.getElementById('pu-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pu-panel-bg') closePanel();
     });
-    document.getElementById('pu-save-btn').addEventListener('click', async () => { const ok = await save(); if (ok) closePanel(); });
+    bindSaveButton(document.getElementById('pu-save-btn'), save, closePanel);
     document.getElementById('pu-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('pu-add-row-btn').addEventListener('click', () => addRow());
 

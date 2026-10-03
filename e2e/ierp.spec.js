@@ -580,3 +580,31 @@ test('index.html의 CDN SRI 해시가 실제 CDN 파일과 일치한다', async 
     expect(`sha384-${crypto.createHash('sha384').update(buf).digest('base64')}`, url).toBe(integrity);
   }
 });
+
+test('[회귀] 저장이 느릴 때 저장 버튼을 연달아 눌러도 매출이 한 번만 저장된다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객C');
+  // 네트워크 지연 흉내: batch 커밋을 1.5초 늦춘다
+  await page.evaluate(() => {
+    const fs = firebase.firestore();
+    const origBatch = fs.batch.bind(fs);
+    fs.batch = () => {
+      const b = origBatch();
+      const commit = b.commit.bind(b);
+      b.commit = async () => { await new Promise((r) => setTimeout(r, 1500)); return commit(); };
+      return b;
+    };
+  });
+  await nav(page, 'sales');
+  await page.click('#sl-add-btn');
+  await page.fill('#sl-date', today());
+  await page.fill('#sl-buyer-name', '고객C');
+  await fillTxRow(page, 'sl', 0, { item: '중복방지품목', qty: 1, price: 1000 });
+  await page.evaluate(() => { const b = document.getElementById('sl-save-btn'); b.click(); b.click(); b.click(); });
+  await expect(page.locator('#sl-save-btn')).toBeDisabled();
+  await expect(page.locator('#sl-save-btn')).toHaveText('저장 중…');
+  await expect(page.locator('#sl-panel-bg')).toBeHidden();
+  await expect(page.locator('#sl-save-btn')).toBeEnabled();
+  const sales = await dump(page, 'sales');
+  expect(sales.filter((s) => s.item === '중복방지품목')).toHaveLength(1);
+});

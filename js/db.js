@@ -158,6 +158,38 @@ async function batchWrite(ops) {
   }
 }
 
+/**
+ * 저장 버튼에 클릭 핸들러를 연결하되, 저장이 끝날 때까지 버튼을 잠근다.
+ * 네트워크가 느리면 전표번호 채번(트랜잭션)·batch 커밋이 몇 초씩 걸리는데,
+ * 그동안 화면 반응이 없어 저장 버튼을 한 번 더 누르면 같은 매출이 새
+ * 전표번호로 두 번 저장되는 사고가 있었다 — 진행 중이면 두 번째 클릭은 무시한다.
+ * @param {HTMLButtonElement} btn
+ * @param {() => Promise<boolean>} saveFn - 성공 시 true
+ * @param {() => void} onSuccess
+ */
+function bindSaveButton(btn, saveFn, onSuccess) {
+  let busy = false;
+  btn.addEventListener('click', async () => {
+    if (busy) return;
+    busy = true;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '저장 중…';
+    // 오래 걸리면 멈춘 게 아니라 기다리는 중이라는 걸 알려준다
+    const slowTimer = setTimeout(() => { btn.textContent = '저장 중… (네트워크 지연)'; }, 5000);
+    let ok = false;
+    try {
+      ok = await saveFn();
+    } finally {
+      clearTimeout(slowTimer);
+      btn.textContent = label;
+      btn.disabled = false;
+      busy = false;
+    }
+    if (ok) onSuccess();
+  });
+}
+
 // ── 실시간 리스너 관리 ──────────────────────────────────────
 
 const DbEngine = (() => {
@@ -270,4 +302,5 @@ window.getDocOnce = getDocOnce;
 window.DELETE_FIELD = DELETE_FIELD;
 window.genDocNo = genDocNo;
 window.batchWrite = batchWrite;
+window.bindSaveButton = bindSaveButton;
 window.DbEngine = DbEngine;
