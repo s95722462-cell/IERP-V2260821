@@ -105,14 +105,13 @@ const InvoiceModule = (() => {
     // 행이 페이지 경계에서 잘리지 않음).
     const MAX_ITEMS_FOR_SPLIT_LAYOUT = 8;
     if (items.length > MAX_ITEMS_FOR_SPLIT_LAYOUT) {
-      renderPrintArea(bodyHtml);
-      window.print();
+      present(bodyHtml);
       return;
     }
 
     // A4 한 장에 공급자 보관용 / 공급받는자 보관용을 위아래로 나눠 찍고
     // 가운데 절취선을 넣는다 (품목이 적을 때만 — 위 기준 참고).
-    renderPrintArea(`
+    present(`
       <div class="inv-page">
         <div class="inv-copy">
           <div class="inv-copy-label">공급자 보관용</div>
@@ -125,7 +124,38 @@ const InvoiceModule = (() => {
         </div>
       </div>
     `);
-    window.print();
+  }
+
+  /** 아이폰/아이패드 Safari는 목록 버튼에서 바로 부른 window.print()를 조용히
+   * 무시하는 경우가 있어(아무 반응 없음), 모바일에서는 명세서를 화면에 미리보기로
+   * 띄우고 사용자가 그 안의 "인쇄" 버튼을 직접 누르게 한다. 그래도 인쇄 창이
+   * 안 뜨면 Safari 공유 → 프린트로 같은 결과(@media print)를 얻을 수 있다. */
+  function isMobilePrint() {
+    return window.matchMedia('(max-width: 768px)').matches
+      || /iPhone|iPad|iPod/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS(데스크톱 UA)
+  }
+
+  function present(html) {
+    renderPrintArea(html);
+    if (isMobilePrint()) openPreview();
+    else window.print();
+  }
+
+  function openPreview() {
+    const area = document.getElementById('invoice-print-area');
+    area.classList.add('inv-preview-open');
+    area.scrollTop = 0;
+    // A4 폭(210mm) 그대로 그린 뒤 화면 폭에 맞게 축소해서 보여준다 (인쇄에는 영향 없음)
+    const sheet = area.querySelector('.inv-preview-sheet');
+    sheet.style.zoom = '';
+    const scale = Math.min(1, (window.innerWidth - 16) / sheet.offsetWidth);
+    sheet.style.zoom = String(scale);
+  }
+
+  function closePreview() {
+    const area = document.getElementById('invoice-print-area');
+    if (area) area.classList.remove('inv-preview-open');
   }
 
   /** 공급받는자/공급자 정보 박스 하나를 만듭니다. 짧은 항목(상호·대표자, 전화·팩스)은
@@ -202,7 +232,16 @@ const InvoiceModule = (() => {
       area.id = 'invoice-print-area';
       document.body.appendChild(area);
     }
-    area.innerHTML = html;
+    // 미리보기 바는 모바일 미리보기 화면에서만 보이고 인쇄에는 찍히지 않는다 (invoice.css)
+    area.innerHTML = `
+      <div class="inv-preview-bar">
+        <button type="button" class="ls-btn-primary" data-role="inv-print">인쇄 / PDF 저장</button>
+        <button type="button" data-role="inv-close">✕ 닫기</button>
+        <div class="inv-preview-hint">인쇄 창이 안 뜨면 Safari 공유 버튼 → "프린트"를 누르세요.</div>
+      </div>
+      <div class="inv-preview-sheet">${html}</div>`;
+    area.querySelector('[data-role="inv-print"]').addEventListener('click', () => window.print());
+    area.querySelector('[data-role="inv-close"]').addEventListener('click', closePreview);
   }
 
   return { generate, exportExcel };

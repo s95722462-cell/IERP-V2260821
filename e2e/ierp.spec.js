@@ -284,6 +284,23 @@ test('여러 품목 한 전표 + 명세서(인쇄 영역) 생성', async ({ page
   await expect(page.locator('#invoice-print-area')).toContainText('7,700');
 });
 
+test('[회귀] 모바일에서는 명세서를 미리보기로 띄우고 그 안의 버튼으로 인쇄한다 (iOS Safari 무반응 대응)', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 2 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#sl-list-card .te-card-actions button[data-act="invoice"]').first().click();
+  expect(await page.evaluate(() => window.__printed)).toBeUndefined();
+  await expect(page.locator('#invoice-print-area')).toBeVisible();
+  await expect(page.locator('#invoice-print-area')).toContainText('2,200');
+  await page.click('#invoice-print-area [data-role="inv-print"]');
+  expect(await page.evaluate(() => window.__printed)).toBe(1);
+  await page.click('#invoice-print-area [data-role="inv-close"]');
+  await expect(page.locator('#invoice-print-area')).toBeHidden();
+});
+
 test('[회귀] 설정 화면에 로그인 아이디가 표시되어야 한다', async ({ page }) => {
   await boot(page);
   await nav(page, 'settings');

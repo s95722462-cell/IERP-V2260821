@@ -10,7 +10,31 @@
 
 #invoice-print-area { display: none; }
 
+/* 모바일 미리보기 (invoice.js openPreview) — A4 폭으로 그린 명세서를 화면 폭에
+   맞게 축소해서 전체화면으로 보여준다. 인쇄에는 아래 @media print 규칙만 적용. */
+@media screen {
+  #invoice-print-area.inv-preview-open {
+    display: block; position: fixed; inset: 0; z-index: 1000;
+    background: #777; overflow: auto; -webkit-overflow-scrolling: touch;
+  }
+  .inv-preview-bar {
+    position: sticky; top: 0; z-index: 1;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    background: var(--surface, #fff); border-bottom: 1px solid var(--border, #ccc);
+  }
+  .inv-preview-bar .ls-btn-primary { width: auto; }
+  .inv-preview-hint { flex-basis: 100%; font-size: 12px; color: var(--text2, #666); }
+  .inv-preview-sheet {
+    width: 210mm; box-sizing: border-box; padding: 15mm;
+    margin: 8px auto; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  }
+}
+
 @media print {
+  .inv-preview-bar { display: none !important; }
+  .inv-preview-sheet { zoom: 1 !important; } /* 미리보기 축소 배율이 인쇄에 섞이지 않게 */
+
   @page { size: A4; margin: 15mm; }
 
   /* ls-app은 height:100vh라서 visibility:hidden만으로는 레이아웃 공간이
