@@ -301,6 +301,57 @@ test('[회귀] 모바일에서는 명세서를 미리보기로 띄우고 그 안
   await expect(page.locator('#invoice-print-area')).toBeHidden();
 });
 
+test('[회귀] 모바일 명세서: PDF 저장 버튼으로 PDF 파일이 만들어진다 (홈 화면 앱·앱 안 브라우저 대응)', async ({ page }) => {
+  test.setTimeout(60000);
+  await boot(page);
+  await addCustomer(page, '고객P');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  await addSale(page, { buyer: '고객P', date: today(), item: '센서 (S-100)', qty: 3 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#sl-list-card .te-card-actions button[data-act="invoice"]').first().click();
+  await expect(page.locator('#invoice-print-area')).toBeVisible();
+  // 1) 공유 기능이 없으면 PDF 파일을 내려받는다
+  const [dl] = await Promise.all([
+    page.waitForEvent('download', { timeout: 45000 }),
+    page.click('#invoice-print-area [data-role="inv-pdf"]')
+  ]);
+  expect(dl.suggestedFilename()).toMatch(/^거래명세서_.+\.pdf$/);
+  const buf = fs.readFileSync(await dl.path());
+  expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
+  expect(buf.length).toBeGreaterThan(5000);
+  // 2) 공유 기능이 있으면(아이폰) 공유 시트로 PDF 파일을 넘긴다
+  await page.evaluate(() => {
+    navigator.canShare = (d) => !!(d && d.files && d.files.length);
+    navigator.share = async (d) => { window.__shared = d.files.map((f) => [f.name, f.type, f.size]); };
+  });
+  await page.click('#invoice-print-area [data-role="inv-pdf"]');
+  await expect.poll(() => page.evaluate(() => window.__shared), { timeout: 30000 }).toBeTruthy();
+  const shared = await page.evaluate(() => window.__shared);
+  expect(shared[0][1]).toBe('application/pdf');
+  expect(shared[0][2]).toBeGreaterThan(5000);
+  await expect(page.locator('#invoice-print-area [data-role="inv-pdf"]')).toBeEnabled();
+});
+
+test('[회귀] 모바일 명세서 미리보기: 화면 폭 안에 다 들어오고 합계 줄이 겹치지 않는다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '고객Q');
+  await addProduct(page, { name: '인버터', spec: 'FR-E820-7.5K-1', price: 704000, init: 10 });
+  await addSale(page, { buyer: '고객Q', date: today(), item: '인버터 (FR-E820-7.5K-1)', qty: 2 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#sl-list-card .te-card-actions button[data-act="invoice"]').first().click();
+  await expect(page.locator('#invoice-print-area')).toBeVisible();
+  const r = await page.evaluate(() => {
+    const sheet = document.querySelector('#invoice-print-area .inv-preview-sheet');
+    const sr = sheet.getBoundingClientRect();
+    const lines = [...sheet.querySelectorAll('.inv-totals > *')].slice(0, 3).map((el) => el.getBoundingClientRect());
+    let overlap = false;
+    for (let i = 1; i < lines.length; i++) if (lines[i].top < lines[i - 1].bottom - 0.5) overlap = true;
+    return { right: sr.right, vw: window.innerWidth, overlap, n: lines.length };
+  });
+  expect(r.right).toBeLessThanOrEqual(r.vw);
+  expect(r.overlap).toBe(false);
+});
+
 test('[회귀] 설정 화면에 로그인 아이디가 표시되어야 한다', async ({ page }) => {
   await boot(page);
   await nav(page, 'settings');
@@ -685,6 +736,7 @@ test('[회귀] 다른 기기가 이미 지운 매출을 또 지워도 재고가 
 });
 
 test('하루 첫 접속 시 백업 파일을 자동으로 받고, 같은 날 다시 접속하면 받지 않는다', async ({ page }) => {
+  test.setTimeout(60000); // 기다림이 15초쯤 걸려 CI(느린 서버)에서 기본 20초를 넘길 수 있음
   await boot(page);
   await page.evaluate(() => { sessionStorage.setItem('__autoBackupTest', '1'); localStorage.removeItem('iERP_autoBackupOff'); });
   await addCustomer(page, '고객B');

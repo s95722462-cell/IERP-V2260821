@@ -146,12 +146,94 @@ const InvoiceModule = (() => {
     const area = document.getElementById('invoice-print-area');
     area.classList.add('inv-preview-open');
     area.scrollTop = 0;
-    // A4 폭(210mm) 그대로 그린 뒤 화면 폭에 맞게 축소해서 보여준다 (인쇄에는 영향 없음)
-    const sheet = area.querySelector('.inv-preview-sheet');
-    sheet.style.zoom = '';
-    const scale = Math.min(1, (window.innerWidth - 16) / sheet.offsetWidth);
-    sheet.style.zoom = String(scale);
+    fitPreview();
   }
+
+  /** A4 폭(210mm) 그대로 그린 명세서를 화면 폭에 맞게 축소해서 보여준다 (인쇄에는 영향 없음).
+   * zoom 대신 transform을 쓴다 — iOS Safari는 zoom 안에서 글자를 따로 키워(text autosizing)
+   * 합계 줄이 겹치고 오른쪽 칸이 잘리는 문제가 있었다. */
+  function fitPreview() {
+    const area = document.getElementById('invoice-print-area');
+    const sheet = area && area.querySelector('.inv-preview-sheet');
+    const wrap = area && area.querySelector('.inv-preview-wrap');
+    if (!sheet || !wrap) return;
+    sheet.style.transform = '';
+    const w = sheet.offsetWidth, h = sheet.offsetHeight;
+    const scale = Math.min(1, (window.innerWidth - 16) / w);
+    sheet.style.transform = scale < 1 ? `scale(${scale})` : '';
+    wrap.style.width = Math.round(w * scale) + 'px';
+    wrap.style.height = Math.round(h * scale) + 'px';
+  }
+
+  // ── PDF 저장 / 공유 ─────────────────────────────────────────
+  // 홈 화면에 추가한 앱(iOS 독립 실행)이나 카톡 등 앱 안 브라우저에서는 window.print()도,
+  // Safari 공유 버튼도 없다. 그래서 명세서를 그림으로 그려 PDF 파일을 직접 만들고,
+  // 공유 시트(파일 저장·카톡·메일·프린트)가 되면 공유, 안 되면 파일로 내려받는다.
+  const PDF_LIBS = [
+    ['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+     'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H'],
+    ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+     'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk']
+  ];
+  let pdfLibsPromise = null;
+  function loadPdfLibs() {
+    if (window.html2canvas && window.jspdf) return Promise.resolve();
+    if (pdfLibsPromise) return pdfLibsPromise;
+    pdfLibsPromise = PDF_LIBS.reduce((p, [src, sri]) => p.then(() => new Promise((ok, fail) => {
+      const el = document.createElement('script');
+      el.src = src; el.integrity = sri; el.crossOrigin = 'anonymous';
+      el.onload = ok; el.onerror = () => fail(new Error('PDF 라이브러리를 불러오지 못했습니다'));
+      document.head.appendChild(el);
+    })), Promise.resolve()).catch((e) => { pdfLibsPromise = null; throw e; });
+    return pdfLibsPromise;
+  }
+
+  async function makePdfBlob() {
+    await loadPdfLibs();
+    const area = document.getElementById('invoice-print-area');
+    const sheet = area.querySelector('.inv-preview-sheet');
+    const prev = sheet.style.transform;
+    sheet.style.transform = '';                       // 원래 크기(A4 폭)로 그린다
+    try {
+      const canvas = await window.html2canvas(sheet, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageW = 210, pageH = 297;
+      const imgH = canvas.height * pageW / canvas.width;
+      const img = canvas.toDataURL('image/jpeg', 0.92);
+      for (let y = 0; y < imgH - 0.5; y += pageH) {   // A4보다 길면 여러 장으로
+        if (y > 0) pdf.addPage();
+        pdf.addImage(img, 'JPEG', 0, -y, pageW, imgH);
+      }
+      return pdf.output('blob');
+    } finally {
+      sheet.style.transform = prev;
+    }
+  }
+
+  async function savePdf(btn) {
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'PDF 만드는 중…';
+    try {
+      const blob = await makePdfBlob();
+      const name = `거래명세서_${currentPdfName || todayStr()}.pdf`;
+      const file = new File([blob], name, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: name }); }
+        catch (e) { if (e && e.name !== 'AbortError') throw e; }   // 사용자가 공유 창을 닫은 경우는 오류 아님
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
+    } catch (e) {
+      alert('PDF를 만들지 못했습니다: ' + (e && e.message ? e.message : e) + '\n인터넷 연결을 확인한 뒤 다시 눌러 주세요.');
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  }
+  let currentPdfName = '';
 
   function closePreview() {
     const area = document.getElementById('invoice-print-area');
@@ -233,13 +315,17 @@ const InvoiceModule = (() => {
       document.body.appendChild(area);
     }
     // 미리보기 바는 모바일 미리보기 화면에서만 보이고 인쇄에는 찍히지 않는다 (invoice.css)
+    const m = /전표No:\s*([^<\s]+)/.exec(html);
+    currentPdfName = m ? m[1] : '';
     area.innerHTML = `
       <div class="inv-preview-bar">
-        <button type="button" class="ls-btn-primary" data-role="inv-print">인쇄 / PDF 저장</button>
+        <button type="button" class="ls-btn-primary" data-role="inv-pdf">PDF 저장 / 공유</button>
+        <button type="button" data-role="inv-print">인쇄</button>
         <button type="button" data-role="inv-close">✕ 닫기</button>
-        <div class="inv-preview-hint">인쇄 창이 안 뜨면 Safari 공유 버튼 → "프린트"를 누르세요.</div>
+        <div class="inv-preview-hint">PDF 저장 / 공유를 누르면 파일 앱 저장·카톡·메일·프린트를 고를 수 있습니다.</div>
       </div>
-      <div class="inv-preview-sheet">${html}</div>`;
+      <div class="inv-preview-wrap"><div class="inv-preview-sheet">${html}</div></div>`;
+    area.querySelector('[data-role="inv-pdf"]').addEventListener('click', (e) => savePdf(e.currentTarget));
     area.querySelector('[data-role="inv-print"]').addEventListener('click', () => window.print());
     area.querySelector('[data-role="inv-close"]').addEventListener('click', closePreview);
   }

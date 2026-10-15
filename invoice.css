@@ -25,15 +25,19 @@
   }
   .inv-preview-bar .ls-btn-primary { width: auto; }
   .inv-preview-hint { flex-basis: 100%; font-size: 12px; color: var(--text2, #666); }
+  .inv-preview-wrap { margin: 8px auto; overflow: hidden; }
   .inv-preview-sheet {
     width: 210mm; box-sizing: border-box; padding: 15mm;
-    margin: 8px auto; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    transform-origin: top left;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; /* iOS 글자 자동 확대 끔 (합계 겹침 방지) */
   }
 }
 
 @media print {
   .inv-preview-bar { display: none !important; }
-  .inv-preview-sheet { zoom: 1 !important; } /* 미리보기 축소 배율이 인쇄에 섞이지 않게 */
+  .inv-preview-sheet { zoom: 1 !important; transform: none !important; } /* 미리보기 축소 배율이 인쇄에 섞이지 않게 */
+  .inv-preview-wrap { width: auto !important; height: auto !important; overflow: visible !important; margin: 0 !important; }
 
   @page { size: A4; margin: 15mm; }
 
