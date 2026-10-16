@@ -319,6 +319,16 @@ test('[회귀] 모바일 명세서: PDF 저장 버튼으로 PDF 파일이 만들
   const buf = fs.readFileSync(await dl.path());
   expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
   expect(buf.length).toBeGreaterThan(5000);
+  // 명세서는 A4 한 장 — 빈 2쪽이 붙으면 안 된다
+  const pageCount = (b) => (b.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  expect(pageCount(buf)).toBe(1);
+  // 아이폰처럼 글꼴이 커서 시트가 A4보다 조금 길어져도(아래 빈 여백) 한 장이어야 한다
+  await page.addStyleTag({ content: '#invoice-print-area .inv-preview-sheet { min-height: 315mm; }' });
+  const [dl2] = await Promise.all([
+    page.waitForEvent('download', { timeout: 45000 }),
+    page.click('#invoice-print-area [data-role="inv-pdf"]')
+  ]);
+  expect(pageCount(fs.readFileSync(await dl2.path()))).toBe(1);
   // 2) 공유 기능이 있으면(아이폰) 공유 시트로 PDF 파일을 넘긴다
   await page.evaluate(() => {
     navigator.canShare = (d) => !!(d && d.files && d.files.length);

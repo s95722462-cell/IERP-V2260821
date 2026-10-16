@@ -188,6 +188,26 @@ const InvoiceModule = (() => {
     return pdfLibsPromise;
   }
 
+  /** 캔버스 아래쪽의 하얀 빈 줄을 잘라낸다 (내용 끝 + 약간의 여백만 남김). */
+  function trimBottom(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let last = 0;
+    for (let y = h - 1; y >= 0 && !last; y--) {
+      for (let x = 0; x < w; x += 4) {
+        const i = (y * w + x) * 4;
+        if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) { last = y; break; }
+      }
+    }
+    const keep = Math.min(h, last + Math.round(w * 0.04));   // 내용 아래 여백(폭의 4%)은 남긴다
+    if (!last || keep >= h) return canvas;
+    const out = document.createElement('canvas');
+    out.width = w; out.height = keep;
+    out.getContext('2d').drawImage(canvas, 0, 0);
+    return out;
+  }
+
   async function makePdfBlob() {
     await loadPdfLibs();
     const area = document.getElementById('invoice-print-area');
@@ -195,15 +215,20 @@ const InvoiceModule = (() => {
     const prev = sheet.style.transform;
     sheet.style.transform = '';                       // 원래 크기(A4 폭)로 그린다
     try {
-      const canvas = await window.html2canvas(sheet, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      const full = await window.html2canvas(sheet, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      const canvas = trimBottom(full);                // 아래쪽 빈 여백을 잘라야 빈 2쪽이 안 생긴다
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
       const pageW = 210, pageH = 297;
-      const imgH = canvas.height * pageW / canvas.width;
       const img = canvas.toDataURL('image/jpeg', 0.92);
-      for (let y = 0; y < imgH - 0.5; y += pageH) {   // A4보다 길면 여러 장으로
+      let imgW = pageW, imgH = canvas.height * pageW / canvas.width;
+      if (imgH > pageH && imgH <= pageH * 1.15) {     // 조금만 넘치면 살짝 줄여 한 장에
+        imgW = pageW * pageH / imgH; imgH = pageH;
+      }
+      const x = (pageW - imgW) / 2;
+      for (let y = 0; y < imgH - 1; y += pageH) {     // 그래도 A4보다 길면 여러 장으로
         if (y > 0) pdf.addPage();
-        pdf.addImage(img, 'JPEG', 0, -y, pageW, imgH);
+        pdf.addImage(img, 'JPEG', x, -y, imgW, imgH);
       }
       return pdf.output('blob');
     } finally {
