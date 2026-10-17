@@ -9,6 +9,10 @@
    ══════════════════════════════════════════════════════════════ */
 
 #invoice-print-area { display: none; }
+/* 명세서는 테마와 무관하게 항상 흰 종이에 검은 글자. 예전엔 다크 모드에서 "공급자 보관용"·절취선
+   글자가 화면 글자색(밝은 회색)을 물려받아 미리보기·PDF·인쇄에서 거의 안 보였다. */
+#invoice-print-area .inv-preview-sheet, #invoice-print-area .inv-page { color: #000; }
+@media print { #invoice-print-area { color: #000; } }
 
 /* 모바일 미리보기 (invoice.js openPreview) — A4 폭으로 그린 명세서를 화면 폭에
    맞게 축소해서 전체화면으로 보여준다. 인쇄에는 아래 @media print 규칙만 적용. */

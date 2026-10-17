@@ -408,3 +408,9 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   .sl-items-table td input:focus { background: var(--surface); }
   .toast-wrap { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* 대시보드 KPI: 데스크톱 3열 × 2줄 (6칸이 한 줄이면 라벨·증감이 줄바꿈되어 답답함) */
+@media (min-width: 769px) {
+  #dash-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #dash-kpis .kpi-val { font-size: 26px; }
+}
