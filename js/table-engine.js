@@ -172,13 +172,13 @@ const TableEngine = (() => {
           <input type="date" class="te-date" data-role="date-from">
           <span class="te-date-sep">~</span>
           <input type="date" class="te-date" data-role="date-to">
-          <button class="te-query-btn" data-role="query">🔍 조회</button>
+          <button class="te-query-btn" data-role="query">${uiIcon('search')}조회</button>
         </div>`;
     }
     if (opts.selectable) {
       toolbarHtml += `<button class="te-bulk-del-btn" data-role="bulk-delete" style="display:none">선택 삭제 (<span data-role="bulk-count">0</span>)</button>`;
     }
-    toolbarHtml += `<button class="te-settings-btn" data-role="settings">항목 설정</button>`;
+    toolbarHtml += `<button class="te-settings-btn" data-role="settings" title="항목 설정" aria-label="항목 설정">${uiIcon('sliders')}항목 설정</button>`;
     toolbarHtml += '</div>';
 
     wrap.innerHTML = `

@@ -74,22 +74,29 @@ const LayoutShell = (() => {
 
       <div id="ls-login" class="ls-login" style="display:none">
         <div class="ls-login-box">
-          <h1 id="ls-login-title">iERP</h1>
+          <div class="ls-login-brand">
+            <span class="ls-brand-mark" aria-hidden="true">i</span>
+            <h1 id="ls-login-title">iERP</h1>
+          </div>
+          <div class="ls-login-sub">거래처 · 매출 · 매입 · 재고를 한 곳에서</div>
           <form id="ls-login-form">
-            <input id="ls-login-id" placeholder="아이디" autocomplete="username">
-            <input id="ls-login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+            <label class="ls-login-label" for="ls-login-id">아이디</label>
+            <input id="ls-login-id" placeholder="아이디 입력" autocomplete="username" autocapitalize="off" spellcheck="false">
+            <label class="ls-login-label" for="ls-login-pw">비밀번호</label>
+            <input id="ls-login-pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password">
             <label class="ls-chk"><input type="checkbox" id="ls-login-keep"> 로그인 상태 유지</label>
             <button id="ls-login-btn" class="ls-btn-primary" type="submit">로그인</button>
           </form>
-          <div id="ls-login-err" class="ls-err"></div>
+          <div id="ls-login-err" class="ls-err" role="alert"></div>
+          <div class="ls-login-foot">iERP 2.0 · 회사별 데이터는 분리되어 안전하게 저장됩니다</div>
         </div>
       </div>
 
       <div id="ls-app" class="ls-app" style="display:none">
         <aside class="ls-sidebar" id="ls-sidebar">
           <div class="ls-sidebar-top">
-            <div class="ls-logo" id="ls-logo">iERP</div>
-            <button class="ls-sidebar-toggle" id="ls-sidebar-toggle" title="사이드바 접기">«</button>
+            <div class="ls-logo" id="ls-logo"><span class="ls-brand-mark" aria-hidden="true">i</span><span class="ls-logo-text">iERP</span></div>
+            <button class="ls-sidebar-toggle" id="ls-sidebar-toggle" title="사이드바 접기" aria-label="사이드바 접기">«</button>
           </div>
           <div class="ls-nav-switch" id="ls-nav-switch">
             <button type="button" class="ls-nav-switch-btn active" data-view="home">홈</button>
@@ -98,12 +105,13 @@ const LayoutShell = (() => {
           <nav class="ls-menu" id="ls-menu"></nav>
           <div class="ls-company-list" id="ls-company-list" style="display:none"></div>
           <button class="ls-logout" id="ls-logout-btn">
-            <span class="ls-logout-icon">⎋</span><span class="ls-logout-label">로그아웃</span>
+            <span class="ls-logout-icon">${uiIcon('logout')}</span><span class="ls-logout-label">로그아웃</span>
           </button>
           <div class="ls-sidebar-resize-handle" id="ls-sidebar-resize-handle"></div>
         </aside>
         <div class="ls-main">
           <div class="ls-topbar">
+            <h2 class="ls-page-title" id="ls-page-title"></h2>
             <div class="ls-active-company" id="ls-company-tabs"></div>
             <div class="ls-topbar-right">
               <button class="ls-theme-toggle" id="ls-theme-toggle" title="다크모드 전환"></button>
@@ -113,14 +121,14 @@ const LayoutShell = (() => {
           <div class="ls-content" id="ls-content"></div>
         </div>
         <div class="ls-mobile-backdrop" id="ls-mobile-backdrop"></div>
-        <button class="ls-mobile-fab" id="ls-mobile-fab" title="메뉴">+</button>
+        <button class="ls-mobile-fab" id="ls-mobile-fab" title="메뉴" aria-label="메뉴 열기" aria-expanded="false">${uiIcon('menu', 'fab-open')}${uiIcon('close', 'fab-close')}</button>
       </div>
     `);
 
     const menuEl = document.getElementById('ls-menu');
     menuEl.innerHTML = menuItems.map((m) => `
       <button class="ls-menu-item" data-panel="${m.id}" title="${escapeHtml(m.label)}">
-        <span class="ls-menu-label">${escapeHtml(m.label)}</span>
+        ${uiIcon(m.id, 'ls-menu-icon')}<span class="ls-menu-label">${escapeHtml(m.label)}</span>
       </button>
     `).join('');
     menuEl.querySelectorAll('.ls-menu-item').forEach((btn) => {
@@ -148,12 +156,14 @@ const LayoutShell = (() => {
     document.getElementById('ls-sidebar').classList.add('mobile-open');
     document.getElementById('ls-mobile-backdrop').classList.add('open');
     document.getElementById('ls-mobile-fab').classList.add('open');
+    document.getElementById('ls-mobile-fab').setAttribute('aria-expanded', 'true');
   }
 
   function closeMobileMenu() {
     document.getElementById('ls-sidebar').classList.remove('mobile-open');
     document.getElementById('ls-mobile-backdrop').classList.remove('open');
     document.getElementById('ls-mobile-fab').classList.remove('open');
+    document.getElementById('ls-mobile-fab').setAttribute('aria-expanded', 'false');
   }
 
   /** 사이드바 메뉴 항목을 마우스로 드래그해서 순서를 바꿀 수 있게 한다.
@@ -259,6 +269,9 @@ const LayoutShell = (() => {
     if (panel) panel.classList.add('active');
     const btn = document.querySelector(`.ls-menu-item[data-panel="${panelId}"]`);
     if (btn) btn.classList.add('active');
+    const item = menuItems.find((m) => m.id === panelId);
+    const titleEl = document.getElementById('ls-page-title');
+    if (titleEl) titleEl.textContent = item ? item.label : '';
     if (onNavigateCb) onNavigateCb(panelId);
   }
 
@@ -314,7 +327,9 @@ const LayoutShell = (() => {
   function renderThemeToggleIcon() {
     const btn = document.getElementById('ls-theme-toggle');
     if (!btn) return;
-    btn.textContent = getSavedTheme() === 'dark' ? '라이트 모드' : '다크 모드';
+    const dark = getSavedTheme() === 'dark';
+    btn.innerHTML = uiIcon(dark ? 'sun' : 'moon') + `<span class="ls-theme-label">${dark ? '라이트 모드' : '다크 모드'}</span>`;
+    btn.setAttribute('aria-label', dark ? '라이트 모드로 전환' : '다크 모드로 전환');
   }
 
   /** 사이드바 왼쪽 목록 영역을 "홈"(모듈 메뉴) 또는 "회사"(회사 목록)로 전환한다. */
