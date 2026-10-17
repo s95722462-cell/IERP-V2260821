@@ -170,3 +170,6 @@
   .te-scroll { display: none; }
   .te-card-list { display: flex; }
 }
+
+/* 빈 표 아래 한 줄 안내 */
+.te-empty-hint { margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--text3); }

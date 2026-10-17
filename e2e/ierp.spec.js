@@ -779,3 +779,60 @@ test('하루 첫 접속 시 백업 파일을 자동으로 받고, 같은 날 다
   await page.waitForTimeout(5000);
   expect(again).toBe(false);
 });
+
+// ── 디자인 v2 (A/B 테마 · 아이폰 화면) ─────────────────────────────
+
+test('테마 A/B 선택이 새로고침 후에도 유지되고, 다크 모드와 함께 조합된다', async ({ page }) => {
+  await boot(page);
+  const accent = () => page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--accent').trim().toUpperCase());
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-palette'))).toBe('a');
+  expect(await accent()).toBe('#4F46E5');
+  await nav(page, 'settings');
+  await page.click('#st-palette-b');
+  await expect(page.locator('#st-palette-b')).toHaveAttribute('aria-checked', 'true');
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-palette'))).toBe('b');
+  expect(await accent()).toBe('#0F766E');
+  await page.reload(); // mock DB는 새로고침하면 비므로 로그인 화면에서 확인한 뒤 다시 로그인
+  await expect(page.locator('#ls-login')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-palette'))).toBe('b');
+  expect(await accent()).toBe('#0F766E');
+  await boot(page);
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-palette'))).toBe('b');
+  await page.click('#ls-theme-toggle'); // B + 다크
+  expect(await accent()).toBe('#2DD4BF');
+  await nav(page, 'settings');
+  await page.click('#st-palette-a'); // A + 다크
+  expect(await accent()).toBe('#8B8AF5');
+});
+
+test('[아이폰] 매출 기간 날짜칸이 찌그러지지 않는다(폭 100px 이상)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page);
+  await page.evaluate(() => document.querySelector('.ls-menu-item[data-panel="sales"]').click());
+  const widths = await page.locator('#sl-list-card .te-date').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+  expect(widths).toHaveLength(2);
+  for (const w of widths) expect(w).toBeGreaterThan(100);
+  // 페이지가 옆으로 넘치지 않는다 (대시보드 차트 넘침 회귀 포함)
+  await page.evaluate(() => document.querySelector('.ls-menu-item[data-panel="dashboard"]').click());
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.getElementById('ls-content').scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('[아이폰] 메뉴 시트는 뒤 배경을 누르면 닫힌다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page);
+  await page.click('#ls-mobile-fab');
+  await expect(page.locator('#ls-sidebar')).toHaveClass(/mobile-open/);
+  await expect(page.locator('#ls-mobile-backdrop')).toBeVisible();
+  await page.locator('#ls-mobile-backdrop').click({ position: { x: 195, y: 80 } });
+  await expect(page.locator('#ls-sidebar')).not.toHaveClass(/mobile-open/);
+  await expect(page.locator('#ls-mobile-fab')).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('표의 수정·삭제 아이콘 버튼은 접근 가능한 이름을 가진다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '아이콘거래처');
+  await expect(page.locator('#cu-list-card button[data-act="edit"]').first()).toHaveAttribute('aria-label', '수정');
+  await expect(page.locator('#cu-list-card button[data-act="del"]').first()).toHaveAttribute('aria-label', '삭제');
+});

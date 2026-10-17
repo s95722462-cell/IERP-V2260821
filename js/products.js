@@ -44,17 +44,20 @@ const ProductsModule = (() => {
         <div class="side-panel">
           <div class="card-title" style="display:flex;align-items:center">
             <span id="pr-panel-title">새 품목 등록</span>
-            <button id="pr-panel-close" style="margin-left:auto">✕</button>
+            <button id="pr-panel-close" style="margin-left:auto" aria-label="닫기" title="닫기">✕</button>
           </div>
           <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-section">기본 정보</div>
             <div class="fg"><label>품목코드</label><input id="pr-code"></div>
             <div class="fg"><label>품목명 *</label><input id="pr-name" placeholder="부품명/모델명"></div>
             <div class="fg"><label>규격/사양</label><input id="pr-spec"></div>
             <div class="fg"><label>제조사</label><input id="pr-maker"></div>
+            <div class="form-section">단가 · 재고</div>
             <div class="fg"><label>기준단가</label><input id="pr-price" type="text" inputmode="numeric" value="0"></div>
             <div class="fg"><label>단위</label><input id="pr-unit" placeholder="EA/SET/BOX"></div>
             <div class="fg"><label>초기재고</label><input id="pr-initstock" type="number" value="0"></div>
             <div class="fg"><label>안전재고(경고기준)</label><input id="pr-safestock" type="number" value="0"></div>
+            <div class="form-section">메모</div>
             <div class="fg"><label>메모</label><input id="pr-memo"></div>
           </div>
           <div class="btn-row" style="margin-top:10px">
@@ -95,9 +98,7 @@ const ProductsModule = (() => {
       ],
       searchFields: ['name', 'code', 'spec'],
       maxHeight: 440,
-      rowActions: (row) => `
-        <button data-act="edit" data-id="${row.id}">수정</button>
-        <button data-act="del" data-id="${row.id}">삭제</button>`
+      rowActions: (row) => rowIconBtn('edit', row.id) + rowIconBtn('del', row.id)
     });
 
     document.getElementById('pr-list-card').addEventListener('click', (e) => {
@@ -173,6 +174,7 @@ const ProductsModule = (() => {
   async function remove(id) {
     if (!confirm('이 품목을 삭제하시겠습니까?')) return;
     await deleteDoc(path(), id);
+    showToast('품목을 삭제했습니다');
   }
 
   /** 다른 화면(매출/매입/재고)에서 품목 목록을 참조할 때 사용합니다. */

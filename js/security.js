@@ -148,6 +148,27 @@ function applyTheme(theme) {
   window.dispatchEvent(new CustomEvent('ierp:theme-changed', { detail: { theme } }));
 }
 
+/**
+ * 저장된 색 방향(팔레트)을 읽습니다 ('a' = Slate·Indigo 기본, 'b' = Stone·Teal).
+ * @returns {'a'|'b'}
+ */
+function getSavedPalette() {
+  try { return localStorage.getItem('ierp_palette') === 'b' ? 'b' : 'a'; } catch (e) { return 'a'; }
+}
+
+/**
+ * 색 방향을 화면에 적용하고 이 브라우저에 저장합니다. 다크 모드(applyTheme)와는
+ * 별개 축이라 A/B × 라이트/다크 네 가지 조합이 모두 가능하다. index.html <head>의
+ * 짧은 스크립트가 첫 화면을 그리기 전에 같은 값을 먼저 적용해 깜빡임을 막는다.
+ * @param {'a'|'b'} palette
+ */
+function applyPalette(palette) {
+  const p = palette === 'b' ? 'b' : 'a';
+  document.documentElement.setAttribute('data-palette', p);
+  try { localStorage.setItem('ierp_palette', p); } catch (e) { /* 사생활 보호 모드 등 */ }
+  window.dispatchEvent(new CustomEvent('ierp:theme-changed', { detail: { palette: p } }));
+}
+
 // 다른 모듈에서 전역으로 사용할 수 있도록 window에 등록
 window.escapeHtml = escapeHtml;
 window.rawNum = rawNum;
@@ -158,3 +179,5 @@ window.splitNameAndHint = splitNameAndHint;
 window.todayStr = todayStr;
 window.getSavedTheme = getSavedTheme;
 window.applyTheme = applyTheme;
+window.getSavedPalette = getSavedPalette;
+window.applyPalette = applyPalette;

@@ -431,7 +431,7 @@ const TableEngine = (() => {
     // 본문
     const colCount = configs.length + 1 + (state.opts.selectable ? 1 : 0);
     if (!rows.length) {
-      tbody.innerHTML = `<tr class="te-empty"><td colspan="${colCount}">데이터가 없습니다</td></tr>`;
+      tbody.innerHTML = `<tr class="te-empty"><td colspan="${colCount}">데이터가 없습니다<div class="te-empty-hint">${emptyHint(state)}</div></td></tr>`;
     } else {
       tbody.innerHTML = rows.map((row, idx) => {
         const rid = state.opts.rowId ? state.opts.rowId(row) : null;
@@ -468,11 +468,19 @@ const TableEngine = (() => {
    * 전환된다. 칼럼 순서 중 __no를 뺀 첫 번째 활성 칼럼을 카드 제목으로,
    * 나머지를 "라벨: 값" 줄로 보여준다 (항목 설정에서 순서를 바꾸면
    * 카드 제목도 그에 따라 바뀐다). */
+  /** 빈 표 아래 한 줄 안내 — 검색 때문에 비었는지, 아직 등록이 없는지 구분 */
+  function emptyHint(state) {
+    const q = state.rootEl && state.rootEl.querySelector('[data-role="search"]');
+    if (q && q.value.trim()) return '검색어와 일치하는 항목이 없습니다. 검색어를 바꿔 보세요.';
+    if (state.opts.dateFilter) return '이 기간에 해당하는 내역이 없습니다. 기간을 바꾸거나 새로 등록해 보세요.';
+    return '아직 등록된 항목이 없습니다.';
+  }
+
   function renderCardList(state, configs, rows) {
     const cardsEl = state.rootEl.querySelector('.te-card-list');
     if (!cardsEl) return;
     if (!rows.length) {
-      cardsEl.innerHTML = `<div class="te-card-empty">데이터가 없습니다</div>`;
+      cardsEl.innerHTML = `<div class="te-card-empty">데이터가 없습니다<div class="te-empty-hint">${emptyHint(state)}</div></div>`;
       return;
     }
     const hasNo = configs.some((c) => c.key === '__no');
@@ -597,7 +605,7 @@ const TableEngine = (() => {
     document.body.insertAdjacentHTML('beforeend', `
       <div class="te-modal-bg" id="te-settings-modal" style="display:none">
         <div class="te-modal">
-          <div class="te-modal-title">항목 설정 <button class="te-modal-close" data-role="close">✕</button></div>
+          <div class="te-modal-title">항목 설정 <button class="te-modal-close" data-role="close" aria-label="닫기">✕</button></div>
           <div id="te-settings-list"></div>
           <button class="te-btn-primary" data-role="apply">적용하기</button>
         </div>

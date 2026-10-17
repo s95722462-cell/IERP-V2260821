@@ -47,9 +47,10 @@ const PurchaseModule = (() => {
           <div class="card-title" style="display:flex;align-items:center">
             <span id="pu-panel-title">새 매입 등록</span>
             <span id="pu-docno-badge" class="badge badge-blue" style="display:none;margin-left:8px"></span>
-            <button id="pu-panel-close" style="margin-left:auto">✕</button>
+            <button id="pu-panel-close" style="margin-left:auto" aria-label="닫기" title="닫기">✕</button>
           </div>
           <div class="form-grid">
+            <div class="form-section">전표 정보</div>
             <div class="fg"><label>날짜 *</label><input id="pu-date" type="date"></div>
             <div class="fg"><label>공급업체 * (이름 입력해서 검색)</label>
               <input id="pu-vendor-name" list="pu-vendor-list" placeholder="공급업체명 입력">
@@ -126,6 +127,9 @@ const PurchaseModule = (() => {
         { key: 'invNo', label: '인보이스No.' },
         { key: 'memo', label: '비고' }
       ],
+      // 인보이스No.·비고는 대부분 비어 있어 표가 옆으로 넘치므로 처음엔 숨긴다
+      // (이미 항목 설정을 저장한 사용자는 그대로이고, 언제든 "항목 설정"에서 다시 켤 수 있음)
+      defaultActiveCols: ['__no', 'docNo', 'date', 'vendor', 'item', 'spec', 'qty', 'unitPrice', 'subtotal', 'vat', 'total'],
       dateFilter: true,
       dateField: 'date',
       searchFields: ['vendor', 'item', 'docNo'],
@@ -133,9 +137,7 @@ const PurchaseModule = (() => {
       onRowClick: (key) => showDetailPanel(key),
       selectable: true,
       onBulkDelete: bulkDelete,
-      rowActions: (row) => `
-        <button data-act="edit" data-id="${row.id}">수정</button>
-        <button data-act="del" data-id="${row.id}">삭제</button>`
+      rowActions: (row) => rowIconBtn('edit', row.id) + rowIconBtn('del', row.id)
     });
 
     document.getElementById('pu-list-card').addEventListener('click', (e) => {
@@ -201,7 +203,7 @@ const PurchaseModule = (() => {
       <td><input class="ri-qty" type="number" value="${rawNum(data?.qty ?? 1)}"></td>
       <td><input class="ri-price" type="text" inputmode="numeric" value="${fmtNum(data?.unitPrice ?? 0)}"></td>
       <td><span class="ri-subtotal">0</span></td>
-      <td><button type="button" class="ri-del" title="이 줄 삭제">✕</button></td>
+      <td><button type="button" class="ri-del" title="이 줄 삭제" aria-label="이 줄 삭제">✕</button></td>
     `;
     container.appendChild(tr);
     bindCommaInput(tr.querySelector('.ri-price'));

@@ -36,17 +36,20 @@ const CustomersModule = (() => {
         <div class="side-panel">
           <div class="card-title" style="display:flex;align-items:center">
             <span id="cu-panel-title">새 거래처 등록</span>
-            <button id="cu-panel-close" style="margin-left:auto">✕</button>
+            <button id="cu-panel-close" style="margin-left:auto" aria-label="닫기" title="닫기">✕</button>
           </div>
           <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-section">기본 정보</div>
             <div class="fg"><label>회사명 *</label><input id="cu-name" placeholder="(주)○○무역"></div>
             <div class="fg"><label>사업자번호</label><input id="cu-bizno"></div>
             <div class="fg"><label>대표자</label><input id="cu-ceo"></div>
             <div class="fg"><label>업태</label><input id="cu-biztype" placeholder="제조업, 도소매 등"></div>
             <div class="fg"><label>종목</label><input id="cu-bizitem" placeholder="자동화 부품 등"></div>
+            <div class="form-section">연락처</div>
             <div class="fg"><label>전화번호</label><input id="cu-tel"></div>
             <div class="fg"><label>팩스번호</label><input id="cu-fax"></div>
             <div class="fg"><label>이메일</label><input id="cu-email"></div>
+            <div class="form-section">주소 · 메모</div>
             <div class="fg"><label>주소</label><input id="cu-addr"></div>
             <div class="fg"><label>메모</label><input id="cu-memo"></div>
           </div>
@@ -82,9 +85,7 @@ const CustomersModule = (() => {
         { key: 'memo', label: '메모' }
       ],
       searchFields: ['name', 'ceo', 'bizno'],
-      rowActions: (row) => `
-        <button data-act="edit" data-id="${row.id}">수정</button>
-        <button data-act="del" data-id="${row.id}">삭제</button>`
+      rowActions: (row) => rowIconBtn('edit', row.id) + rowIconBtn('del', row.id)
     });
 
     document.getElementById('cu-list-card').addEventListener('click', (e) => {
@@ -163,6 +164,7 @@ const CustomersModule = (() => {
   async function remove(id) {
     if (!confirm('이 거래처를 삭제하시겠습니까?')) return;
     await deleteDoc(path(), id);
+    showToast('거래처를 삭제했습니다');
   }
 
   /** 다른 화면(매출/매입 등)에서 거래처 목록을 참조할 때 사용합니다. */

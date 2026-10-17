@@ -42,6 +42,19 @@ const SettingsModule = (() => {
 
       <div class="card" style="margin-top:16px">
         <div class="card-title">화면 설정</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">화면 색 방향을 고릅니다. 이 기기(브라우저)에만 저장되며 명세서 인쇄·PDF에는 영향이 없습니다.</div>
+        <div class="palette-picker" id="st-palette" role="radiogroup" aria-label="화면 색 방향">
+          <button type="button" class="palette-opt" role="radio" data-palette="a" id="st-palette-a">
+            <span class="palette-swatch"><i style="background:#F5F6F8"></i><i style="background:#FFFFFF"></i><i style="background:#4F46E5"></i><i style="background:#101828"></i></span>
+            <span class="palette-name">A · 슬레이트 인디고</span>
+            <span class="palette-desc">차가운 회색 + 인디고, 밝은 사이드바 (기본)</span>
+          </button>
+          <button type="button" class="palette-opt" role="radio" data-palette="b" id="st-palette-b">
+            <span class="palette-swatch"><i style="background:#F6F5F2"></i><i style="background:#1F2023"></i><i style="background:#0F766E"></i><i style="background:#1C1B19"></i></span>
+            <span class="palette-name">B · 스톤 틸</span>
+            <span class="palette-desc">따뜻한 회색 + 딥 틸, 어두운 사이드바</span>
+          </button>
+        </div>
         <label class="ls-chk"><input type="checkbox" id="st-theme-toggle"> 다크 모드</label>
       </div>
 
@@ -53,7 +66,7 @@ const SettingsModule = (() => {
           <button id="st-restore-btn">JSON에서 복원</button>
           <input type="file" id="st-restore-file" accept=".json" style="display:none">
         </div>
-        <div style="font-size:12px;color:var(--text2);margin-top:8px">⚠️ 복원하면 현재 회사의 거래처·품목·매출·매입 데이터가 백업 파일 내용으로 전부 교체됩니다(되돌릴 수 없음).</div>
+        <div class="alert-banner" style="margin:12px 0 0;display:flex;gap:8px;align-items:flex-start">${uiIcon('warn')}<span>복원하면 현재 회사의 거래처·품목·매출·매입 데이터가 백업 파일 내용으로 전부 교체됩니다(되돌릴 수 없음).</span></div>
         <label class="ls-chk" style="margin-top:12px"><input type="checkbox" id="st-auto-backup"> 매일 처음 접속할 때 자동으로 백업 파일 내려받기 (이 브라우저)</label>
         <div id="st-auto-backup-info" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
       </div>
@@ -68,6 +81,19 @@ const SettingsModule = (() => {
     document.getElementById('st-fiscal-year').addEventListener('change', saveFiscalYear);
 
     document.getElementById('st-theme-toggle').checked = getSavedTheme() === 'dark';
+
+    const paletteEl = document.getElementById('st-palette');
+    const syncPalette = () => paletteEl.querySelectorAll('.palette-opt').forEach((b) => {
+      b.setAttribute('aria-checked', b.dataset.palette === getSavedPalette() ? 'true' : 'false');
+    });
+    paletteEl.addEventListener('click', (e) => {
+      const opt = e.target.closest('.palette-opt');
+      if (!opt) return;
+      applyPalette(opt.dataset.palette);
+      syncPalette();
+      showToast(opt.dataset.palette === 'b' ? 'B · 스톤 틸 테마를 적용했습니다' : 'A · 슬레이트 인디고 테마를 적용했습니다');
+    });
+    syncPalette();
     document.getElementById('st-auto-backup').checked = isAutoBackupOn();
     document.getElementById('st-auto-backup').addEventListener('change', (e) => {
       storageSet(AUTO_BACKUP_OFF_KEY, e.target.checked ? null : '1');

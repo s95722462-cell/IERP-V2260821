@@ -186,7 +186,7 @@ function bindSaveButton(btn, saveFn, onSuccess) {
       btn.disabled = false;
       busy = false;
     }
-    if (ok) onSuccess();
+    if (ok) { onSuccess(); if (window.showToast) showToast('저장했습니다'); }
   });
 }
 
