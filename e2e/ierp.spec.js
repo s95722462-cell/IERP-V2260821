@@ -836,3 +836,17 @@ test('표의 수정·삭제 아이콘 버튼은 접근 가능한 이름을 가�
   await expect(page.locator('#cu-list-card button[data-act="edit"]').first()).toHaveAttribute('aria-label', '수정');
   await expect(page.locator('#cu-list-card button[data-act="del"]').first()).toHaveAttribute('aria-label', '삭제');
 });
+
+test('전표번호 날짜는 저장한 날이 아니라 입력한 거래일', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '공급사A');
+  await addCustomer(page, '고객B');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  const d = new Date(); d.setDate(d.getDate() - 8);
+  const past = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const ymd = past.replace(/-/g, '');
+  await addPurchase(page, { vendor: '공급사A', date: past, item: '센서 (S-100)', qty: 2, price: 1200 });
+  await addSale(page, { buyer: '고객B', date: past, item: '센서 (S-100)', qty: 1, price: 2000 });
+  expect((await dump(page, 'purchases'))[0].docNo).toBe(`P${ymd}-01`);
+  expect((await dump(page, 'sales'))[0].docNo).toBe(`S${ymd}-01`);
+});

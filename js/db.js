@@ -98,7 +98,7 @@ const DELETE_FIELD = () => firebase.firestore.FieldValue.delete();
  * @param {string} counterCollectionPath - 카운터 문서를 둘 컬렉션 경로
  *   예: `users/{safeId}/companies/{companyId}/counters`
  * @param {string} prefix - 'S'(매출) 또는 'P'(매입) 등 한 글자 구분자
- * @param {string} [dateOverride] - 'YYYY-MM-DD'. 지정하면 오늘 날짜 대신
+ * @param {string} [dateOverride] - 'YYYY-MM-DD' 거래일. 매출·매입 저장과 가져오기 모두 이 값을 넘긴다. 지정하면 오늘 날짜 대신
  *   이 날짜로 채번한다 (기존 ERP 데이터를 가져올 때, 실제 거래일이
  *   전표번호에 들어가게 하기 위함). 생략하면 오늘 날짜.
  * @returns {Promise<string>} 예: 'S20260821-01'

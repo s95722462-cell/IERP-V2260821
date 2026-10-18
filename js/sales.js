@@ -472,7 +472,7 @@ const SalesModule = (() => {
     const isReturnDoc = itemRows.some((r) => r.isReturn);
     let docNo;
     try {
-      docNo = editingDocNo || await genDocNo(counterPath(), isReturnDoc ? 'G' : 'S');
+      docNo = editingDocNo || await genDocNo(counterPath(), isReturnDoc ? 'G' : 'S', date); // 번호 날짜 = 입력한 거래일
     } catch (err) {
       if (err.code === 'resource-exhausted') {
         alert('지금 저장 요청이 몰려서 전표번호를 받지 못했습니다. 자동으로 몇 차례 다시 시도했지만 실패했어요 — 잠시(1분 정도) 기다렸다가 다시 저장해주세요.');
