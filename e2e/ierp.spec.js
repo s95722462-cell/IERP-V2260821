@@ -568,6 +568,7 @@ test('FIFO 재계산은 값이 달라진 문서만 저장한다', async ({ page 
   await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
   for (let i = 0; i < 3; i++) await addSale(page, { buyer: '고객B', date: today(), item: '센서 (S-100)', qty: 1, price: 2000 });
   await expect.poll(async () => (await dump(page, 'sales')).length).toBe(3);
+  await expect.poll(() => page.evaluate(() => SalesModule.getCache().length)).toBe(3); // 화면 캐시까지 따라온 뒤 재계산 (CI에서 2건만 보고 계산한 적 있음)
   const before = await page.evaluate(() => window.__mockFb.writes);
   const res = await page.evaluate(() => FifoEngine.recalcProduct(ProductsModule.getCache()[0].id, { silent: true }));
   expect(res).toEqual({ sales: 3, changedSales: 0, changedLots: 0 });
