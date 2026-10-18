@@ -32,7 +32,7 @@
 .te-settings-btn { margin-left: auto; }
 .te-bulk-del-btn { border-color: color-mix(in srgb, var(--red) 40%, transparent); background: var(--red-bg); color: var(--red); font-weight: 700; }
 .te-bulk-del-btn:hover { background: var(--red-bg); border-color: var(--red); }
-.te-check-col { width: 36px; text-align: center; padding: 0 4px !important; }
+.te-check-col, .te-table th.te-check-col { width: 36px; text-align: center; padding: 0 4px !important; } /* 머리줄 체크박스도 가운데 (.te-table th 의 왼쪽 정렬보다 앞서게) — 줄 체크박스와 세로로 맞춤 */
 .te-check-col input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); vertical-align: middle; }
 
 /* 표 자체는 항상 100%로 시작하되, 리사이즈 시작하는 순간 JS가 px 고정값으로 바꾼다.
