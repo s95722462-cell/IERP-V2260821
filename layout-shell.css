@@ -150,11 +150,27 @@
 .ls-panel.active { display: block; }
 
 /* ── 상단바: 현재 사용 중인 회사명 1개만 표시 (클릭 불가, 단순 라벨) ── */
+:root { --co: #2563eb; } /* 지금 회사 색 — layout-shell.js renderCompanyTabs가 회사마다 바꿈 */
+/* 2026-10-20 사용자: 회사 이름이 더 또렷하게 — 크고 굵게, 회사 색 배지 */
 .ls-active-company {
-  font-size: 12px; font-weight: 600; color: var(--text2);
-  padding: 4px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-pill);
-  max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0;
+  font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--co);
+  padding: 5px 14px 5px 12px; border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--co) 12%, var(--surface));
+  border: 1.5px solid color-mix(in srgb, var(--co) 55%, transparent);
+  max-width: 320px;
 }
+#ls-company-tabs { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ls-co-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: var(--co); display: inline-block; }
+/* 화면 맨 위 회사 띠 */
+.ls-company-strip {
+  flex-shrink: 0; padding: 7px 24px; font-size: 14px; color: var(--text2);
+  background: color-mix(in srgb, var(--co) 8%, var(--surface));
+  border-left: 5px solid var(--co); border-bottom: 1px solid color-mix(in srgb, var(--co) 25%, var(--border));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ls-company-strip:empty { display: none; }
+.ls-company-strip b { color: var(--co); font-weight: 800; font-size: 15px; }
 
 /* ── 사이드바 "홈"/"회사" 전환 토글 ── */
 .ls-nav-switch {
@@ -172,7 +188,7 @@
 /* ── 사이드바 "회사" 뷰: 회사 목록(클릭해서 전환) ── */
 .ls-company-list { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; flex: 1; overflow-y: auto; }
 .ls-co-item {
-  display: block; width: 100%; height: 36px; text-align: left;
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; text-align: left;
   padding: 0 10px; border: none; border-radius: var(--radius); box-shadow: none;
   background: transparent; color: var(--sb-fg); font-size: 14px; cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -234,7 +250,8 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
   .ls-page-title { font-size: 18px; }
-  .ls-active-company { display: none; }
+  .ls-active-company { font-size: 14px; padding: 4px 10px; max-width: 52vw; margin-left: auto; } /* 휴대폰에서도 회사 배지(예전엔 숨김) */
+  .ls-company-strip { padding: 6px 14px; font-size: 13px; }
   .ls-sync #ls-sync-label { display: none; } /* 점만 표시 (글자는 E2E·보조기술용으로 남김) */
   .ls-content { padding: 14px 14px calc(96px + env(safe-area-inset-bottom, 0px)); }
 

@@ -186,7 +186,9 @@ function bindSaveButton(btn, saveFn, onSuccess) {
       btn.disabled = false;
       busy = false;
     }
-    if (ok) { onSuccess(); if (window.showToast) showToast('저장했습니다'); }
+    // 어느 회사에 저장했는지 알림에 이름까지(2026-10-20 사용자: 비슷한 회사 이름이 많아서)
+    const co = window.LayoutShell && LayoutShell.activeCompanyName ? LayoutShell.activeCompanyName() : '';
+    if (ok) { onSuccess(); if (window.showToast) showToast(co ? `${co}에 저장했습니다` : '저장했습니다'); }
   });
 }
 

@@ -26,6 +26,12 @@ const LayoutShell = (() => {
   let lastCompanies = [];  // 회사 목록 마지막 값 (사이드바 "회사" 뷰가 나중에 열려도 다시 그릴 수 있도록 기억)
   let lastActiveIdx = 0;
 
+  // 회사별 색(2026-10-20 사용자: 겐시스템·(주)겐시스템처럼 이름이 비슷해 어느 회사에 쓰는지 더 또렷하게).
+  // 회사 목록 순서대로 서로 다른 색 — 상단바 배지·화면 위 띠·사이드바 회사 목록 점에 같은 색을 쓴다.
+  const CO_COLORS = ['#2563eb', '#ea580c', '#16a34a', '#9333ea', '#db2777', '#0891b2'];
+  const coColor = (i) => CO_COLORS[((i % CO_COLORS.length) + CO_COLORS.length) % CO_COLORS.length];
+  const coName = (c, i) => (c && c.company) || '회사' + (i + 1);
+
   /**
    * 사이드바/상단바/로그인 화면/메인 화면 골격을 만들고 문서에 삽입합니다.
    * main.js에서 db.js, auth.js 초기화 이후 한 번 호출합니다.
@@ -112,12 +118,13 @@ const LayoutShell = (() => {
         <div class="ls-main">
           <div class="ls-topbar">
             <h2 class="ls-page-title" id="ls-page-title"></h2>
-            <div class="ls-active-company" id="ls-company-tabs"></div>
+            <div class="ls-active-company" title="지금 입력·조회 중인 회사"><span class="ls-co-dot" aria-hidden="true"></span><span id="ls-company-tabs"></span></div>
             <div class="ls-topbar-right">
               <button class="ls-theme-toggle" id="ls-theme-toggle" title="다크모드 전환"></button>
               <span class="ls-sync"><span class="ls-sync-dot" id="ls-sync-dot"></span><span id="ls-sync-label">연결 중...</span></span>
             </div>
           </div>
+          <div class="ls-company-strip" id="ls-company-strip" aria-hidden="true"></div>
           <div class="ls-content" id="ls-content"></div>
         </div>
         <div class="ls-mobile-backdrop" id="ls-mobile-backdrop"></div>
@@ -272,6 +279,7 @@ const LayoutShell = (() => {
     const item = menuItems.find((m) => m.id === panelId);
     const titleEl = document.getElementById('ls-page-title');
     if (titleEl) titleEl.textContent = item ? item.label : '';
+    renderCompanyStrip();
     if (onNavigateCb) onNavigateCb(panelId);
   }
 
@@ -315,12 +323,29 @@ const LayoutShell = (() => {
     const label = document.getElementById('ls-company-tabs');
     if (label) {
       const active = companies[activeIdx];
-      label.textContent = active ? (active.company || '회사' + (activeIdx + 1)) : '';
+      label.textContent = active ? coName(active, activeIdx) : '';
     }
+    document.documentElement.style.setProperty('--co', coColor(activeIdx));
+    renderCompanyStrip();
 
     // 사이드바 "회사" 뷰가 지금 보이는 중이면 목록도 최신 상태로 다시 그린다.
     const companyListEl = document.getElementById('ls-company-list');
     if (companyListEl && companyListEl.style.display !== 'none') renderSidebarCompanyList();
+  }
+
+  /** 화면(콘텐츠) 맨 위 회사 띠: "▎(주)겐시스템 · 일별현황" — 회사 색 */
+  function renderCompanyStrip() {
+    const el = document.getElementById('ls-company-strip');
+    if (!el) return;
+    const active = lastCompanies[lastActiveIdx];
+    const item = menuItems.find((m) => m.id === currentPanelId);
+    el.innerHTML = active ? `<b>${escapeHtml(coName(active, lastActiveIdx))}</b>${item ? `<span> · ${escapeHtml(item.label)}</span>` : ''}` : '';
+  }
+
+  /** 지금 쓰는 회사 이름 (저장 알림 등에서 "○○에 저장했습니다") */
+  function activeCompanyName() {
+    const active = lastCompanies[lastActiveIdx];
+    return active ? coName(active, lastActiveIdx) : '';
   }
 
   /** 상단바 다크모드 토글 버튼의 아이콘을 현재 테마에 맞게 그린다. */
@@ -353,7 +378,7 @@ const LayoutShell = (() => {
     if (!listEl) return;
     listEl.innerHTML = lastCompanies.map((c, i) => `
       <button type="button" class="ls-co-item${i === lastActiveIdx ? ' active' : ''}" data-idx="${i}">
-        ${escapeHtml(c.company || '회사' + (i + 1))}
+        <span class="ls-co-dot" style="background:${coColor(i)}" aria-hidden="true"></span>${escapeHtml(coName(c, i))}
       </button>
     `).join('');
   }
@@ -593,7 +618,7 @@ const LayoutShell = (() => {
 
   return {
     init, navigate, registerPanel, showMainApp, showLoginScreen,
-    setLoginError, renderCompanyTabs, updateSyncStatus, renderThemeToggleIcon
+    setLoginError, renderCompanyTabs, updateSyncStatus, renderThemeToggleIcon, activeCompanyName
   };
 })();
 
