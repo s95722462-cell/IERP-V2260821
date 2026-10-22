@@ -851,3 +851,15 @@ test('전표번호 날짜는 저장한 날이 아니라 입력한 거래일', as
   expect((await dump(page, 'purchases'))[0].docNo).toBe(`P${ymd}-01`);
   expect((await dump(page, 'sales'))[0].docNo).toBe(`S${ymd}-01`);
 });
+
+test('[회귀] KPI 카드 금액이 길어도 "..."로 잘리지 않고 글자가 줄어 전부 보인다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await boot(page);
+  await nav(page, 'daily');
+  await page.evaluate(() => {
+    document.getElementById('daily-kpis').innerHTML = ['₩29,024,600', '₩5,049,000', '₩1,234,567,890', '100.0%', '6건', '10줄']
+      .map((v) => `<div class="kpi"><div class="kpi-label">x</div><div class="kpi-val">${v}</div></div>`).join('');
+  });
+  await expect.poll(() => page.$$eval('#daily-kpis .kpi-val', (els) => els.every((e) => e.scrollWidth <= e.clientWidth))).toBe(true);
+  await page.locator('#daily-kpis').screenshot({ path: 'test-results/kpi-fit.png' });
+});

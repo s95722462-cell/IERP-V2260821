@@ -152,4 +152,31 @@ function clearAllModuleData() {
 // 회사 전환/삭제 후 settings.js가 이 함수를 호출해 다시 연결하도록 되어 있음
 window.onCompanySwitched = restartAllListeners;
 
+/**
+ * KPI 카드 숫자가 칸보다 길면 "₩29,024,6..."처럼 잘리던 것 → 글자를 1px씩 줄여 전부 보이게 (2026-10-22 사용자 요청)
+ * 카드 묶음(.stock-kpis)의 내용이 바뀌거나 크기가 바뀔 때(창 크기·화면 전환) 다시 맞춘다.
+ */
+function fitKpiVals(root) {
+  root.querySelectorAll('.kpi-val').forEach((el) => {
+    el.style.fontSize = '';
+    if (!el.clientWidth) return; // 숨은 화면은 보일 때 ResizeObserver가 다시 부른다
+    let fs = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && fs > 11) {
+      fs -= 1;
+      el.style.fontSize = fs + 'px';
+    }
+  });
+}
+const kpiResize = new ResizeObserver((entries) => entries.forEach((e) => fitKpiVals(e.target)));
+new MutationObserver((muts) => {
+  muts.forEach((m) => {
+    m.addedNodes.forEach((n) => {
+      if (n.nodeType !== 1) return;
+      const groups = n.classList.contains('stock-kpis') ? [n] : n.querySelectorAll('.stock-kpis');
+      groups.forEach((g) => kpiResize.observe(g));
+    });
+    if (m.target.classList && m.target.classList.contains('stock-kpis')) fitKpiVals(m.target);
+  });
+}).observe(document.documentElement, { childList: true, subtree: true });
+
 document.addEventListener('DOMContentLoaded', initApp);
