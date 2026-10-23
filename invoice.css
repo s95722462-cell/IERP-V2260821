@@ -112,3 +112,18 @@
 .inv-sign-row { margin-top: 36px; text-align: right; font-size: 11px; }
 
 .inv-footer { margin-top: 20px; font-size: 9px; color: #555; }
+
+/* 절취선 2단(위·아래 반 장)일 때는 칸이 좁아 8품목이면 합계가 칸 밖으로 잘렸다(2026-10-23 사용자:
+   "8품목이 되니까 합계 금액이 안 보임"). 반 장 안에서만 여백·글자를 조금 줄이고 합계를 한 줄로. */
+.inv-copy .inv-title { font-size: 17px; margin: 0 0 6px; }
+.inv-copy .inv-meta-row { margin-bottom: 5px; }
+.inv-copy .inv-info-row { margin-bottom: 6px; }
+.inv-copy .inv-info-box { padding: 5px 8px; }
+.inv-copy .inv-info-title { margin-bottom: 2px; }
+.inv-copy .inv-info-line, .inv-copy .inv-addr-line, .inv-copy .inv-info-line-pair { padding: 1px 0; }
+.inv-copy .inv-table { margin-bottom: 6px; }
+.inv-copy .inv-table th, .inv-copy .inv-table td { padding: 3px 6px; }
+.inv-copy .inv-totals { display: flex; justify-content: flex-end; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.inv-copy .inv-total-final { margin-top: 0; }
+.inv-copy .inv-sign-row { margin-top: 10px; }
+.inv-copy .inv-footer { margin-top: 6px; }

@@ -284,6 +284,31 @@ test('여러 품목 한 전표 + 명세서(인쇄 영역) 생성', async ({ page
   await expect(page.locator('#invoice-print-area')).toContainText('7,700');
 });
 
+test('[회귀] 명세서 8품목(절취선 2단)에서도 합계가 반 장 안에 보인다 (2026-10-23 합계 잘림)', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => { window.print = () => {}; });
+  await addCustomer(page, '고객C');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 50 });
+  await nav(page, 'sales');
+  await page.click('#sl-add-btn');
+  await page.fill('#sl-buyer-name', '고객C');
+  for (let i = 0; i < 8; i++) {
+    if (i) await page.click('#sl-add-row-btn');
+    await fillTxRow(page, 'sl', i, { item: '센서 (S-100)', qty: 1 });
+  }
+  await page.click('#sl-save-btn');
+  await expect(page.locator('#sl-panel-bg')).toBeHidden();
+  await page.locator('#sl-list-card button[data-act="invoice"]').first().click();
+  await expect(page.locator('#invoice-print-area .inv-copy')).toHaveCount(2);
+  await page.emulateMedia({ media: 'print' });
+  const fit = await page.evaluate(() => [...document.querySelectorAll('#invoice-print-area .inv-copy')].map((c) => {
+    const t = c.querySelector('.inv-total-final').getBoundingClientRect();
+    return t.height > 0 && t.bottom <= c.getBoundingClientRect().bottom + 0.5;
+  }));
+  await page.emulateMedia({ media: 'screen' });
+  expect(fit).toEqual([true, true]);
+});
+
 test('[회귀] 모바일에서는 명세서를 미리보기로 띄우고 그 안의 버튼으로 인쇄한다 (iOS Safari 무반응 대응)', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
@@ -355,7 +380,9 @@ test('[회귀] 모바일 명세서 미리보기: 화면 폭 안에 다 들어오
     const sr = sheet.getBoundingClientRect();
     const lines = [...sheet.querySelectorAll('.inv-totals > *')].slice(0, 3).map((el) => el.getBoundingClientRect());
     let overlap = false;
-    for (let i = 1; i < lines.length; i++) if (lines[i].top < lines[i - 1].bottom - 0.5) overlap = true;
+    // 합계는 세로 3줄 또는 (절취선 2단일 때) 가로 한 줄 — 실제로 글자 상자가 겹치는지만 본다
+    const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    for (let i = 0; i < lines.length; i++) for (let j = i + 1; j < lines.length; j++) if (hit(lines[i], lines[j])) overlap = true;
     return { right: sr.right, vw: window.innerWidth, overlap, n: lines.length };
   });
   expect(r.right).toBeLessThanOrEqual(r.vw);
