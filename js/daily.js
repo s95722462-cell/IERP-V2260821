@@ -167,7 +167,14 @@ const DailyModule = (() => {
     const margin = salesSubtotal > 0 ? (grossProfit / salesSubtotal * 100) : 0;
     const lineCount = rows.reduce((s, r) => s + (r.__lineCount || 1), 0);
 
+    // 이번달 수금예정 = 지난달 매출 공급가액 합계 (부가세 별도). 대금은 다음 달에 받으므로
+    // 표 필터(기간·검색)와 상관없이 매출 전체에서 지난달 것만 더한다. 반품(G)은 음수라 그대로 빠진다.
+    const now = new Date(), prevM = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${prevM.getFullYear()}-${String(prevM.getMonth() + 1).padStart(2, '0')}`;
+    const collectDue = SalesModule.getCache().filter((r) => (r.date || '').startsWith(prevKey)).reduce((s, r) => s + rawNum(r.subtotal), 0);
+
     document.getElementById('daily-kpis').innerHTML = `
+      <div class="kpi" id="daily-collect-due" title="${prevM.getMonth() + 1}월 매출 공급가액 합계 — 부가세 별도"><div class="kpi-label">이번달 수금예정 <small>(${prevM.getMonth() + 1}월분·부가세 별도)</small></div><div class="kpi-val" style="color:var(--green)">₩${Math.round(collectDue).toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">매출합계</div><div class="kpi-val" style="color:var(--red)">₩${salesTotal.toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">매입합계</div><div class="kpi-val" style="color:var(--blue)">₩${purchTotal.toLocaleString()}</div></div>
       <div class="kpi"><div class="kpi-label">매출총이익</div><div class="kpi-val">₩${Math.round(grossProfit).toLocaleString()}</div></div>

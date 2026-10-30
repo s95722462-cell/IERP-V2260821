@@ -706,6 +706,9 @@ test('일별현황은 기본으로 이번 달 1일~오늘만 보여준다', asyn
   await expect(page.locator('#daily-list-card tbody')).toContainText('이번달품목');
   await expect(page.locator('#daily-list-card tbody')).not.toContainText('지난달품목');
   await expect(page.locator('#daily-kpis')).toContainText('₩1,100');
+  // 이번달 수금예정 = 지난달 매출 공급가액(부가세 별도) 합계 — 표 기간 필터와 무관
+  await expect(page.locator('#daily-collect-due')).toContainText('₩50,000');
+  await expect(page.locator('#daily-collect-due')).toContainText(`${prev.getMonth() + 1}월분`);
 
   // 연도 선택으로 넓혀 보면 지난달 데이터도 나온다
   await page.selectOption('#daily-list-card [data-role="year"]', '__all__');
