@@ -83,6 +83,9 @@ async function addProduct(page, { name, spec, price, init }) {
   await page.fill('#pr-initstock', String(init));
   await page.click('#pr-save-btn');
   await expect(page.locator('#pr-panel-bg')).toBeHidden();
+  // 새 품목 저장 뒤 '바로 전표 작성?' 창 — 기존 시험은 아니오
+  await page.click('#pr-quick-no');
+  await expect(page.locator('#pr-quick-modal')).toBeHidden();
 }
 async function fillTxRow(page, prefix, row, { item, qty, price, isReturn }) {
   const r = page.locator(`#${prefix}-items-container .sl-item-row`).nth(row);
@@ -935,4 +938,81 @@ test('매입 내역 표 맨 아래에도 지금 보이는 행의 금액 합계 �
   await page.fill('#pu-list-card [data-role="search"]', '매입B');
   await expect(foot).toContainText('합계 (1건)');
   await expect(foot).toContainText('₩6,600');
+});
+test('품목명 목록은 이름만(중복 없이) 나오고, 이름을 고르면 규격 칸에 그 이름의 규격만 나온다', async ({ page }) => {
+  await boot(page);
+  await addProduct(page, { name: 'PLC', spec: 'QJ61BT11N', price: 155000, init: 5 });
+  await addProduct(page, { name: 'PLC', spec: 'Q03UDVCPU', price: 300000, init: 5 });
+  await addProduct(page, { name: 'SERVO', spec: 'HG-KR13', price: 250000, init: 5 });
+
+  for (const prefix of ['sl', 'pu']) {
+    await nav(page, prefix === 'sl' ? 'sales' : 'purchase');
+    await page.click(`#${prefix}-add-btn`);
+    const names = await page.locator(`#${prefix}-item-list option`).evaluateAll((os) => os.map((o) => o.value));
+    expect(names).toEqual(['PLC', 'SERVO']);
+
+    const r = page.locator(`#${prefix}-items-container .sl-item-row`).nth(0);
+    await r.locator('.ri-item').fill('PLC');
+    await r.locator('.ri-item').dispatchEvent('change');
+    await expect(r.locator('.ri-spec')).toHaveValue('');
+    const specs = await r.locator('datalist.ri-spec-list option').evaluateAll((os) => os.map((o) => o.value));
+    expect(specs).toEqual(['Q03UDVCPU', 'QJ61BT11N']);
+    await r.locator('.ri-spec').fill('Q03UDVCPU');
+    await r.locator('.ri-spec').dispatchEvent('change');
+    await expect(r.locator('.ri-price')).toHaveValue('300,000');
+
+    // 규격이 하나뿐인 이름은 규격·단가가 바로 채워진다
+    await r.locator('.ri-item').fill('SERVO');
+    await r.locator('.ri-item').dispatchEvent('change');
+    await expect(r.locator('.ri-spec')).toHaveValue('HG-KR13');
+    await expect(r.locator('.ri-price')).toHaveValue('250,000');
+    await page.click(`#${prefix}-cancel-btn`);
+  }
+});
+test('새 품목 저장 뒤 "매출 등록"을 고르면 새 매출 창이 그 품목으로 채워져 열린다', async ({ page }) => {
+  await boot(page);
+  await nav(page, 'products');
+  await page.click('#pr-add-btn');
+  await page.fill('#pr-name', 'PLC');
+  await page.fill('#pr-spec', 'Q04UDVCPU');
+  await page.fill('#pr-price', '350000');
+  await page.click('#pr-save-btn');
+  await expect(page.locator('#pr-quick-modal')).toBeVisible();
+  await expect(page.locator('#pr-quick-msg')).toContainText('PLC (Q04UDVCPU)');
+  await page.click('#pr-quick-sale');
+  await expect(page.locator('#pr-quick-modal')).toBeHidden();
+  await expect(page.locator('#sl-panel-bg')).toBeVisible();
+  const r = page.locator('#sl-items-container .sl-item-row').nth(0);
+  await expect(r.locator('.ri-item')).toHaveValue('PLC');
+  await expect(r.locator('.ri-spec')).toHaveValue('Q04UDVCPU');
+  await expect(r.locator('.ri-price')).toHaveValue('350,000');
+});
+
+test('새 품목 저장 뒤 "매입 등록": 초기재고가 있으면 한 번 더 묻고, 예면 새 매입 창이 채워져 열린다', async ({ page }) => {
+  const dialogs = await boot(page);
+  await nav(page, 'products');
+  await page.click('#pr-add-btn');
+  await page.fill('#pr-name', 'SERVO');
+  await page.fill('#pr-spec', 'HG-KR23');
+  await page.fill('#pr-price', '280000');
+  await page.fill('#pr-initstock', '5');
+  await page.click('#pr-save-btn');
+  await expect(page.locator('#pr-quick-modal')).toBeVisible();
+  await page.click('#pr-quick-purchase');
+  await expect(page.locator('#pu-panel-bg')).toBeVisible();
+  expect(dialogs.join('\n')).toContain('초기재고 5개');
+  const r = page.locator('#pu-items-container .sl-item-row').nth(0);
+  await expect(r.locator('.ri-item')).toHaveValue('SERVO');
+  await expect(r.locator('.ri-spec')).toHaveValue('HG-KR23');
+  await expect(r.locator('.ri-price')).toHaveValue('280,000');
+});
+
+test('품목을 수정 저장할 때는 "바로 전표 작성" 창이 뜨지 않는다', async ({ page }) => {
+  await boot(page);
+  await addProduct(page, { name: '수정품', spec: 'A', price: 100, init: 0 });
+  await page.locator('#pr-list-card button[data-act="edit"]').first().click();
+  await page.fill('#pr-price', '200');
+  await page.click('#pr-save-btn');
+  await expect(page.locator('#pr-panel-bg')).toBeHidden();
+  await expect(page.locator('#pr-quick-modal')).toBeHidden();
 });

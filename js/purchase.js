@@ -104,6 +104,7 @@ const PurchaseModule = (() => {
     });
     itemsContainer.addEventListener('change', (e) => {
       if (e.target.classList.contains('ri-item')) onItemPick(e.target.closest('.sl-item-row'));
+      if (e.target.classList.contains('ri-spec')) { const r = e.target.closest('.sl-item-row'); ProductsModule.pickItemSpec(r); recalcRow(r); }
     });
     itemsContainer.addEventListener('click', (e) => {
       const delBtn = e.target.closest('.ri-del');
@@ -182,11 +183,10 @@ const PurchaseModule = (() => {
 
   /** 품목 목록이 바뀔 때(ProductsModule 갱신 시) 다시 호출해 자동완성을 최신화합니다. */
   function refreshItemDatalist() {
-    const dl = document.getElementById('pu-item-list');
-    const products = ProductsModule.getCache();
-    dl.innerHTML = products.map((p) =>
-      `<option value="${escapeHtml(p.name)}${p.spec ? ' (' + escapeHtml(p.spec) + ')' : ''}">`
-    ).join('');
+    // 품목명 목록은 이름만(중복 없이) — 규격은 이름을 고른 뒤 규격 칸에서 고른다
+    document.getElementById('pu-item-list').innerHTML = ProductsModule.nameOptionsHtml();
+    document.querySelectorAll('#pu-items-container .sl-item-row').forEach((r) =>
+      ProductsModule.fillSpecList(r, r.querySelector('.ri-item').value.trim()));
   }
 
   // ── 품목 줄(행) 관리 ──────────────────────────────────────
@@ -200,13 +200,14 @@ const PurchaseModule = (() => {
     tr.innerHTML = `
       <td><span class="ri-no"></span></td>
       <td><input class="ri-item" list="pu-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
-      <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"></td>
+      <td><input class="ri-spec" list="pu-spec-list-${key}" placeholder="규격" value="${escapeHtml(data?.spec || '')}"><datalist class="ri-spec-list" id="pu-spec-list-${key}"></datalist></td>
       <td><input class="ri-qty" type="number" value="${rawNum(data?.qty ?? 1)}"></td>
       <td><input class="ri-price" type="text" inputmode="numeric" value="${fmtNum(data?.unitPrice ?? 0)}"></td>
       <td><span class="ri-subtotal">0</span></td>
       <td><button type="button" class="ri-del" title="이 줄 삭제" aria-label="이 줄 삭제">✕</button></td>
     `;
     container.appendChild(tr);
+    if (data?.item) ProductsModule.fillSpecList(tr, data.item);
     bindCommaInput(tr.querySelector('.ri-price'));
     recalcRow(tr);
     renumberRows();
@@ -229,14 +230,7 @@ const PurchaseModule = (() => {
 
   /** 자동완성에서 "품목명 (규격)"을 고르면 이름/규격/단가를 그 줄에 정확히 채운다. */
   function onItemPick(rowEl) {
-    const raw = rowEl.querySelector('.ri-item').value;
-    const { name, hint } = splitNameAndHint(raw);
-    let product = ProductsModule.findByNameSpec(name, hint) || ProductsModule.getCache().find((p) => p.name === name);
-    if (product) {
-      rowEl.querySelector('.ri-item').value = product.name;
-      rowEl.querySelector('.ri-spec').value = product.spec || '';
-      rowEl.querySelector('.ri-price').value = (product.price || 0).toLocaleString();
-    }
+    ProductsModule.pickItemName(rowEl);
     recalcRow(rowEl);
   }
 
@@ -291,6 +285,20 @@ const PurchaseModule = (() => {
     document.getElementById('pu-panel-title').textContent = '새 매입 등록';
     document.getElementById('pu-docno-badge').style.display = 'none';
     document.getElementById('pu-save-btn').textContent = '저장';
+  }
+
+  /** 품목 화면에서 새 품목 저장 직후 "매입 등록"을 고르면 호출 — 새 전표 창을 열고
+   * 첫 줄에 그 품목(이름·규격·기준단가)을 채운다. 공급업체·수량만 넣고 저장하면 된다. */
+  function startNewWithItem(product) {
+    resetForm();
+    const row = document.querySelector('#pu-items-container .sl-item-row');
+    row.querySelector('.ri-item').value = product.name || '';
+    row.querySelector('.ri-spec').value = product.spec || '';
+    row.querySelector('.ri-price').value = (rawNum(product.price) || 0).toLocaleString();
+    ProductsModule.fillSpecList(row, product.name || '');
+    recalcRow(row);
+    openPanel();
+    document.getElementById('pu-vendor-name').focus();
   }
 
   function startEdit(id) {
@@ -544,7 +552,7 @@ const PurchaseModule = (() => {
     updateListeners.forEach((cb) => cb(cache));
   }
 
-  return { init, startListening, getCache, onUpdate, refreshVendorOptions, refreshItemDatalist, showDetailPanel, clearData };
+  return { init, startListening, getCache, onUpdate, refreshVendorOptions, refreshItemDatalist, showDetailPanel, clearData, startNewWithItem };
 })();
 
 window.PurchaseModule = PurchaseModule;

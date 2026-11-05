@@ -10,6 +10,7 @@ const ProductsModule = (() => {
   let cache = [];
   let tableInstance = null;
   let editingId = null;
+  let pendingNew = null; // 방금 새로 저장한 품목 (저장 성공 후 매입/매출 바로 작성 제안용)
   let unsubscribe = null;
   let updateListeners = [];
 
@@ -74,7 +75,11 @@ const ProductsModule = (() => {
     document.getElementById('pr-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pr-panel-bg') closePanel(); // 패널 바깥(어두운 배경) 클릭 시 닫기
     });
-    bindSaveButton(document.getElementById('pr-save-btn'), save, closePanel);
+    bindSaveButton(document.getElementById('pr-save-btn'), save, () => {
+      closePanel();
+      // 새로 추가한 품목이면 바로 매입/매출 전표로 이어서 작성할지 묻는다 (수정 때는 묻지 않음)
+      if (pendingNew) { const d = pendingNew; pendingNew = null; offerQuickTx(d); }
+    });
     document.getElementById('pr-cancel-btn').addEventListener('click', closePanel);
     document.getElementById('pr-tmpl-btn').addEventListener('click', downloadTemplate);
     document.getElementById('pr-export-btn').addEventListener('click', exportExcel);
@@ -151,6 +156,7 @@ const ProductsModule = (() => {
 
   async function save() {
     const name = document.getElementById('pr-name').value.trim();
+    pendingNew = null;
     if (!name) { alert('품목명을 입력하세요'); return false; }
     const data = {
       code: document.getElementById('pr-code').value,
@@ -167,8 +173,49 @@ const ProductsModule = (() => {
       await updateDoc(path(), editingId, data);
     } else {
       await addDoc(path(), data);
+      pendingNew = data;
     }
     return true;
+  }
+
+  /** 새 품목 저장 직후: "이 품목으로 바로 전표를 작성하시겠습니까? [매입 등록] [매출 등록] [아니오]"
+   * 매입/매출을 고르면 그 화면으로 가서 새 전표 창을 열고 첫 줄에 품목·규격·단가를 채운다. */
+  function offerQuickTx(product) {
+    let bg = document.getElementById('pr-quick-modal');
+    if (!bg) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="te-modal-bg" id="pr-quick-modal" style="display:none">
+          <div class="te-modal" role="dialog" aria-modal="true" aria-labelledby="pr-quick-title">
+            <div class="te-modal-title" id="pr-quick-title">새 품목 등록 완료</div>
+            <div id="pr-quick-msg" style="margin:6px 0 16px;line-height:1.6"></div>
+            <div class="btn-row" style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="ls-btn-primary" id="pr-quick-purchase" style="width:auto">매입 등록</button>
+              <button class="ls-btn-primary" id="pr-quick-sale" style="width:auto">매출 등록</button>
+              <button id="pr-quick-no" style="width:auto">아니오</button>
+            </div>
+          </div>
+        </div>`);
+      bg = document.getElementById('pr-quick-modal');
+    }
+    const label = product.name + (product.spec ? ` (${product.spec})` : '');
+    document.getElementById('pr-quick-msg').innerHTML =
+      `새 품목 「${escapeHtml(label)}」을 등록했습니다.<br>이 품목으로 바로 전표를 작성하시겠습니까?`;
+    const close = () => { bg.style.display = 'none'; };
+    document.getElementById('pr-quick-no').onclick = close;
+    bg.onclick = (e) => { if (e.target === bg) close(); };
+    document.getElementById('pr-quick-sale').onclick = () => {
+      close();
+      LayoutShell.navigate('sales');
+      SalesModule.startNewWithItem(product);
+    };
+    document.getElementById('pr-quick-purchase').onclick = () => {
+      if (rawNum(product.initStock) > 0 &&
+          !confirm(`초기재고 ${rawNum(product.initStock).toLocaleString()}개가 이미 들어가 있습니다.\n매입으로 등록하면 재고가 그만큼 더 늘어납니다. 계속할까요?`)) return;
+      close();
+      LayoutShell.navigate('purchase');
+      PurchaseModule.startNewWithItem(product);
+    };
+    bg.style.display = 'flex';
   }
 
   async function remove(id) {
@@ -353,7 +400,60 @@ const ProductsModule = (() => {
     updateListeners.forEach((cb) => cb(cache));
   }
 
-  return { init, startListening, getCache, onUpdate, findByNameSpec, clearData };
+  /** 매출·매입 품목 줄의 "품목명" 목록 — 같은 이름(PLC, SERVO…)은 한 번만,
+   * 규격은 붙이지 않는다. 규격은 이름을 고른 뒤 규격 칸 목록에서 고른다. */
+  function nameOptionsHtml() {
+    const names = Array.from(new Set(cache.map((p) => p.name).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+    return names.map((n) => `<option value="${escapeHtml(n)}">`).join('');
+  }
+
+  /** 그 품목명에 등록된 규격 목록 (규격 칸 자동완성용) */
+  function specOptionsHtml(name) {
+    const specs = Array.from(new Set(cache.filter((p) => p.name === name).map((p) => p.spec || '').filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
+    return specs.map((s) => `<option value="${escapeHtml(s)}">`).join('');
+  }
+
+  function fillSpecList(rowEl, name) {
+    const dl = rowEl.querySelector('datalist.ri-spec-list');
+    if (dl) dl.innerHTML = specOptionsHtml(name);
+  }
+
+  /** 품목 줄(매출·매입 공통): 이름을 고르면 규격 목록을 그 이름 것만으로 채우고,
+   * 규격이 하나뿐이면 규격·단가까지 바로 채운다. 예전처럼 "이름 (규격)"을
+   * 직접 쳐도 그대로 알아듣는다. */
+  function pickItemName(rowEl) {
+    const itemEl = rowEl.querySelector('.ri-item');
+    const specEl = rowEl.querySelector('.ri-spec');
+    const priceEl = rowEl.querySelector('.ri-price');
+    const { name, hint } = splitNameAndHint(itemEl.value);
+    const matches = cache.filter((p) => p.name === name);
+    let product = hint ? findByNameSpec(name, hint) : null;
+    if (!product && matches.length === 1) product = matches[0];
+    fillSpecList(rowEl, name);
+    if (product) {
+      itemEl.value = product.name;
+      specEl.value = product.spec || '';
+      priceEl.value = (product.price || 0).toLocaleString();
+    } else if (matches.length > 1) {
+      itemEl.value = name;
+      const same = matches.find((p) => (p.spec || '') === specEl.value);
+      if (same) priceEl.value = (same.price || 0).toLocaleString();
+      else specEl.value = '';
+      specEl.focus();
+    }
+  }
+
+  /** 규격을 고르면 그 품목의 단가를 채운다. */
+  function pickItemSpec(rowEl) {
+    const name = rowEl.querySelector('.ri-item').value.trim();
+    const product = findByNameSpec(name, rowEl.querySelector('.ri-spec').value.trim());
+    if (product) rowEl.querySelector('.ri-price').value = (product.price || 0).toLocaleString();
+  }
+
+  return { init, startListening, getCache, onUpdate, findByNameSpec, clearData,
+    nameOptionsHtml, specOptionsHtml, fillSpecList, pickItemName, pickItemSpec };
 })();
 
 window.ProductsModule = ProductsModule;
