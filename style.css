@@ -241,6 +241,15 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   height: 34px; background: var(--surface2); font-weight: 600; color: var(--text2); font-size: var(--fs-xs);
   padding: 0 8px; border: none; border-bottom: 1px solid var(--border); box-sizing: border-box;
 }
+/* 품목 줄 칸 폭: 수량·단가·금액·반품은 고정, 남는 폭은 품목명·규격이 나눠 씀 (2026-11-05) */
+.sl-items-table { table-layout: fixed; }
+.sl-items-table th { text-align: left; padding: 0 10px; white-space: nowrap; overflow: hidden; }
+.sl-items-table th.c-no { width: 48px; text-align: center; padding: 0; }
+.sl-items-table th.c-qty { width: 90px; text-align: right; }
+.sl-items-table th.c-price { width: 130px; text-align: right; }
+.sl-items-table th.c-sub { width: 140px; text-align: right; }
+.sl-items-table th.c-ret { width: 56px; text-align: center; padding: 0; }
+.sl-items-table th.c-del { width: 44px; padding: 0; }
 .sl-items-table td { padding: 0; border: none; border-bottom: 1px solid var(--border); box-sizing: border-box; }
 .sl-items-table tr:last-child td { border-bottom: none; }
 .sl-items-table td input {

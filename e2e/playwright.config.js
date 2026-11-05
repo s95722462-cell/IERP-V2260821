@@ -8,5 +8,5 @@ module.exports = defineConfig({
   timeout: 20000,
   fullyParallel: true,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
-  use: { browserName: 'chromium', headless: true, acceptDownloads: true }
+  use: { browserName: 'chromium', headless: true, acceptDownloads: true, trace: process.env.CI ? 'retain-on-failure' : 'off' }
 });

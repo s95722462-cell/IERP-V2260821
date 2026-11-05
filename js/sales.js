@@ -92,9 +92,9 @@ const SalesModule = (() => {
           <table class="sl-items-table">
             <thead>
               <tr>
-                <th style="text-align:center">No.</th><th>품목명</th><th>규격</th>
-                <th style="text-align:right">수량</th><th style="text-align:right">단가</th>
-                <th style="text-align:right">공급가액</th><th style="text-align:center">반품</th><th></th>
+                <th class="c-no">No.</th><th class="c-item">품목명</th><th class="c-spec">규격</th>
+                <th class="c-qty">수량</th><th class="c-price">단가</th>
+                <th class="c-sub">공급가액</th><th class="c-ret">반품</th><th class="c-del"></th>
               </tr>
             </thead>
             <tbody id="sl-items-container"></tbody>
