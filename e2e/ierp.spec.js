@@ -920,3 +920,19 @@ test('매출 내역 표 맨 아래에 지금 보이는 행의 금액 합계 줄�
   await expect(foot).toContainText('합계 (3건)');
   await expect(foot).toContainText('₩61,600');
 });
+test('매입 내역 표 맨 아래에도 지금 보이는 행의 금액 합계 줄이 나온다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '합계공급사');
+  await addPurchase(page, { vendor: '합계공급사', date: today(), item: '매입A', qty: 1, price: 1000 });
+  await addPurchase(page, { vendor: '합계공급사', date: today(), item: '매입B', qty: 3, price: 2000 });
+
+  await nav(page, 'purchase');
+  const foot = page.locator('#pu-list-card tfoot');
+  await expect(foot).toContainText('합계 (2건)');
+  await expect(foot).toContainText('7,000');
+  await expect(foot).toContainText('₩7,700');
+
+  await page.fill('#pu-list-card [data-role="search"]', '매입B');
+  await expect(foot).toContainText('합계 (1건)');
+  await expect(foot).toContainText('₩6,600');
+});
