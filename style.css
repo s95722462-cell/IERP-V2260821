@@ -460,3 +460,28 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .ls-sidebar.collapsed .eu-new-label { display: none; }
 .ls-sidebar.collapsed .eu-new-wrap { padding: 4px 8px 10px; }
 .ls-sidebar.collapsed .eu-new-menu { right: auto; width: 200px; }
+
+/* ── 매출·매입 등록을 팝업 대신 본문 화면으로 (2026-11-05 사용자 요청) ──
+   openPanel() 이 .side-panel-bg 에 .as-page, 화면 패널에 .entry-mode 를 붙인다.
+   목록 카드는 숨기고, 입력 창이 본문 폭 전체를 쓴다. */
+.ls-panel.entry-mode > .card:not(.side-panel), .ls-panel.entry-mode > details { display: none !important; }
+.side-panel-bg.as-page { position: static; inset: auto; background: transparent; z-index: auto; display: block !important; }
+.side-panel-bg.as-page > .side-panel {
+  width: 100% !important; max-width: none; height: auto; overflow: visible;
+  border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: none; animation: none;
+}
+.side-panel-bg.as-page .sp-controls, .side-panel-bg.as-page .sp-resize-handle, .side-panel-bg.as-page .sp-resizer { display: none !important; }
+.side-panel-bg.as-page > .side-panel > .card-title { position: static; border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+.side-panel-bg.as-page > .side-panel > .btn-row { bottom: 0; margin: 18px -24px -24px !important; border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
+.side-panel-bg.as-page .form-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.side-panel-bg.as-page .eu-back { display: inline-flex; }
+.eu-back { display: none; align-items: center; gap: 4px; margin-right: 10px; font-size: 13px; font-weight: 600; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; width: auto !important; height: auto !important; }
+.eu-back:hover { color: var(--text); background: var(--surface2); }
+@media (max-width: 768px) {
+  .side-panel-bg.as-page > .side-panel { border-radius: 0; border-left: 0; border-right: 0; }
+  .side-panel-bg.as-page .form-grid { grid-template-columns: 1fr !important; }
+}.side-panel-bg.as-page > .side-panel > .card-title > .sp-close-btn { margin-left: auto !important; }
+@media (max-width: 768px) {
+  .side-panel-bg.as-page > .side-panel > .btn-row { position: static; margin: 16px -16px 0 !important; padding-right: 84px; }
+  body:has(.ls-panel.active.entry-mode) .eu-fab-wrap { display: none; }
+}

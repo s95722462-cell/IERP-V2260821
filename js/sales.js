@@ -411,11 +411,13 @@ const SalesModule = (() => {
   /** 오른쪽 슬라이드 패널을 연다 (새 매출 등록 / 수정 공용). */
   function openPanel() {
     document.getElementById('sl-panel-bg').style.display = 'flex';
+    EntryUI.setPageMode('sl-panel-bg', true, closePanel); // 팝업 대신 본문 화면으로
   }
 
   /** 패널을 닫고 폼을 비운다. */
   function closePanel() {
     document.getElementById('sl-panel-bg').style.display = 'none';
+    EntryUI.setPageMode('sl-panel-bg', false);
     resetForm();
   }
 

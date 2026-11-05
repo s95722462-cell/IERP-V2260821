@@ -284,11 +284,13 @@ const PurchaseModule = (() => {
   /** 오른쪽 슬라이드 패널을 연다 (새 매입 등록 / 수정 공용). */
   function openPanel() {
     document.getElementById('pu-panel-bg').style.display = 'flex';
+    EntryUI.setPageMode('pu-panel-bg', true, closePanel); // 팝업 대신 본문 화면으로
   }
 
   /** 패널을 닫고 폼을 비운다. */
   function closePanel() {
     document.getElementById('pu-panel-bg').style.display = 'none';
+    EntryUI.setPageMode('pu-panel-bg', false);
     resetForm();
   }
 

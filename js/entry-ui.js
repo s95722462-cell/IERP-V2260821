@@ -395,7 +395,40 @@ const EntryUI = (() => {
     });
   }
 
-  return { attach, bindParty, bindItemRow, isFilled, confirmStock, initGlobal, openNew, closeDropdown: close };
+  /** 매출·매입 등록 창을 팝업(옆 창) 대신 본문 화면으로 연다 (2026-11-05 사용자 요청).
+   * 목록 카드는 숨기고 입력 창이 본문 폭 전체를 쓴다. 제목 앞에 「← 목록」 버튼. */
+  function setPageMode(bgId, on, closeFn) {
+    const bg = document.getElementById(bgId);
+    if (!bg) return;
+    const host = bg.closest('.ls-panel');
+    const panel = bg.querySelector('.side-panel');
+    close();
+    if (on) {
+      bg.classList.add('as-page');
+      if (host) host.classList.add('entry-mode');
+      if (panel) {
+        panel.classList.remove('side-panel-collapsed', 'side-panel-fullscreen');
+        const head = panel.querySelector(':scope > .card-title');
+        if (head && !head.querySelector('.eu-back')) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'eu-back';
+          b.textContent = '← 목록';
+          b.title = '목록으로 돌아가기 (저장하지 않음)';
+          b.addEventListener('click', () => closeFn && closeFn());
+          head.prepend(b);
+        }
+      }
+      const content = document.getElementById('ls-content');
+      if (content && content.scrollTo) content.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    } else {
+      bg.classList.remove('as-page');
+      if (host) host.classList.remove('entry-mode');
+    }
+  }
+
+  return { attach, bindParty, bindItemRow, isFilled, confirmStock, initGlobal, openNew, setPageMode, closeDropdown: close };
 })();
 
 window.EntryUI = EntryUI;
