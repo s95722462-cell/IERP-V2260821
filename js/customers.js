@@ -222,8 +222,17 @@ const CustomersModule = (() => {
     dl.innerHTML = cache.map((c) => `<option value="${escapeHtml(c.name)}">`).join('');
   }
 
+  /** 전표 입력 중 "＋ 새 거래처로 등록" — 이름만으로 바로 만들고 id 를 돌려준다
+   * (사업자번호 등은 나중에 거래처 화면에서). 목록 창에 바로 보이도록 캐시에도 먼저 넣는다. */
+  async function quickAdd(name) {
+    const data = { name, bizno: '', ceo: '', biztype: '', bizitem: '', tel: '', fax: '', email: '', addr: '', memo: '' };
+    const ref = await addDoc(path(), data);
+    if (!cache.some((c) => c.id === ref.id)) cache = [{ id: ref.id, ...data }, ...cache];
+    return ref.id;
+  }
+
   return {
-    init, startListening, getCache, onUpdate, clearData,
+    init, startListening, getCache, onUpdate, clearData, quickAdd,
     bindSearchableSelect, setSearchableSelectValue, refreshSearchableSelectOptions
   };
 })();

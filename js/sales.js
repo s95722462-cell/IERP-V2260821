@@ -130,8 +130,9 @@ const SalesModule = (() => {
       }
     });
     itemsContainer.addEventListener('change', (e) => {
-      if (e.target.classList.contains('ri-item')) onItemPick(e.target.closest('.sl-item-row'));
-      if (e.target.classList.contains('ri-spec')) { const r = e.target.closest('.sl-item-row'); ProductsModule.pickItemSpec(r); recalcRow(r); }
+      // 목록 창(EntryUI)으로 이미 채운 줄은 건드리지 않는다 — "이름 (규격)" 직접 입력만 여기서 처리
+      if (e.target.classList.contains('ri-item') && !EntryUI.isFilled(e.target.closest('.sl-item-row'))) onItemPick(e.target.closest('.sl-item-row'));
+      if (e.target.classList.contains('ri-spec') && !EntryUI.isFilled(e.target.closest('.sl-item-row'))) { const r = e.target.closest('.sl-item-row'); ProductsModule.pickItemSpec(r); recalcRow(r); }
       if (e.target.classList.contains('ri-return')) {
         const rowEl = e.target.closest('.sl-item-row');
         rowEl.classList.toggle('sl-item-return', e.target.checked);
@@ -144,6 +145,10 @@ const SalesModule = (() => {
     });
 
     CustomersModule.bindSearchableSelect('sl-buyer-name', 'sl-buyer', 'sl-buyer-list');
+    EntryUI.bindParty('sl-buyer-name', 'sl-buyer', '거래처', () => {
+      const first = Array.from(document.querySelectorAll('#sl-items-container .ri-item')).find((x) => !x.value.trim());
+      (first || document.querySelector('#sl-items-container .ri-item'))?.focus();
+    });
     CustomersModule.bindSearchableSelect('sl-inv-buyer-name', 'sl-inv-buyer', 'sl-inv-buyer-list');
 
     document.getElementById('sl-inv-month').addEventListener('change', (e) => {
@@ -322,8 +327,8 @@ const SalesModule = (() => {
     tr.setAttribute('data-rowkey', key);
     tr.innerHTML = `
       <td><span class="ri-no"></span></td>
-      <td><input class="ri-item" list="sl-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
-      <td><input class="ri-spec" list="sl-spec-list-${key}" placeholder="규격" value="${escapeHtml(data?.spec || '')}"><datalist class="ri-spec-list" id="sl-spec-list-${key}"></datalist></td>
+      <td><input class="ri-item" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
+      <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"><div class="ri-hint"></div></td>
       <td><input class="ri-qty" type="number" value="${Math.abs(rawNum(data?.qty ?? 1))}"></td>
       <td><input class="ri-price" type="text" inputmode="numeric" value="${fmtNum(data?.unitPrice ?? 0)}"></td>
       <td><span class="ri-subtotal">0</span></td>
@@ -331,7 +336,19 @@ const SalesModule = (() => {
       <td><button type="button" class="ri-del" title="이 줄 삭제" aria-label="이 줄 삭제">✕</button></td>
     `;
     container.appendChild(tr);
-    if (data?.item) ProductsModule.fillSpecList(tr, data.item);
+    EntryUI.bindItemRow(tr, {
+      kind: 'sale',
+      partyHiddenId: 'sl-buyer',
+      partyName: () => document.getElementById('sl-buyer-name').value.trim(),
+      recalcRow,
+      // 단가에서 Enter → 다음 줄 품목명, 마지막 줄이면 새 줄
+      nextRow: (rowEl) => {
+        let nx = rowEl.nextElementSibling;
+        while (nx && !nx.classList.contains('sl-item-row')) nx = nx.nextElementSibling;
+        if (nx) nx.querySelector('.ri-item').focus(); else { addRow(); container.lastElementChild.querySelector('.ri-item').focus(); }
+      }
+    });
+    if (data?.item) tr.dataset.filled = `${data.item}|${data.spec || ''}`;
     bindCommaInput(tr.querySelector('.ri-price'));
     recalcRow(tr);
     renumberRows();
@@ -347,7 +364,9 @@ const SalesModule = (() => {
 
   function removeRow(rowEl) {
     const container = document.getElementById('sl-items-container');
-    if (container.children.length <= 1) { alert('최소 한 줄은 있어야 합니다'); return; }
+    if (container.querySelectorAll('.sl-item-row').length <= 1) { alert('최소 한 줄은 있어야 합니다'); return; }
+    const nf = rowEl.nextElementSibling;
+    if (nf && nf.classList.contains('ri-newform-row')) nf.remove();
     rowEl.remove();
     recalcTotal();
     renumberRows();
@@ -470,8 +489,11 @@ const SalesModule = (() => {
       .filter((r) => r.item); // 품목명 없는 빈 줄은 저장하지 않음
 
     if (!itemRows.length) { alert('품목을 최소 1개 이상 입력하세요'); return false; }
+    // 재고보다 많이 출고하면 한 번 확인 (수정 중이면 이 전표가 이미 뺀 수량은 되돌려서 계산)
+    if (!EntryUI.confirmStock(itemRows, cache.filter((r) => editingIds.includes(r.id)))) return false;
 
-    const buyer = CustomersModule.getCache().find((c) => c.id === buyerId);
+    const buyer = CustomersModule.getCache().find((c) => c.id === buyerId)
+      || { name: document.getElementById('sl-buyer-name').value.trim() }; // 방금 새로 등록한 거래처(목록 갱신 전)
     const invNo = document.getElementById('sl-invno').value;
     const memo = document.getElementById('sl-memo').value;
 

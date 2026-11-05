@@ -414,3 +414,49 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   #dash-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #dash-kpis .kpi-val { font-size: 26px; }
 }
+
+/* ── 전표 입력 도우미 (entry-ui.js, 2026-11-05) ── */
+.eu-dd { position: fixed; z-index: 3000; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(16,24,40,.18); max-width: min(640px, calc(100vw - 12px)); max-height: 320px; overflow: auto; font-size: 13px; }
+.eu-sec { font-size: 11px; color: var(--text2); padding: 6px 12px 3px; background: var(--surface2); position: sticky; top: 0; }
+.eu-opt { display: grid; gap: 10px; padding: 7px 12px; cursor: pointer; align-items: center; color: var(--text); }
+.eu-opt-party { grid-template-columns: 1fr auto; }
+.eu-opt-name { grid-template-columns: minmax(120px, 1fr) auto; }
+.eu-opt-spec { grid-template-columns: minmax(170px, 1fr) 120px 70px; }
+.eu-opt.act, .eu-add.act { background: var(--accent-soft); }
+.eu-strong { font-weight: 700; }
+.eu-dim { color: var(--text2); font-size: 12px; }
+.eu-num { text-align: right; font-variant-numeric: tabular-nums; }
+.eu-stock { text-align: right; font-size: 12px; color: var(--text2); }
+.eu-stock.eu-zero { color: var(--amber); font-weight: 700; }
+.eu-recent { display: block; font-size: 11px; color: var(--green); }
+.ri-hint .eu-recent { display: inline; }
+.eu-add { padding: 9px 12px; color: var(--accent); font-weight: 700; cursor: pointer; border-top: 1px solid var(--border); }
+.eu-dd mark { background: var(--amber-bg); color: inherit; border-radius: 2px; padding: 0; }
+.ri-hint { font-size: 11px; color: var(--text2); margin-top: 2px; min-height: 0; line-height: 1.4; }
+.ri-hint:empty { display: none; }
+.eu-warn { color: var(--amber); }
+.ri-newform-row td { padding: 4px 0 10px !important; border: 0 !important; }
+.eu-newform { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; background: var(--amber-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+.eu-newform label { display: flex; flex-direction: column; font-size: 12px; color: var(--text2); gap: 3px; flex: 1 1 130px; }
+.eu-nf-title { width: 100%; font-size: 12px; font-weight: 700; color: var(--text); }
+.eu-new-wrap { position: relative; padding: 4px 12px 10px; }
+.eu-new-btn { width: 100%; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 10px; padding: 9px 10px; font-weight: 700; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.eu-new-btn:hover { background: var(--accent-hover); }
+.eu-new-menu { position: absolute; left: 12px; right: 12px; top: calc(100% - 6px); z-index: 2500; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgba(16,24,40,.18); padding: 4px; min-width: 180px; }
+.eu-new-menu button { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; background: none; border: 0; padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--text); text-align: left; }
+.eu-new-menu button:hover { background: var(--accent-soft); }
+.eu-new-menu kbd { font-size: 10px; color: var(--text2); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+.eu-fab-wrap { display: none; }
+@media (max-width: 768px) {
+  .eu-new-wrap { display: none; }
+  .eu-fab-wrap { display: block; position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 900; }
+  .eu-fab { width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-fg); font-size: 26px; box-shadow: 0 6px 18px rgba(16,24,40,.25); cursor: pointer; }
+  .eu-fab-wrap .eu-new-menu { left: auto; right: 0; top: auto; bottom: 60px; }
+  .eu-new-menu kbd { display: none; }
+  .eu-opt-spec { grid-template-columns: 1fr 100px; }
+  .eu-opt-spec .eu-stock { display: none; }
+}
+.ls-sidebar.collapsed .eu-new-label { display: none; }
+.ls-sidebar.collapsed .eu-new-wrap { padding: 4px 8px 10px; }
+.ls-sidebar.collapsed .eu-new-menu { right: auto; width: 200px; }

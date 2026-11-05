@@ -939,8 +939,9 @@ test('매입 내역 표 맨 아래에도 지금 보이는 행의 금액 합계 �
   await expect(foot).toContainText('합계 (1건)');
   await expect(foot).toContainText('₩6,600');
 });
-test('품목명 목록은 이름만(중복 없이) 나오고, 이름을 고르면 규격 칸에 그 이름의 규격만 나온다', async ({ page }) => {
+test('품목명 창은 이름만(중복 없이), 규격 창은 고른 이름의 규격만 — 키보드로 끝까지 입력된다', async ({ page }) => {
   await boot(page);
+  await addCustomer(page, '키보드고객');
   await addProduct(page, { name: 'PLC', spec: 'QJ61BT11N', price: 155000, init: 5 });
   await addProduct(page, { name: 'PLC', spec: 'Q03UDVCPU', price: 300000, init: 5 });
   await addProduct(page, { name: 'SERVO', spec: 'HG-KR13', price: 250000, init: 5 });
@@ -948,26 +949,112 @@ test('품목명 목록은 이름만(중복 없이) 나오고, 이름을 고르�
   for (const prefix of ['sl', 'pu']) {
     await nav(page, prefix === 'sl' ? 'sales' : 'purchase');
     await page.click(`#${prefix}-add-btn`);
-    const names = await page.locator(`#${prefix}-item-list option`).evaluateAll((os) => os.map((o) => o.value));
-    expect(names).toEqual(['PLC', 'SERVO']);
-
+    const dd = page.locator('#eu-dd');
     const r = page.locator(`#${prefix}-items-container .sl-item-row`).nth(0);
-    await r.locator('.ri-item').fill('PLC');
-    await r.locator('.ri-item').dispatchEvent('change');
-    await expect(r.locator('.ri-spec')).toHaveValue('');
-    const specs = await r.locator('datalist.ri-spec-list option').evaluateAll((os) => os.map((o) => o.value));
-    expect(specs).toEqual(['Q03UDVCPU', 'QJ61BT11N']);
-    await r.locator('.ri-spec').fill('Q03UDVCPU');
-    await r.locator('.ri-spec').dispatchEvent('change');
-    await expect(r.locator('.ri-price')).toHaveValue('300,000');
 
-    // 규격이 하나뿐인 이름은 규격·단가가 바로 채워진다
-    await r.locator('.ri-item').fill('SERVO');
-    await r.locator('.ri-item').dispatchEvent('change');
-    await expect(r.locator('.ri-spec')).toHaveValue('HG-KR13');
-    await expect(r.locator('.ri-price')).toHaveValue('250,000');
+    await r.locator('.ri-item').click();
+    await expect(dd).toBeVisible();
+    expect(await dd.locator('.eu-opt-name .eu-strong').allTextContents()).toEqual(['PLC', 'SERVO']);
+    await page.keyboard.type('pl');
+    await page.keyboard.press('Enter');                       // PLC → 규격 칸으로
+    await expect(r.locator('.ri-item')).toHaveValue('PLC');
+    await expect(r.locator('.ri-spec')).toBeFocused();
+    await expect(dd).toBeVisible();
+    await expect(dd.locator('.eu-opt-spec')).toHaveCount(2);  // PLC 규격만
+    await expect(dd).not.toContainText('HG-KR13');
+    await page.keyboard.type('q03');
+    await page.keyboard.press('Enter');
+    await expect(r.locator('.ri-spec')).toHaveValue('Q03UDVCPU');
+    await expect(r.locator('.ri-price')).toHaveValue('300,000');
+    await expect(r.locator('.ri-qty')).toBeFocused();
+    await page.keyboard.type('2');
+    await page.keyboard.press('Enter');                       // 수량 → 단가
+    await expect(r.locator('.ri-price')).toBeFocused();
+    await page.keyboard.press('Enter');                       // 단가 → 새 줄
+    const r2 = page.locator(`#${prefix}-items-container .sl-item-row`).nth(1);
+    await expect(r2.locator('.ri-item')).toBeFocused();
+    await page.keyboard.type('servo');
+    await page.keyboard.press('Enter');                       // 규격 1개 → 바로 채움
+    await expect(r2.locator('.ri-spec')).toHaveValue('HG-KR13');
+    await expect(r2.locator('.ri-price')).toHaveValue('250,000');
     await page.click(`#${prefix}-cancel-btn`);
   }
+});
+
+test('거래처별 최근 단가가 채워지고, 전표 안에서 새 규격·새 거래처를 바로 등록할 수 있다', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '단골고객');
+  await addProduct(page, { name: 'PLC', spec: 'QJ61BT11N', price: 155000, init: 10 });
+  await addSale(page, { buyer: '단골고객', date: today(), item: 'PLC (QJ61BT11N)', qty: 1, price: 160000 });
+
+  await nav(page, 'sales');
+  await page.click('#sl-add-btn');
+  await page.click('#sl-buyer-name');
+  await page.keyboard.type('단골');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#sl-buyer-name')).toHaveValue('단골고객');
+  const r = page.locator('#sl-items-container .sl-item-row').nth(0);
+  await expect(r.locator('.ri-item')).toBeFocused();
+  await expect(page.locator('#eu-dd')).toContainText('단골고객 최근 거래');
+  await page.keyboard.press('Enter');                         // PLC (규격 1개) → 최근 단가
+  await expect(r.locator('.ri-price')).toHaveValue('160,000');
+  await expect(r.locator('.ri-hint')).toContainText('최근 단가');
+
+  // 새 규격: PLC 고른 상태에서 규격 칸에 없는 규격 → 그 자리 등록
+  await r.locator('.ri-spec').fill('');
+  await r.locator('.ri-spec').click();
+  await page.keyboard.type('q04udv');
+  await page.locator('#eu-dd .eu-add').click();
+  await expect(page.locator('.ri-newform-row')).toBeVisible();
+  await expect(page.locator('.ri-newform-row .nf-name')).toHaveValue('PLC');
+  await expect(page.locator('.ri-newform-row .nf-spec')).toHaveValue('Q04UDV');
+  await page.fill('.ri-newform-row .nf-price', '350000');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.ri-newform-row')).toHaveCount(0);
+  await expect(r.locator('.ri-spec')).toHaveValue('Q04UDV');
+  await expect(r.locator('.ri-price')).toHaveValue('350,000');
+  const products = await dump(page, 'products');
+  const np = products.find((p) => p.spec === 'Q04UDV');
+  expect(np && np.name).toBe('PLC');
+  expect(np.initStock).toBe(0);
+
+  // 새 거래처: 없는 이름 → 확인 후 등록, 저장까지
+  await page.fill('#sl-buyer-name', '');
+  await page.click('#sl-buyer-name');
+  await page.keyboard.type('처음보는상사');
+  await page.locator('#eu-dd .eu-add').click();
+  await expect(page.locator('#sl-buyer-name')).toHaveValue('처음보는상사');
+  await expect(page.locator('#sl-buyer')).not.toHaveValue('');
+  await page.keyboard.press('Control+s');                     // Ctrl+S 저장 (재고 0 확인창은 boot 가 수락)
+  await expect(page.locator('#sl-panel-bg')).toBeHidden();
+  const customers = await dump(page, 'customers');
+  expect(customers.some((c) => c.name === '처음보는상사')).toBe(true);
+  const sales = await dump(page, 'sales');
+  expect(sales.some((s) => s.buyer === '처음보는상사' && s.spec === 'Q04UDV')).toBe(true);
+});
+
+test('재고보다 많이 팔면 저장 전에 확인을 묻는다', async ({ page }) => {
+  const dialogs = await boot(page);
+  await addCustomer(page, '재고고객');
+  await addProduct(page, { name: '센서', spec: 'S-1', price: 1000, init: 2 });
+  await addSale(page, { buyer: '재고고객', date: today(), item: '센서 (S-1)', qty: 5, price: 1000 });
+  expect(dialogs.join('\n')).toContain('재고가 부족한 품목');
+  expect(dialogs.join('\n')).toContain('재고 2개, 이번 출고 5개');
+});
+
+test('사이드 메뉴 「＋ 새로 등록」과 Alt+1/2/3 으로 어느 화면에서든 새 전표·품목 창이 열린다', async ({ page }) => {
+  await boot(page);
+  await nav(page, 'stock');
+  await page.click('#eu-new-btn');
+  await page.click('#eu-new-menu [data-new="purchase"]');
+  await expect(page.locator('#pu-panel-bg')).toBeVisible();
+  await page.click('#pu-cancel-btn');
+  await nav(page, 'daily');
+  await page.keyboard.press('Alt+1');
+  await expect(page.locator('#sl-panel-bg')).toBeVisible();
+  await page.click('#sl-cancel-btn');
+  await page.keyboard.press('Alt+3');
+  await expect(page.locator('#pr-panel-bg')).toBeVisible();
 });
 test('새 품목 저장 뒤 "매출 등록"을 고르면 새 매출 창이 그 품목으로 채워져 열린다', async ({ page }) => {
   await boot(page);

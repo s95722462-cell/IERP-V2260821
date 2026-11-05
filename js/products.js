@@ -452,7 +452,17 @@ const ProductsModule = (() => {
     if (product) rowEl.querySelector('.ri-price').value = (product.price || 0).toLocaleString();
   }
 
-  return { init, startListening, getCache, onUpdate, findByNameSpec, clearData,
+  /** 전표 입력 중 "＋ 새 품목 등록" — 품목명·규격·기준단가만으로 바로 만든다.
+   * 초기재고는 0 (재고는 매입 전표로 들어오게 해서 두 번 잡히지 않게). */
+  async function quickAdd({ name, spec, price }) {
+    const data = { code: '', name, spec: spec || '', maker: '', price: rawNum(price), unit: '', initStock: 0, safeStock: 0, memo: '' };
+    const ref = await addDoc(path(), data);
+    let p = cache.find((x) => x.id === ref.id);
+    if (!p) { p = { id: ref.id, ...data }; cache = [p, ...cache]; }
+    return p;
+  }
+
+  return { init, startListening, getCache, onUpdate, findByNameSpec, clearData, quickAdd,
     nameOptionsHtml, specOptionsHtml, fillSpecList, pickItemName, pickItemSpec };
 })();
 

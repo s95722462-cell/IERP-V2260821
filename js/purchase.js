@@ -88,6 +88,10 @@ const PurchaseModule = (() => {
 
     document.getElementById('pu-add-btn').addEventListener('click', () => { resetForm(); openPanel(); });
     CustomersModule.bindSearchableSelect('pu-vendor-name', 'pu-vendor', 'pu-vendor-list');
+    EntryUI.bindParty('pu-vendor-name', 'pu-vendor', '공급업체', () => {
+      const first = Array.from(document.querySelectorAll('#pu-items-container .ri-item')).find((x) => !x.value.trim());
+      (first || document.querySelector('#pu-items-container .ri-item'))?.focus();
+    });
     document.getElementById('pu-panel-close').addEventListener('click', closePanel);
     document.getElementById('pu-panel-bg').addEventListener('click', (e) => {
       if (e.target.id === 'pu-panel-bg') closePanel();
@@ -103,8 +107,9 @@ const PurchaseModule = (() => {
       }
     });
     itemsContainer.addEventListener('change', (e) => {
-      if (e.target.classList.contains('ri-item')) onItemPick(e.target.closest('.sl-item-row'));
-      if (e.target.classList.contains('ri-spec')) { const r = e.target.closest('.sl-item-row'); ProductsModule.pickItemSpec(r); recalcRow(r); }
+      // 목록 창(EntryUI)으로 이미 채운 줄은 건드리지 않는다 — "이름 (규격)" 직접 입력만 여기서 처리
+      if (e.target.classList.contains('ri-item') && !EntryUI.isFilled(e.target.closest('.sl-item-row'))) onItemPick(e.target.closest('.sl-item-row'));
+      if (e.target.classList.contains('ri-spec') && !EntryUI.isFilled(e.target.closest('.sl-item-row'))) { const r = e.target.closest('.sl-item-row'); ProductsModule.pickItemSpec(r); recalcRow(r); }
     });
     itemsContainer.addEventListener('click', (e) => {
       const delBtn = e.target.closest('.ri-del');
@@ -199,15 +204,27 @@ const PurchaseModule = (() => {
     tr.setAttribute('data-rowkey', key);
     tr.innerHTML = `
       <td><span class="ri-no"></span></td>
-      <td><input class="ri-item" list="pu-item-list" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
-      <td><input class="ri-spec" list="pu-spec-list-${key}" placeholder="규격" value="${escapeHtml(data?.spec || '')}"><datalist class="ri-spec-list" id="pu-spec-list-${key}"></datalist></td>
+      <td><input class="ri-item" placeholder="품목명" value="${escapeHtml(data?.item || '')}"></td>
+      <td><input class="ri-spec" placeholder="규격" value="${escapeHtml(data?.spec || '')}"><div class="ri-hint"></div></td>
       <td><input class="ri-qty" type="number" value="${rawNum(data?.qty ?? 1)}"></td>
       <td><input class="ri-price" type="text" inputmode="numeric" value="${fmtNum(data?.unitPrice ?? 0)}"></td>
       <td><span class="ri-subtotal">0</span></td>
       <td><button type="button" class="ri-del" title="이 줄 삭제" aria-label="이 줄 삭제">✕</button></td>
     `;
     container.appendChild(tr);
-    if (data?.item) ProductsModule.fillSpecList(tr, data.item);
+    EntryUI.bindItemRow(tr, {
+      kind: 'purchase',
+      partyHiddenId: 'pu-vendor',
+      partyName: () => document.getElementById('pu-vendor-name').value.trim(),
+      recalcRow,
+      // 단가에서 Enter → 다음 줄 품목명, 마지막 줄이면 새 줄
+      nextRow: (rowEl) => {
+        let nx = rowEl.nextElementSibling;
+        while (nx && !nx.classList.contains('sl-item-row')) nx = nx.nextElementSibling;
+        if (nx) nx.querySelector('.ri-item').focus(); else { addRow(); container.lastElementChild.querySelector('.ri-item').focus(); }
+      }
+    });
+    if (data?.item) tr.dataset.filled = `${data.item}|${data.spec || ''}`;
     bindCommaInput(tr.querySelector('.ri-price'));
     recalcRow(tr);
     renumberRows();
@@ -222,7 +239,9 @@ const PurchaseModule = (() => {
 
   function removeRow(rowEl) {
     const container = document.getElementById('pu-items-container');
-    if (container.children.length <= 1) { alert('최소 한 줄은 있어야 합니다'); return; }
+    if (container.querySelectorAll('.sl-item-row').length <= 1) { alert('최소 한 줄은 있어야 합니다'); return; }
+    const nf = rowEl.nextElementSibling;
+    if (nf && nf.classList.contains('ri-newform-row')) nf.remove();
     rowEl.remove();
     recalcTotal();
     renumberRows();
@@ -343,7 +362,8 @@ const PurchaseModule = (() => {
 
     if (!itemRows.length) { alert('품목을 최소 1개 이상 입력하세요'); return false; }
 
-    const vendor = CustomersModule.getCache().find((c) => c.id === vendorId);
+    const vendor = CustomersModule.getCache().find((c) => c.id === vendorId)
+      || { name: document.getElementById('pu-vendor-name').value.trim() }; // 방금 새로 등록한 공급업체(목록 갱신 전)
     const invNo = document.getElementById('pu-invno').value;
     const memo = document.getElementById('pu-memo').value;
 
