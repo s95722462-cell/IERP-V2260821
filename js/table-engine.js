@@ -187,6 +187,7 @@ const TableEngine = (() => {
         <table class="te-table" id="te-table-${state.tableId}">
           <thead><tr></tr></thead>
           <tbody></tbody>
+          <tfoot class="te-tfoot"></tfoot>
         </table>
       </div>
       <div class="te-card-list" id="te-cards-${state.tableId}"></div>
@@ -457,9 +458,60 @@ const TableEngine = (() => {
       }).join('');
     }
 
+    renderTotals(state, table, configs, rows);
     bindResizers(table, state.tableId);
     renderCardList(state, configs, rows);
     if (state.opts.selectable) updateBulkDeleteUi(state);
+  }
+
+  /** opts.totalCols(예: ['subtotal','vat','total'])가 있으면, 지금 화면에
+   * 보이는 행(검색·기간 필터 적용 후)의 합계를 표 맨 아래 한 줄(tfoot)로
+   * 보여준다. 모바일 카드뷰에서는 .te-summary 한 줄로 같은 합계를 보여준다. */
+  function renderTotals(state, table, configs, rows) {
+    const tfoot = table.querySelector('tfoot');
+    const summaryEl = state.rootEl.querySelector('[data-role="summary"]');
+    const totalCols = state.opts.totalCols || [];
+    if (!totalCols.length || !rows.length) {
+      if (tfoot) tfoot.innerHTML = '';
+      if (summaryEl) summaryEl.innerHTML = '';
+      return;
+    }
+    const num = (v) => {
+      if (typeof v === 'number') return v;
+      const n = Number(String(v ?? '').replace(/[^0-9.-]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+    const sums = {};
+    totalCols.forEach((k) => { sums[k] = rows.reduce((acc, r) => acc + num(r[k]), 0); });
+    const label = `합계 (${rows.length.toLocaleString()}건)`;
+
+    let html = '<tr class="te-total-row">';
+    if (state.opts.selectable) html += '<td class="te-check-col"></td>';
+    let labelDone = false;
+    configs.forEach((c) => {
+      if (totalCols.includes(c.key)) {
+        const cell = c.render ? c.render(sums[c.key], {}) : escapeHtml(sums[c.key].toLocaleString());
+        html += `<td style="text-align:right">${cell}</td>`;
+      } else if (!labelDone) {
+        html += `<td>${escapeHtml(label)}</td>`;
+        labelDone = true;
+      } else {
+        html += '<td></td>';
+      }
+    });
+    if (state.opts.rowActions) html += '<td class="te-actions-col"></td>';
+    html += '</tr>';
+    if (tfoot) tfoot.innerHTML = html;
+
+    if (summaryEl) {
+      const parts = totalCols.map((k) => {
+        const c = state.opts.columns.find((col) => col.key === k);
+        if (!c) return '';
+        const v = c.render ? c.render(sums[k], {}) : escapeHtml(sums[k].toLocaleString());
+        return `<span class="te-summary-item">${escapeHtml(c.label)} <b>${v}</b></span>`;
+      }).join('');
+      summaryEl.innerHTML = `<span class="te-summary-item">${escapeHtml(label)}</span>${parts}`;
+    }
   }
 
   /** 모바일 폭에서는 CSS가 .te-scroll(표)을 숨기고 이 카드 목록을 대신

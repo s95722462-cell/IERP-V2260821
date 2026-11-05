@@ -893,3 +893,30 @@ test('[회귀] KPI 카드 금액이 길어도 "..."로 잘리지 않고 글자�
   await expect.poll(() => page.$$eval('#daily-kpis .kpi-val', (els) => els.every((e) => e.scrollWidth <= e.clientWidth))).toBe(true);
   await page.locator('#daily-kpis').screenshot({ path: 'test-results/kpi-fit.png' });
 });
+
+test('매출 내역 표 맨 아래에 지금 보이는 행의 금액 합계 줄이 나온다(검색·기간 필터 반영)', async ({ page }) => {
+  await boot(page);
+  await addCustomer(page, '합계고객');
+  const d = new Date();
+  const prev = new Date(d.getFullYear(), d.getMonth(), 0);
+  const prevStr = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+  await addSale(page, { buyer: '합계고객', date: today(), item: '합계A', qty: 1, price: 1000 });
+  await addSale(page, { buyer: '합계고객', date: today(), item: '합계B', qty: 2, price: 2500 });
+  await addSale(page, { buyer: '합계고객', date: prevStr, item: '지난달C', qty: 1, price: 50000 });
+
+  await nav(page, 'sales');
+  const foot = page.locator('#sl-list-card tfoot');
+  await expect(foot).toContainText('합계 (2건)');
+  await expect(foot).toContainText('6,000');
+  await expect(foot).toContainText('600');
+  await expect(foot).toContainText('₩6,600');
+
+  await page.fill('#sl-list-card [data-role="search"]', '합계B');
+  await expect(foot).toContainText('합계 (1건)');
+  await expect(foot).toContainText('₩5,500');
+
+  await page.fill('#sl-list-card [data-role="search"]', '');
+  await page.selectOption('#sl-list-card [data-role="year"]', '__all__');
+  await expect(foot).toContainText('합계 (3건)');
+  await expect(foot).toContainText('₩61,600');
+});

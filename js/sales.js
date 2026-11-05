@@ -250,6 +250,7 @@ const SalesModule = (() => {
       defaultActiveCols: ['__no', 'docNo', 'date', 'buyer', 'item', 'spec', 'qty', 'unitPrice', 'subtotal', 'vat', 'total'],
       dateFilter: true,
       dateField: 'date',
+      totalCols: ['subtotal', 'vat', 'total'], // 표 맨 아래 합계 줄 (검색·기간 필터 결과 기준)
       searchFields: ['buyer', 'item', 'docNo'],
       rowId: (row) => row.docNo || row.id, // 전표 있으면 전표No., 없으면(옛 데이터) 그 줄 자체의 id
       onRowClick: (key) => showDetailPanel(key),

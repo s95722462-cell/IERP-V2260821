@@ -89,7 +89,10 @@
 }
 .te-resizer:hover, .te-resizer.resizing { background: var(--accent); }
 
-.te-summary { text-align: right; font-size: 12px; color: var(--text2); font-variant-numeric: tabular-nums; }
+.te-summary { text-align: right; font-size: 12px; color: var(--text2); font-variant-numeric: tabular-nums; display: none; }
+.te-summary-item { margin-left: 12px; }
+.te-summary-item b { color: var(--text); }
+.te-tfoot .te-total-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); font-variant-numeric: tabular-nums; }
 
 /* ── 항목 설정 모달 ── */
 .te-modal-bg {
@@ -169,6 +172,7 @@
   .card-title .te-settings-btn .ui-icon { width: 18px; height: 18px; }
   .te-scroll { display: none; }
   .te-card-list { display: flex; }
+  .te-summary { display: block; margin-top: 8px; font-size: 13px; }
 }
 
 /* 빈 표 아래 한 줄 안내 */
