@@ -38,20 +38,20 @@ const CustomersModule = (() => {
             <span id="cu-panel-title">새 거래처 등록</span>
             <button id="cu-panel-close" style="margin-left:auto" aria-label="닫기" title="닫기">✕</button>
           </div>
-          <div class="form-grid" style="grid-template-columns:1fr">
+          <div class="form-grid">
             <div class="form-section">기본 정보</div>
-            <div class="fg"><label>회사명 *</label><input id="cu-name" placeholder="(주)○○무역"></div>
+            <div class="fg w2"><label>회사명 *</label><input id="cu-name" placeholder="(주)○○무역"></div>
             <div class="fg"><label>사업자번호</label><input id="cu-bizno"></div>
             <div class="fg"><label>대표자</label><input id="cu-ceo"></div>
-            <div class="fg"><label>업태</label><input id="cu-biztype" placeholder="제조업, 도소매 등"></div>
-            <div class="fg"><label>종목</label><input id="cu-bizitem" placeholder="자동화 부품 등"></div>
+            <div class="fg w2"><label>업태</label><input id="cu-biztype" placeholder="제조업, 도소매 등"></div>
+            <div class="fg w2"><label>종목</label><input id="cu-bizitem" placeholder="자동화 부품 등"></div>
             <div class="form-section">연락처</div>
             <div class="fg"><label>전화번호</label><input id="cu-tel"></div>
             <div class="fg"><label>팩스번호</label><input id="cu-fax"></div>
-            <div class="fg"><label>이메일</label><input id="cu-email"></div>
+            <div class="fg w2"><label>이메일</label><input id="cu-email"></div>
             <div class="form-section">주소 · 메모</div>
-            <div class="fg"><label>주소</label><input id="cu-addr"></div>
-            <div class="fg"><label>메모</label><input id="cu-memo"></div>
+            <div class="fg" style="grid-column:1/-1"><label>주소</label><input id="cu-addr"></div>
+            <div class="fg" style="grid-column:1/-1"><label>메모</label><input id="cu-memo"></div>
           </div>
           <div class="btn-row" style="margin-top:10px">
             <button class="ls-btn-primary" id="cu-save-btn" style="width:auto">저장</button>
@@ -100,11 +100,13 @@ const CustomersModule = (() => {
   /** 오른쪽 슬라이드 패널을 연다 (새 거래처 추가 / 수정 공용). */
   function openPanel() {
     document.getElementById('cu-panel-bg').style.display = 'flex';
+    EntryUI.setPageMode('cu-panel-bg', true, closePanel); // 팝업 대신 본문 화면으로 (매출·매입·품목과 같게)
   }
 
   /** 패널을 닫고 폼을 비운다. */
   function closePanel() {
     document.getElementById('cu-panel-bg').style.display = 'none';
+    EntryUI.setPageMode('cu-panel-bg', false);
     fillForm(null);
   }
 

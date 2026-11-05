@@ -484,6 +484,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .side-panel-bg.as-page > .side-panel > .btn-row { bottom: 0; margin: 18px -24px -24px !important; border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
 .side-panel-bg.as-page .form-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .side-panel-bg.as-page .eu-back { display: inline-flex; }
+@media (min-width: 769px) { .side-panel-bg.as-page .form-grid .fg.w2 { grid-column: span 2; } }
 .eu-back { display: none; align-items: center; gap: 4px; margin-right: 10px; font-size: 13px; font-weight: 600; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; width: auto !important; height: auto !important; }
 .eu-back:hover { color: var(--text); background: var(--surface2); }
 @media (max-width: 768px) {

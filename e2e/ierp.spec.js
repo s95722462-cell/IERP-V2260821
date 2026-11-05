@@ -1103,9 +1103,9 @@ test('품목을 수정 저장할 때는 "바로 전표 작성" 창이 뜨지 않
   await expect(page.locator('#pr-panel-bg')).toBeHidden();
   await expect(page.locator('#pr-quick-modal')).toBeHidden();
 });
-test('새 매출·매입·품목 등록은 팝업이 아니라 본문 화면으로 열리고, 「← 목록」으로 돌아간다', async ({ page }) => {
+test('새 매출·매입·품목·거래처 등록은 팝업이 아니라 본문 화면으로 열리고, 「← 목록」으로 돌아간다', async ({ page }) => {
   await boot(page);
-  for (const [panel, prefix] of [['sales', 'sl'], ['purchase', 'pu'], ['products', 'pr']]) {
+  for (const [panel, prefix] of [['sales', 'sl'], ['purchase', 'pu'], ['products', 'pr'], ['customers', 'cu']]) {
     await nav(page, panel);
     await expect(page.locator(`#${prefix}-list-card`)).toBeVisible();
     await page.click(`#${prefix}-add-btn`);
