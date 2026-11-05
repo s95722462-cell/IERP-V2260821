@@ -47,7 +47,7 @@ const ProductsModule = (() => {
             <span id="pr-panel-title">새 품목 등록</span>
             <button id="pr-panel-close" style="margin-left:auto" aria-label="닫기" title="닫기">✕</button>
           </div>
-          <div class="form-grid" style="grid-template-columns:1fr">
+          <div class="form-grid">
             <div class="form-section">기본 정보</div>
             <div class="fg"><label>품목코드</label><input id="pr-code"></div>
             <div class="fg"><label>품목명 *</label><input id="pr-name" placeholder="부품명/모델명"></div>
@@ -59,7 +59,7 @@ const ProductsModule = (() => {
             <div class="fg"><label>초기재고</label><input id="pr-initstock" type="number" value="0"></div>
             <div class="fg"><label>안전재고(경고기준)</label><input id="pr-safestock" type="number" value="0"></div>
             <div class="form-section">메모</div>
-            <div class="fg"><label>메모</label><input id="pr-memo"></div>
+            <div class="fg" style="grid-column:1/-1"><label>메모</label><input id="pr-memo"></div>
           </div>
           <div class="btn-row" style="margin-top:10px">
             <button class="ls-btn-primary" id="pr-save-btn" style="width:auto">저장</button>
@@ -118,11 +118,13 @@ const ProductsModule = (() => {
   /** 오른쪽 슬라이드 패널을 연다 (새 품목 추가 / 수정 공용). */
   function openPanel() {
     document.getElementById('pr-panel-bg').style.display = 'flex';
+    EntryUI.setPageMode('pr-panel-bg', true, closePanel); // 팝업 대신 본문 화면으로 (매출·매입과 같게)
   }
 
   /** 패널을 닫고 폼을 비운다. */
   function closePanel() {
     document.getElementById('pr-panel-bg').style.display = 'none';
+    EntryUI.setPageMode('pr-panel-bg', false);
     fillForm(null);
   }
 
