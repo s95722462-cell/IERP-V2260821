@@ -97,6 +97,7 @@ const InvoiceModule = (() => {
     }), { subtotal: 0, vat: 0, total: 0 });
 
     const bodyHtml = buildBodyHtml(company, buyer, items, totals, docNo);
+    currentFileBase = makeFileBase(buyer.name, docNo, dateFrom, dateTo);
 
     // 품목이 많으면(半 칸에 다 안 들어가 줄이 잘리는 걸 실측으로 확인한
     // 기준선) 절취선 2단 방식 대신, 절취선 없이 A4 전체를 쓰는 일반
@@ -139,7 +140,31 @@ const InvoiceModule = (() => {
   function present(html) {
     renderPrintArea(html);
     if (isMobilePrint()) openPreview();
-    else window.print();
+    else printNamed();
+  }
+
+  // ── 파일 이름 ───────────────────────────────────────────────
+  // 예: 유니테크20261109-01 (거래처명 + 전표번호의 날짜-순번)
+  const APP_TITLE = document.title;
+  let currentFileBase = '';
+
+  function makeFileBase(buyerName, docNo, dateFrom, dateTo) {
+    const safe = String(buyerName || '').replace(/[\\/:*?"<>|\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim();
+    const ymd = (d) => String(d || '').replace(/-/g, '');
+    let tail;
+    if (docNo) tail = String(docNo).replace(/^[A-Za-z]+/, '');              // S20261109-01 → 20261109-01
+    else if (dateFrom && dateTo && dateFrom !== dateTo) tail = `${ymd(dateFrom)}~${ymd(dateTo)}`;
+    else tail = ymd(dateFrom || dateTo || todayStr());
+    return safe + tail;
+  }
+
+  /** PC의 "PDF로 저장"은 문서 제목을 파일 이름으로 쓰므로, 인쇄하는 동안만 제목을 바꾼다. */
+  function printNamed() {
+    if (currentFileBase) {
+      document.title = currentFileBase;
+      window.addEventListener('afterprint', () => { document.title = APP_TITLE; }, { once: true });
+    }
+    window.print();
   }
 
   function openPreview() {
@@ -241,7 +266,7 @@ const InvoiceModule = (() => {
     btn.disabled = true; btn.textContent = 'PDF 만드는 중…';
     try {
       const blob = await makePdfBlob();
-      const name = `거래명세서_${currentPdfName || todayStr()}.pdf`;
+      const name = `${currentFileBase || todayStr()}.pdf`;
       const file = new File([blob], name, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try { await navigator.share({ files: [file], title: name }); }
@@ -258,7 +283,6 @@ const InvoiceModule = (() => {
       btn.disabled = false; btn.textContent = label;
     }
   }
-  let currentPdfName = '';
 
   function closePreview() {
     const area = document.getElementById('invoice-print-area');
@@ -340,8 +364,6 @@ const InvoiceModule = (() => {
       document.body.appendChild(area);
     }
     // 미리보기 바는 모바일 미리보기 화면에서만 보이고 인쇄에는 찍히지 않는다 (invoice.css)
-    const m = /전표No:\s*([^<\s]+)/.exec(html);
-    currentPdfName = m ? m[1] : '';
     area.innerHTML = `
       <div class="inv-preview-bar">
         <button type="button" class="ls-btn-primary" data-role="inv-pdf">PDF 저장 / 공유</button>
@@ -351,7 +373,7 @@ const InvoiceModule = (() => {
       </div>
       <div class="inv-preview-wrap"><div class="inv-preview-sheet">${html}</div></div>`;
     area.querySelector('[data-role="inv-pdf"]').addEventListener('click', (e) => savePdf(e.currentTarget));
-    area.querySelector('[data-role="inv-print"]').addEventListener('click', () => window.print());
+    area.querySelector('[data-role="inv-print"]').addEventListener('click', () => printNamed());
     area.querySelector('[data-role="inv-close"]').addEventListener('click', closePreview);
   }
 

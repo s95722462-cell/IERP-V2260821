@@ -287,6 +287,18 @@ test('여러 품목 한 전표 + 명세서(인쇄 영역) 생성', async ({ page
   await expect(page.locator('#invoice-print-area')).toContainText('7,700');
 });
 
+test('명세서 PC 인쇄: PDF 기본 파일 이름이 거래처명+전표 날짜-순번이고 끝나면 제목이 돌아온다', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => { window.print = () => { window.__printTitle = document.title; }; });
+  await addCustomer(page, '유니테크');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 10 });
+  await addSale(page, { buyer: '유니테크', date: today(), item: '센서 (S-100)', qty: 1 });
+  await page.locator('#sl-list-card button[data-act="invoice"]').first().click();
+  expect(await page.evaluate(() => window.__printTitle)).toBe(`유니테크${today().replace(/-/g, '')}-01`);
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  expect(await page.title()).toBe('iERP 2.0');
+});
+
 test('[회귀] 명세서 8품목(절취선 2단)에서도 합계가 반 장 안에 보인다 (2026-10-23 합계 잘림)', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => { window.print = () => {}; });
@@ -343,7 +355,7 @@ test('[회귀] 모바일 명세서: PDF 저장 버튼으로 PDF 파일이 만들
     page.waitForEvent('download', { timeout: 45000 }),
     page.click('#invoice-print-area [data-role="inv-pdf"]')
   ]);
-  expect(dl.suggestedFilename()).toMatch(/^거래명세서_.+\.pdf$/);
+  expect(dl.suggestedFilename()).toBe(`고객P${today().replace(/-/g, '')}-01.pdf`);
   const buf = fs.readFileSync(await dl.path());
   expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
   expect(buf.length).toBeGreaterThan(5000);
