@@ -79,7 +79,8 @@ const StockModule = (() => {
     const purchases = PurchaseModule.getCache();
 
     return products.map((p) => {
-      const matchIn = (r) => (r.productId && r.productId === p.id) || (!r.productId && r.item === p.name && (r.spec || '') === (p.spec || ''));
+      // legacy = 과거 원장 가져오기(재고 연결 안 함, data-import.js) — 재고 계산에서 뺀다
+      const matchIn = (r) => !r.legacy && ((r.productId && r.productId === p.id) || (!r.productId && r.item === p.name && (r.spec || '') === (p.spec || '')));
       const inQty = purchases.filter(matchIn).reduce((s, r) => s + rawNum(r.qty), 0);
       const outQty = sales.filter(matchIn).reduce((s, r) => s + rawNum(r.qty), 0);
       const current = (p.initStock || 0) + inQty - outQty;

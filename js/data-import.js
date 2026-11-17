@@ -78,6 +78,7 @@ const DataImportModule = (() => {
       <div class="card" style="margin-top:16px">
         <div class="card-title">③ 매입 가져오기</div>
         <p style="font-size:12px;color:var(--text2);margin:0 0 8px">"기간별_구매명세서_상세" 파일. 한 줄을 전표 1건으로 보고 실제 거래일 기준으로 새로 채번합니다. 건수가 많으면 몇 분 걸릴 수 있습니다.</p>
+        <label class="di-legacy-label" style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin:0 0 8px"><input type="checkbox" id="di-purchases-legacy" checked style="width:auto;margin-top:2px"><span><b>과거 자료로만 보관</b> — 재고·원가에 연결하지 않음, 같은 날·같은 거래처 줄은 전표 1건으로 묶음, 파일의 공급가액·부가세 그대로, 이미 올린 줄은 건너뜀</span></label>
         <div class="btn-row">
           <input type="file" id="di-purchases-file" accept=".xls,.xlsx">
           <button id="di-purchases-btn">매입 가져오기</button>
@@ -88,6 +89,7 @@ const DataImportModule = (() => {
       <div class="card" style="margin-top:16px">
         <div class="card-title">④ 매출 가져오기</div>
         <p style="font-size:12px;color:var(--text2);margin:0 0 8px">"기간별_판매명세서_상세" 파일. 반드시 매입을 먼저 가져온 뒤에 진행하세요 — 등록된 매입 내역 기준으로 FIFO 매출원가를 계산합니다.</p>
+        <label class="di-legacy-label" style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin:0 0 8px"><input type="checkbox" id="di-sales-legacy" checked style="width:auto;margin-top:2px"><span><b>과거 자료로만 보관</b> — 재고·원가에 연결하지 않음(지금 재고·FIFO 그대로), 같은 날·같은 거래처 줄은 전표 1건으로 묶음, 파일의 공급가액·부가세 그대로, 이미 올린 줄은 건너뜀</span></label>
         <div class="btn-row">
           <input type="file" id="di-sales-file" accept=".xls,.xlsx">
           <button id="di-sales-btn">매출 가져오기</button>
@@ -130,8 +132,11 @@ const DataImportModule = (() => {
       let result;
       if (kind === 'customers') result = await importCustomers(file);
       else if (kind === 'products') result = await importProducts(file);
-      else if (kind === 'purchases') result = await importTransactions(file, 'purchase', kind);
-      else if (kind === 'sales') result = await importTransactions(file, 'sale', kind);
+      else if (kind === 'purchases' || kind === 'sales') {
+        const txType = kind === 'sales' ? 'sale' : 'purchase';
+        const legacy = document.getElementById(`di-${kind}-legacy`)?.checked;
+        result = legacy ? await importLegacyTransactions(file, txType, kind) : await importTransactions(file, txType, kind);
+      }
 
       log(kind, `완료 — 전체 ${result.total}건 중 새로 등록 ${result.added}건, 건너뜀(중복/기존) ${result.skippedDup || 0}건, 형식 오류로 제외 ${result.invalid || 0}건${result.failed ? `, 실패 ${result.failed}건` : ''}`);
       alert(`${kindLabel(kind)} 가져오기 완료\n\n새로 등록: ${result.added}건`);
@@ -378,6 +383,145 @@ const DataImportModule = (() => {
     }
 
     return { total: rawRows.length, added, invalid, failed };
+  }
+
+  // ── ③④ 과거 자료로만 보관 (2026-11-17, (주)겐시스템 2021~2025 원장) ──────
+  // 지금 쓰는 자료와 부딪히지 않게:
+  //   - productId 를 비우고 legacy:true 를 붙인다 → 재고현황(stock.js)·FIFO 에서
+  //     빠지므로 지금 재고·매출원가가 바뀌지 않는다. 매입 remainingQty 도 0.
+  //   - 공급가액·부가세·합계는 파일 값 그대로 (영세율 0원 줄이 10%로 바뀌지 않게).
+  //   - 같은 날·같은 거래처 줄은 전표번호 1개로 묶는다 (원장은 거래처별 명세서
+  //     한 장이 날짜별로 여러 줄로 풀려 있는 형태). 번호 날짜 = 실제 거래일,
+  //     날짜별 카운터를 한 번에 n개 예약 → 그날 이미 있는 번호 다음부터.
+  //   - 이미 같은 줄(날짜·거래처·품목·수량·단가·공급가액)이 있으면 그 개수만큼
+  //     건너뛴다 → 같은 파일을 두 번 올려도 두 번 들어가지 않는다.
+  async function reserveDocNos(prefix, date, n) {
+    const day = date.replace(/-/g, '');
+    const ref = db.collection(counterPath()).doc(prefix + day);
+    const start = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists ? (snap.data().seq || 0) : 0;
+      tx.set(ref, { seq: cur + n }, { merge: true });
+      return cur + 1;
+    });
+    return Array.from({ length: n }, (_, i) => `${prefix}${day}-${String(start + i).padStart(2, '0')}`);
+  }
+
+  async function importLegacyTransactions(file, txType, kind) {
+    const isSale = txType === 'sale';
+    const aoa = await ExcelIO.readFileAOA(file);
+    const headerIdx = findHeaderRow(aoa, ['거래일자', '거래처명', '품목명/규격']);
+    if (headerIdx === -1) throw new Error('"거래일자"/"거래처명"/"품목명/규격" 헤더를 찾지 못했습니다. 파일 형식을 확인해주세요.');
+    const rawRows = rowsFromAOA(aoa, headerIdx);
+    const has = (r, k) => r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '';
+
+    const parsed = rawRows.map((r, idx) => {
+      const qty = rawNum(r['수량']);
+      const unitPrice = rawNum(r['단가']);
+      const subtotal = has(r, '공급가액') ? rawNum(r['공급가액']) : qty * unitPrice;
+      const vat = has(r, '부가세') ? rawNum(r['부가세']) : Math.round(subtotal * 0.1);
+      const total = has(r, '합계') ? rawNum(r['합계']) : subtotal + vat;
+      return {
+        date: toDateStr(r['거래일자']),
+        party: String(r['거래처명'] || '').trim(),
+        itemRaw: String(r['품목명/규격'] || '').trim(),
+        qty, unitPrice, subtotal, vat, total,
+        memo: String(r['비고'] || '').trim(),
+        _idx: idx
+      };
+    }).filter((r) => r.date && r.party && r.itemRaw);
+    const invalid = rawRows.length - parsed.length;
+    parsed.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a._idx - b._idx));
+
+    // 이미 들어 있는 줄 (같은 파일 다시 올림 대비)
+    const cache = isSale ? SalesModule.getCache() : PurchaseModule.getCache();
+    const keyOf = (date, party, item, qty, price, sub) => [date, party, item, rawNum(qty), rawNum(price), rawNum(sub)].join('|');
+    const existing = new Map();
+    cache.forEach((r) => {
+      const party = String((isSale ? r.buyer : r.vendor) || '').trim();
+      [r.item, r.spec].map((v) => String(v || '').trim()).filter(Boolean).forEach((item) => {
+        const k = keyOf(r.date, party, item, r.qty, r.unitPrice, r.subtotal);
+        existing.set(k, (existing.get(k) || 0) + 1);
+      });
+    });
+    let skippedDup = 0;
+    const todo = parsed.filter((r) => {
+      const k = keyOf(r.date, r.party, r.itemRaw, r.qty, r.unitPrice, r.subtotal);
+      const n = existing.get(k) || 0;
+      if (n > 0) { existing.set(k, n - 1); skippedDup++; return false; }
+      return true;
+    });
+
+    // 날짜+거래처로 묶기 (정렬 순서 유지)
+    const groups = [];
+    const gmap = new Map();
+    todo.forEach((r) => {
+      const gk = `${r.date}|${r.party}`;
+      if (!gmap.has(gk)) { const g = { date: r.date, party: r.party, rows: [] }; gmap.set(gk, g); groups.push(g); }
+      gmap.get(gk).rows.push(r);
+    });
+
+    const path = isSale ? salesPath() : purchasesPath();
+    const prefix = isSale ? 'S' : 'P';
+    const byDate = new Map();
+    groups.forEach((g) => { if (!byDate.has(g.date)) byDate.set(g.date, []); byDate.get(g.date).push(g); });
+
+    let added = 0, failed = 0, docs = 0, sumSub = 0, sumVat = 0, sumTotal = 0;
+    let ops = [], pending = [];
+    const flush = async () => {
+      if (!ops.length) return;
+      await batchWrite(ops);
+      pending.forEach((row) => cache.push(row));
+      added += pending.length;
+      ops = []; pending = [];
+    };
+
+    const dates = [...byDate.keys()];
+    for (let di = 0; di < dates.length; di++) {
+      const date = dates[di];
+      const dayGroups = byDate.get(date);
+      try {
+        const nos = await reserveDocNos(prefix, date, dayGroups.length);
+        for (let gi = 0; gi < dayGroups.length; gi++) {
+          const g = dayGroups[gi];
+          const party = await findOrCreateCustomer(g.party);
+          docs++;
+          g.rows.forEach((r) => {
+            const id = genId();
+            const data = {
+              docNo: nos[gi], date: r.date,
+              item: r.itemRaw, spec: '', productId: '',
+              qty: r.qty, unitPrice: r.unitPrice,
+              subtotal: r.subtotal, vat: r.vat, total: r.total,
+              invNo: '', memo: r.memo,
+              legacy: true, importSrc: String(file.name || '').slice(0, 120)
+            };
+            if (isSale) {
+              data.buyerId = party ? party.id : '';
+              data.buyer = party ? party.name : r.party;
+              data.isReturn = r.qty < 0;
+            } else {
+              data.vendorId = party ? party.id : '';
+              data.vendor = party ? party.name : r.party;
+              data.remainingQty = 0;
+            }
+            ops.push({ type: 'set', path, id, data });
+            pending.push({ id, ...data });
+            sumSub += r.subtotal; sumVat += r.vat; sumTotal += r.total;
+          });
+        }
+        await flush(); // 날짜마다 저장 — 한 날짜가 실패해도 앞 날짜는 남고, 다시 올리면 남은 것만 들어감
+      } catch (e) {
+        failed += pending.length; ops = []; pending = [];
+        console.error('[과거 자료 가져오기 실패]', date, e);
+        log(kind, `실패: ${date} — ${e.message}`);
+      }
+      if (di % 20 === 0 || di === dates.length - 1) log(kind, `처리 중... 날짜 ${di + 1}/${dates.length}`);
+    }
+    try { await flush(); } catch (e) { failed += pending.length; log(kind, '실패(마지막 저장): ' + e.message); }
+
+    log(kind, `전표 ${docs}건 · 줄 ${todo.length}건 · 공급가액 ${fmtNum(sumSub)} · 부가세 ${fmtNum(sumVat)} · 합계 ${fmtNum(sumTotal)}`);
+    return { total: rawRows.length, added, skippedDup, invalid, failed };
   }
 
   return { init };

@@ -1159,3 +1159,63 @@ test('새 매출·매입·품목·거래처 등록은 팝업이 아니라 본문
     await expect(page.locator(`#${prefix}-list-card`)).toBeVisible();
   }
 });
+test('과거 원장(기간별 구매·판매명세서 상세) 가져오기: 재고 그대로, 날짜·거래처별 전표 묶음, 파일 부가세 그대로, 다시 올려도 중복 없음 (2026-11-17)', async ({ page }) => {
+  const dialogs = await boot(page);
+  await addCustomer(page, '공급사A');
+  await addProduct(page, { name: 'PLC', spec: 'Q61P', price: 1000, init: 5 });
+  await addProduct(page, { name: '배송비', spec: '', price: 0, init: 0 });
+  await nav(page, 'dataimport');
+  const mk = (kind, rows) => page.evaluate(({ kind, rows }) => {
+    const aoa = [[`기간별 ${kind}명세서 상세`], ['조회기간 : 2017-11-01 ~ 2026-11-30'], [`${kind}처 : 전체`], ['품목명 : 전체'], [], [],
+      ['거래일자', '거래처명', '품목명/규격', '상세규격', '수량', '단위', '단가', '공급가액', '부가세', '합계', '비고', '담당자'], ...rows,
+      ['합계', '', '', '', 0, '', '', 0, 0, 0, '', '']];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Sheet1');
+    return XLSX.write(wb, { type: 'base64', bookType: 'xls' });
+  }, { kind, rows });
+  const up = async (kind, b64) => {
+    const before = dialogs.length;
+    await page.setInputFiles(`#di-${kind}-file`, { name: `${kind}.xls`, mimeType: 'application/vnd.ms-excel', buffer: Buffer.from(b64, 'base64') });
+    await page.click(`#di-${kind}-btn`);
+    await expect.poll(() => dialogs.slice(before).find((d) => d.includes('가져오기 완료'))).toBeTruthy();
+    return dialogs.slice(before).find((d) => d.includes('가져오기 완료'));
+  };
+  const buy = await mk('구매', [
+    ['2021-03-15', '공급사A', 'Q61P', '', 2, '', 34000, 68000, 6800, 74800, '', '기본직원'],
+    ['2021-03-15', '공급사A', '배송비', '', 1, '', 5000, 5000, 500, 5500, '', '기본직원'],
+    ['2021-03-15', '해외공급', 'Q61P', '', 3, '', 30000, 90000, 0, 90000, '수입', '기본직원'],
+  ]);
+  expect(await up('purchases', buy)).toContain('새로 등록: 3건');
+  const pur = await dump(page, 'purchases');
+  expect(pur).toHaveLength(3);
+  expect(pur.every((r) => r.legacy === true && r.productId === '' && r.remainingQty === 0)).toBe(true);
+  const a = pur.filter((r) => r.vendor === '공급사A');
+  expect(new Set(a.map((r) => r.docNo))).toEqual(new Set(['P20210315-01']));
+  expect(pur.find((r) => r.vendor === '해외공급')).toMatchObject({ docNo: 'P20210315-02', vat: 0, total: 90000, memo: '수입' });
+  expect((await dump(page, 'customers')).map((c) => c.name)).toContain('해외공급');
+
+  const sell = await mk('판매', [
+    ['2022-01-10', '고객Z', 'Q61P', '', 4, '', 80000, 320000, 32000, 352000, '입금완료', '기본직원'],
+    ['2022-01-10', '고객Z', 'D/C', '', -1, '', 2000, -2000, -200, -2200, '', '기본직원'],
+  ]);
+  expect(await up('sales', sell)).toContain('새로 등록: 2건');
+  const sales = await dump(page, 'sales');
+  expect(sales).toHaveLength(2);
+  expect(sales.every((r) => r.docNo === 'S20220110-01' && r.legacy && r.productId === '')).toBe(true);
+  expect(sales.find((r) => r.qty === -1)).toMatchObject({ isReturn: true, total: -2200 });
+
+  // 지금 재고는 그대로 (PLC Q61P 초기 5, 배송비 0)
+  await nav(page, 'stock');
+  const rowQ = page.locator('#stock-list-card tbody tr', { hasText: 'Q61P' });
+  await expect(rowQ.locator('td').nth(6)).toHaveText('0'); // 입고(매입)
+  await expect(rowQ.locator('td').nth(7)).toHaveText('0'); // 출고(매출)
+  await expect(rowQ.locator('td').nth(8)).toHaveText('5'); // 현재고
+  const rowD = page.locator('#stock-list-card tbody tr', { hasText: '배송비' });
+  await expect(rowD.locator('td').nth(6)).toHaveText('0');
+
+  // 같은 파일 다시 → 0건
+  await nav(page, 'dataimport');
+  expect(await up('purchases', buy)).toContain('새로 등록: 0건');
+  expect(await up('sales', sell)).toContain('새로 등록: 0건');
+  expect(await dump(page, 'purchases')).toHaveLength(3);
+  expect(await dump(page, 'sales')).toHaveLength(2);
+});
