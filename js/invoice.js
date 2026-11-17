@@ -302,6 +302,22 @@ const InvoiceModule = (() => {
       </div>`;
   }
 
+  /** 매출 입력의 「비고」(전표 단위: 고객 주문번호·코멘트)를 명세서에 찍는다 (2026-11-17 사용자 요청).
+   * 전표 1장이면 그 비고 그대로, 기간 명세서(여러 전표)면 비고가 있는 전표만 "전표No: 비고" 로 줄마다. 비고가 없으면 칸을 안 그린다. */
+  function renderMemo(items, docNo) {
+    const byDoc = new Map();
+    items.forEach((it) => {
+      const m = String(it.memo || '').trim();
+      const key = it.docNo || it.date || '';
+      if (m && !byDoc.has(key)) byDoc.set(key, m);
+    });
+    if (!byDoc.size) return '<div class="inv-memo inv-memo-empty"></div>';
+    const lines = (docNo || byDoc.size === 1)
+      ? [escapeHtml([...byDoc.values()][0])]
+      : [...byDoc].map(([k, m]) => `${escapeHtml(k)}: ${escapeHtml(m)}`);
+    return `<div class="inv-memo"><b>비고</b><div class="inv-memo-text">${lines.join('<br>')}</div></div>`;
+  }
+
   function buildBodyHtml(company, buyer, items, totals, docNo) {
     return `
       <div class="inv-doc">
@@ -339,10 +355,13 @@ const InvoiceModule = (() => {
           </tbody>
         </table>
 
-        <div class="inv-totals">
-          <div>공급가액: ${totals.subtotal.toLocaleString()}</div>
-          <div>부가세: ${totals.vat.toLocaleString()}</div>
-          <div class="inv-total-final">합계: ${totals.total.toLocaleString()}</div>
+        <div class="inv-sum-row">
+          ${renderMemo(items, docNo)}
+          <div class="inv-totals">
+            <div>공급가액: ${totals.subtotal.toLocaleString()}</div>
+            <div>부가세: ${totals.vat.toLocaleString()}</div>
+            <div class="inv-total-final">합계: ${totals.total.toLocaleString()}</div>
+          </div>
         </div>
 
         <div class="inv-sign-row">

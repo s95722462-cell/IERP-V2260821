@@ -324,6 +324,35 @@ test('[회귀] 명세서 8품목(절취선 2단)에서도 합계가 반 장 안�
   expect(fit).toEqual([true, true]);
 });
 
+test('명세서에 매출 비고(고객 주문번호·코멘트)가 찍히고, 8품목 반 장에서도 합계가 보인다 (2026-11-17)', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => { window.print = () => {}; });
+  await addCustomer(page, '고객D');
+  await addProduct(page, { name: '센서', spec: 'S-100', price: 1000, init: 50 });
+  await nav(page, 'sales');
+  await page.click('#sl-add-btn');
+  await page.fill('#sl-buyer-name', '고객D');
+  for (let i = 0; i < 8; i++) {
+    if (i) await page.click('#sl-add-row-btn');
+    await fillTxRow(page, 'sl', i, { item: '센서 (S-100)', qty: 1 });
+  }
+  await page.fill('#sl-memo', '주문번호 PO-2611-0042 / 오전 납품');
+  await page.click('#sl-save-btn');
+  await expect(page.locator('#sl-panel-bg')).toBeHidden();
+  await page.locator('#sl-list-card button[data-act="invoice"]').first().click();
+  await expect(page.locator('#invoice-print-area .inv-copy')).toHaveCount(2);
+  await expect(page.locator('#invoice-print-area .inv-memo').first()).toContainText('주문번호 PO-2611-0042 / 오전 납품');
+  await page.emulateMedia({ media: 'print' });
+  const fit = await page.evaluate(() => [...document.querySelectorAll('#invoice-print-area .inv-copy')].map((c) => {
+    const box = c.getBoundingClientRect();
+    const t = c.querySelector('.inv-total-final').getBoundingClientRect();
+    const m = c.querySelector('.inv-memo').getBoundingClientRect();
+    return t.height > 0 && m.height > 0 && t.bottom <= box.bottom + 0.5 && m.bottom <= box.bottom + 0.5;
+  }));
+  await page.emulateMedia({ media: 'screen' });
+  expect(fit).toEqual([true, true]);
+});
+
 test('[회귀] 모바일에서는 명세서를 미리보기로 띄우고 그 안의 버튼으로 인쇄한다 (iOS Safari 무반응 대응)', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
