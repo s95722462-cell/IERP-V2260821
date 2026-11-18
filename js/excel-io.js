@@ -68,28 +68,32 @@ const ExcelIO = (() => {
    *   칼럼명 목록 (headerOrder에 쓴 이름과 동일해야 함). 셀 값 자체는
    *   그대로 숫자로 저장되고, 화면에 보이는 표시 방식만 바뀝니다 —
    *   그래서 엑셀에서 계산식(합계 등)에 그대로 활용할 수 있습니다.
+   * @param {string[]} [titleLines] - 표 위에 한 줄씩 찍을 제목·머리글 (예: 공급자 상호).
+   *   있으면 그 아래 한 줄을 비우고 표 머리글이 시작된다. 다시 올리는 양식(품목 목록 등)에는 쓰지 않는다
+   *   — 업로드는 첫 줄을 머리글로 읽기 때문 (2026-11-18 매출원장에 공급자 상호 넣기).
    */
-  function download(filename, rows, headerOrder, numberFormatCols) {
-    const ws = headerOrder
-      ? XLSX.utils.json_to_sheet(rows, { header: headerOrder })
-      : XLSX.utils.json_to_sheet(rows);
+  function download(filename, rows, headerOrder, numberFormatCols, titleLines) {
+    const top = (titleLines && titleLines.length) ? titleLines.length + 1 : 0; // 제목 줄 + 빈 줄 1
+    const ws = top ? XLSX.utils.aoa_to_sheet(titleLines.map((t) => [t])) : undefined;
+    const opts = { ...(headerOrder ? { header: headerOrder } : {}), ...(top ? { origin: top } : {}) };
+    const sheet = ws ? XLSX.utils.sheet_add_json(ws, rows, opts) : XLSX.utils.json_to_sheet(rows, opts);
 
     if (numberFormatCols && numberFormatCols.length) {
       const headers = headerOrder || Object.keys(rows[0] || {});
-      const range = XLSX.utils.decode_range(ws['!ref']);
+      const range = XLSX.utils.decode_range(sheet['!ref']);
       numberFormatCols.forEach((colName) => {
         const colIdx = headers.indexOf(colName);
         if (colIdx === -1) return;
-        for (let r = range.s.r + 1; r <= range.e.r; r++) { // +1: 헤더 줄(0행)은 건너뜀
+        for (let r = top + 1; r <= range.e.r; r++) { // top+1: 제목 줄과 헤더 줄은 건너뜀
           const cellRef = XLSX.utils.encode_cell({ r, c: colIdx });
-          const cell = ws[cellRef];
+          const cell = sheet[cellRef];
           if (cell && cell.t === 'n') cell.z = '#,##0';
         }
       });
     }
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.utils.book_append_sheet(wb, sheet, 'Sheet1');
     XLSX.writeFile(wb, filename);
   }
 

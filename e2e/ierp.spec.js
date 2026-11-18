@@ -1219,3 +1219,43 @@ test('과거 원장(기간별 구매·판매명세서 상세) 가져오기: 재�
   expect(await dump(page, 'purchases')).toHaveLength(3);
   expect(await dump(page, 'sales')).toHaveLength(2);
 });
+
+test('매출원장 엑셀: 표 위와 파일 이름에 공급자(우리 회사) 상호가 들어간다, 품목 목록은 머리글이 첫 줄 그대로 (2026-11-18)', async ({ page }) => {
+  await boot(page);
+  // 회사 정보에 사업자번호를 넣어 둔다 (공급자 줄에 같이 찍히는지)
+  await page.evaluate(() => { companies[activeCoIdx].bizno = '123-45-67890'; });
+  await addCustomer(page, '고객L');
+  await addProduct(page, { name: '분기유닛', spec: 'T891', price: 24000, init: 100 });
+  await addSale(page, { buyer: '고객L', date: today(), item: '분기유닛 (T891)', qty: 2 });
+  await nav(page, 'sales');
+  await page.click('summary:has-text("거래처·기간별 매출 원장")'); // 접혀 있는 원장 칸 펼치기
+  await page.fill('#sl-inv-buyer-name', '고객L');
+  await page.locator('#sl-inv-buyer-name').dispatchEvent('change');
+  await page.fill('#sl-inv-from', today());
+  await page.fill('#sl-inv-to', today());
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#sl-inv-excel-btn')]);
+  expect(dl.suggestedFilename()).toBe(`매출원장_테스트상사→고객L_${today()}~${today()}.xlsx`);
+  const b64 = fs.readFileSync(await dl.path()).toString('base64');
+  const aoa = await page.evaluate((s) => {
+    const wb = XLSX.read(s, { type: 'base64' });
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+  }, b64);
+  expect(aoa[0][0]).toBe('매출원장');
+  expect(aoa[1][0]).toBe('공급자: 테스트상사 (사업자번호 123-45-67890)');
+  expect(aoa[2][0]).toBe('공급받는자: 고객L');
+  expect(aoa[3][0]).toBe(`기간: ${today()} ~ ${today()}`);
+  expect(aoa[5].slice(0, 9)).toEqual(['No.', '날짜', '품목명', '규격', '수량', '단가', '공급가액', '부가세', '합계']);
+  expect(aoa[6].slice(0, 9)).toEqual([1, today(), '분기유닛', 'T891', 2, 24000, 48000, 4800, 52800]);
+  expect(aoa[7][6]).toBe(48000); // 합계 줄
+
+  // 품목 목록: 파일 이름에 회사명, 표는 첫 줄이 머리글 (다시 올리는 양식이라 제목 줄을 넣지 않는다)
+  await nav(page, 'products');
+  await page.click('summary:has-text("엑셀 대량 업로드 / 관리")');
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#pr-export-btn')]);
+  expect(dl2.suggestedFilename()).toBe('품목_목록_테스트상사.xlsx');
+  const aoa2 = await page.evaluate((s) => {
+    const wb = XLSX.read(s, { type: 'base64' });
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+  }, fs.readFileSync(await dl2.path()).toString('base64'));
+  expect(aoa2[0][0]).toBe('코드');
+});

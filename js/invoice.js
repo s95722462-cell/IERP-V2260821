@@ -60,9 +60,31 @@ const InvoiceModule = (() => {
       '인보이스No.': '', '비고': ''
     });
 
-    const filename = `매출원장_${buyer.name}_${dateFrom || ''}~${dateTo || ''}.xlsx`;
+    // 2026-11-18: 받는 쪽(예: (주)엘에스이엔지 이카운트 매입 입력)이 "누가 보낸 원장인지" 알 수 있게
+    // 공급자(우리 회사) 상호·사업자번호를 표 위와 파일 이름에 넣는다.
+    const supplierName = supplierLabel();
+    const party = (name, bizno) => `${name || '-'}${bizno ? ` (사업자번호 ${bizno})` : ''}`;
+    const company = companies[activeCoIdx] || {};
+    const titleLines = [
+      '매출원장',
+      `공급자: ${party(supplierName, company.bizno)}`,
+      `공급받는자: ${party(buyer.name, buyer.bizno)}`,
+      `기간: ${dateFrom || '전체'} ~ ${dateTo || '전체'}`
+    ];
+    const filename = `매출원장_${safeName(supplierName)}→${safeName(buyer.name)}_${dateFrom || ''}~${dateTo || ''}.xlsx`;
     const headerOrder = ['No.', '날짜', '품목명', '규격', '수량', '단가', '공급가액', '부가세', '합계', '인보이스No.', '비고'];
-    ExcelIO.download(filename, rows, headerOrder, ['단가', '공급가액', '부가세', '합계']);
+    ExcelIO.download(filename, rows, headerOrder, ['단가', '공급가액', '부가세', '합계'], titleLines);
+  }
+
+  /** 지금 회사(공급자)의 상호 — 회사 정보의 회사명, 없으면 회사 목록 이름. */
+  function supplierLabel() {
+    const c = companies[activeCoIdx] || {};
+    return c.company || c.name || '';
+  }
+
+  /** 파일 이름에 못 쓰는 글자를 빼고 공백을 정리한다. */
+  function safeName(s) {
+    return String(s || '').replace(/[\\/:*?"<>|\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
   /**

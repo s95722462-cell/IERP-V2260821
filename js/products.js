@@ -244,7 +244,10 @@ const ProductsModule = (() => {
       기준단가: p.price || 0, 단위: p.unit || '', 초기재고: p.initStock || 0,
       안전재고: p.safeStock || 0, 메모: p.memo || ''
     }));
-    ExcelIO.download('품목_목록.xlsx', rows, EXCEL_HEADERS);
+    // 파일 이름에 회사(상호)를 넣는다 — 여러 회사 목록이 섞여도 구분되게 (2026-11-18).
+    // 표 모양(첫 줄 = 머리글)은 그대로: 이 파일을 다시 올리는 업로드가 첫 줄을 머리글로 읽는다.
+    const co = String(companies[activeCoIdx]?.company || '').replace(/[\\/:*?"<>|\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim();
+    ExcelIO.download(co ? `품목_목록_${co}.xlsx` : '품목_목록.xlsx', rows, EXCEL_HEADERS);
   }
 
   async function handleUpload(e) {
