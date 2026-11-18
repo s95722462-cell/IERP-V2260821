@@ -138,8 +138,8 @@ const DataImportModule = (() => {
         result = legacy ? await importLegacyTransactions(file, txType, kind) : await importTransactions(file, txType, kind);
       }
 
-      log(kind, `완료 — 전체 ${result.total}건 중 새로 등록 ${result.added}건, 건너뜀(중복/기존) ${result.skippedDup || 0}건, 형식 오류로 제외 ${result.invalid || 0}건${result.failed ? `, 실패 ${result.failed}건` : ''}`);
-      alert(`${kindLabel(kind)} 가져오기 완료\n\n새로 등록: ${result.added}건`);
+      log(kind, `완료 — 전체 ${result.total}건 중 새로 등록 ${result.added}건${result.filled ? `, 기존 거래처 빈 칸 채움 ${result.filled}건` : ''}, 건너뜀(중복/기존) ${result.skippedDup || 0}건, 형식 오류로 제외 ${result.invalid || 0}건${result.failed ? `, 실패 ${result.failed}건` : ''}`);
+      alert(`${kindLabel(kind)} 가져오기 완료\n\n새로 등록: ${result.added}건${result.filled ? `\n빈 칸 채움: ${result.filled}건` : ''}`);
     } catch (err) {
       log(kind, '오류: ' + err.message);
       alert('가져오는 중 오류가 발생했습니다: ' + err.message);
@@ -199,36 +199,65 @@ const DataImportModule = (() => {
     const rows = rowsFromAOA(aoa, headerIdx);
 
     const existingNames = new Set(CustomersModule.getCache().map((c) => (c.name || '').trim()).filter(Boolean));
+    // 2026-11-18: 이미 있는 거래처는 건너뛰지 않고 "비어 있는 칸만" 채운다 (있는 값은 절대 덮어쓰지 않음).
+    //   과거 원장 가져오기로 이름만 만들어진 거래처에 사업자번호·대표자·주소를 채우기 위함.
+    //   같은 거래처 찾기: 사업자번호(숫자만, 000-00-00000 제외) → 없으면 이름.
+    const digits = (s) => String(s || '').replace(/\D/g, '');
+    const realBiz = (s) => { const d = digits(s); return d && !/^0+$/.test(d) ? d : ''; };
+    const blank = (v) => { const s = String(v == null ? '' : v).trim(); return !s || s === 'http://' || /^0{3}-0{2}-0{5}$/.test(s); };
+    const byName = new Map(), byBiz = new Map();
+    CustomersModule.getCache().forEach((c) => {
+      const n = (c.name || '').trim(); if (n && !byName.has(n)) byName.set(n, c);
+      const b = realBiz(c.bizno); if (b && !byBiz.has(b)) byBiz.set(b, c);
+    });
     const ops = [];
-    let added = 0, skippedDup = 0, invalid = 0;
+    let added = 0, skippedDup = 0, invalid = 0, filled = 0;
 
     rows.forEach((r) => {
       const name = String(r['거래처명'] || '').trim();
       if (!name) { invalid++; return; }
-      if (existingNames.has(name)) { skippedDup++; return; }
-
       const addr = [r['주소1'], r['주소2']].map((v) => String(v || '').trim()).filter(Boolean).join(' ');
-      const id = genId();
-      const data = {
-        name,
+      const incoming = {
         bizno: String(r['사업자번호'] || '').trim(),
         ceo: String(r['대표자명'] || '').trim(),
         biztype: String(r['업태'] || '').trim(),
         bizitem: String(r['종목'] || '').trim(),
         tel: String(r['전화번호'] || '').trim(),
+        fax: String(r['팩스번호'] || '').trim(),
+        addr
+      };
+      const found = byBiz.get(realBiz(incoming.bizno)) || byName.get(name);
+      if (found) {
+        const patch = {};
+        Object.entries(incoming).forEach(([k, v]) => { if (!blank(v) && blank(found[k])) patch[k] = v; });
+        if (Object.keys(patch).length) {
+          ops.push({ type: 'set', path: custPath(), id: found.id, data: patch, merge: true });
+          Object.assign(found, patch);
+          filled++;
+        } else skippedDup++;
+        return;
+      }
+      if (existingNames.has(name)) { skippedDup++; return; }
+
+      const id = genId();
+      const data = {
+        name,
+        ...incoming,
         email: '',
-        addr,
         memo: '',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       ops.push({ type: 'set', path: custPath(), id, data });
-      CustomersModule.getCache().push({ id, ...data, createdAt: new Date() });
+      const created = { id, ...data, createdAt: new Date() };
+      CustomersModule.getCache().push(created);
       existingNames.add(name);
+      byName.set(name, created);
+      const b = realBiz(data.bizno); if (b && !byBiz.has(b)) byBiz.set(b, created);
       added++;
     });
 
     if (ops.length) await batchWrite(ops);
-    return { total: rows.length, added, skippedDup, invalid };
+    return { total: rows.length, added, filled, skippedDup, invalid };
   }
 
   // ── ② 품목 가져오기 ──────────────────────────────────────

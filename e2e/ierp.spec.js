@@ -1259,3 +1259,49 @@ test('매출원장 엑셀: 표 위와 파일 이름에 공급자(우리 회사) 
   }, fs.readFileSync(await dl2.path()).toString('base64'));
   expect(aoa2[0][0]).toBe('코드');
 });
+
+test('거래처 가져오기: 이미 있는 거래처는 빈 칸만 채우고(있는 값은 그대로), 없는 거래처만 새로 만든다 (2026-11-18)', async ({ page }) => {
+  const dialogs = await boot(page);
+  await addCustomer(page, '(주)엘에스이엔지');            // 이름만 있는 거래처
+  await addCustomer(page, '유니테크');
+  await page.waitForFunction(() => CustomersModule.getCache().some((x) => x.name === '유니테크'));
+  await page.evaluate(async () => {                      // 유니테크는 전화번호가 이미 있다 → 덮어쓰면 안 됨
+    const c = CustomersModule.getCache().find((x) => x.name === '유니테크');
+    c.tel = '054-000-0000';
+    await db.collection(`users/${getAuthState().currentUser.safeId}/companies/${curCompanyId()}/customers`).doc(c.id).set({ tel: '054-000-0000' }, { merge: true });
+  });
+  await nav(page, 'dataimport');
+  const b64 = await page.evaluate(() => {
+    const H = ['거래처 코드', '거래처명', '거래처분류', '거래처구분', '대표자명', '사업자번호', '전화번호', '팩스국가번호', '팩스번호', '홈페이지', '업태', '종목', '우편번호', '주소1', '주소2'];
+    const aoa = [['거래처 정보'], [], [], H,
+      ['00040', '(주)엘에스이엔지', '매입매출처', '', '이상구', '513-81-81492', '010-6680-0239', '', '', '', '제조업', '자동화장비', '39452', '경상북도 구미시 장천면 강동로 289', ''],
+      ['00002', '유니테크', '매입매출처', '', '김승환', '286-68-00055', '054-462-8053', '', '054-462-8054', 'http://', '제조.도매', '자동화장비외', '', '경상북도 구미시 3공단1로 275-7', ''],
+      ['00030', '우성에스이(주)', '매입매출처', '', '조우철', '514-81-95155', '', '', '', 'http://', '', '', '', '', ''],
+      [37]];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Sheet1');
+    return XLSX.write(wb, { type: 'base64', bookType: 'xls' });
+  });
+  const up = async () => {
+    const before = dialogs.length;
+    await page.setInputFiles('#di-customers-file', { name: '거래처정보.xls', mimeType: 'application/vnd.ms-excel', buffer: Buffer.from(b64, 'base64') });
+    await page.click('#di-customers-btn');
+    await expect.poll(() => dialogs.slice(before).find((d) => d.includes('가져오기 완료'))).toBeTruthy();
+    return dialogs.slice(before).find((d) => d.includes('가져오기 완료'));
+  };
+  const msg = await up();
+  expect(msg).toContain('새로 등록: 1건');
+  expect(msg).toContain('빈 칸 채움: 2건');
+  const cus = await dump(page, 'customers');
+  expect(cus).toHaveLength(3);
+  const ls = cus.find((c) => c.name === '(주)엘에스이엔지');
+  expect(ls).toMatchObject({ bizno: '513-81-81492', ceo: '이상구', tel: '010-6680-0239', addr: '경상북도 구미시 장천면 강동로 289', biztype: '제조업' });
+  const un = cus.find((c) => c.name === '유니테크');
+  expect(un.tel).toBe('054-000-0000');                    // 있던 값은 그대로
+  expect(un).toMatchObject({ bizno: '286-68-00055', fax: '054-462-8054', ceo: '김승환' });
+  expect(cus.find((c) => c.name === '우성에스이(주)')).toMatchObject({ bizno: '514-81-95155', ceo: '조우철' });
+  // 다시 올려도 바뀌는 것 없음
+  const msg2 = await up();
+  expect(msg2).toContain('새로 등록: 0건');
+  expect(msg2).not.toContain('빈 칸 채움');
+  expect(await dump(page, 'customers')).toHaveLength(3);
+});
